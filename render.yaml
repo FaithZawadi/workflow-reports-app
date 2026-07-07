@@ -1,0 +1,80 @@
+# Render Blueprint — deploy with "New + → Blueprint" and point Render at this repo.
+# Creates a managed PostgreSQL database and the web service. On every deploy the
+# start command applies pending migrations and runs the (idempotent) seed before
+# starting the server, so a fresh instance is ready to log into immediately.
+
+databases:
+  - name: qsl-db
+    databaseName: qsl
+    user: qsl
+    plan: free # upgrade for production: free databases expire after 30 days
+
+services:
+  - type: web
+    name: qsl-maintenance-system
+    runtime: node
+    plan: free # upgrade for production: free instances sleep when idle
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start:render
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: qsl-db
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: SESSION_TTL_HOURS
+        value: "12"
+      # Set to the public URL Render assigns (e.g. https://qsl-maintenance-system.onrender.com)
+      - key: APP_URL
+        sync: false
+      - key: PROJECT_MANAGER_CODE
+        sync: false
+      - key: TECHNICAL_MANAGER_CODE
+        sync: false
+      - key: EMAIL_ENABLED
+        value: "false"
+      # Fill these in the dashboard when EMAIL_ENABLED=true
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_SECURE
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      # Comma-separated list that receives the daily due/overdue digest
+      - key: SCHEDULE_ALERT_EMAILS
+        sync: false
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      # Set "false" once real staff are onboarded to stop seeding demo accounts
+      - key: SEED_DEMO_ACCOUNTS
+        value: "true"
+
+  # Optional (paid): daily maintenance reminders at 06:00 UTC. Alternatively use
+  # any external cron (GitHub Actions, cron-job.org) to call:
+  #   curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/schedule/reminders"
+  # - type: cron
+  #   name: qsl-schedule-reminders
+  #   runtime: node
+  #   schedule: "0 6 * * *"
+  #   buildCommand: "echo no build"
+  #   startCommand: curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/schedule/reminders"
+  #   envVars:
+  #     - key: CRON_SECRET
+  #       sync: false
+  #     - key: APP_URL
+  #       sync: false

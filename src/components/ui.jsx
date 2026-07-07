@@ -5,22 +5,32 @@ export function Stripe() {
   return <div className="stripe" />;
 }
 
-export function Brand({ small }) {
+export function Brand({ small, onDark }) {
+  const tile = small ? 34 : 44;
+  const mark = small ? 26 : 34;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      {/* The mark is black-on-light, so on dark surfaces it sits on a white tile. */}
       <span
         aria-hidden
         style={{
-          width: 22,
-          height: 22,
-          transform: "rotate(45deg)",
-          backgroundImage: `repeating-linear-gradient(45deg, ${GOLD} 0 5px, ${COAL} 5px 10px)`,
-          display: "inline-block",
-          borderRadius: 2,
+          width: tile,
+          height: tile,
+          borderRadius: 6,
+          background: "#fff",
+          border: onDark ? "none" : "1px solid var(--line)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
         }}
-      />
-      <span style={{ fontWeight: 900, letterSpacing: "-.01em", fontSize: small ? 15 : 18 }}>
-        QALIBRATED <span style={{ color: GOLD }}>SYSTEMS</span>
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/mark.svg" alt="" width={mark} height={mark} style={{ display: "block" }} />
+      </span>
+      <span style={{ fontWeight: 900, letterSpacing: "-.01em", fontSize: small ? 15 : 18, lineHeight: 1.05 }}>
+        QALIBRATED{" "}
+        <span style={{ color: GOLD, display: small ? "inline" : "block", letterSpacing: ".08em" }}>SYSTEMS</span>
       </span>
     </div>
   );

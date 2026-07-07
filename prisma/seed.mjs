@@ -16,6 +16,13 @@ async function main() {
     create: { email: adminEmail, name: adminName, role: "ADMIN", passwordHash: await hash(adminPass) },
   });
 
+  // Demo data can be turned off in production (SEED_DEMO_ACCOUNTS=false)
+  // once real staff are onboarded.
+  if (process.env.SEED_DEMO_ACCOUNTS === "false") {
+    console.log("Seed complete (admin only — demo accounts disabled).");
+    return;
+  }
+
   // A demo client (plant)
   const client = await prisma.client.upsert({
     where: { name: "TATA Chemicals Magadi" },

@@ -96,7 +96,7 @@ export default function LoginForm() {
           </form>
 
           <p className="muted" style={{ marginTop: 14, fontSize: 12 }}>
-            Accounts are created by your QSL administrator. If you can't sign in, contact QSL on
+            Accounts are created by your QSL administrator. If you can&apos;t sign in, contact QSL on
             +254&nbsp;714&nbsp;999&nbsp;996.
           </p>
         </div>

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canView } from "@/lib/rbac";
 import { ReportDocument } from "@/pdf/ReportDocument";
+import { logoDataUrl } from "@/lib/logo";
 
 // Force Node.js runtime — @react-pdf/renderer cannot run on the edge.
 export const runtime = "nodejs";
@@ -27,7 +28,9 @@ export async function GET(req, { params }) {
   if (!report) return Response.json({ error: "Report not found." }, { status: 404 });
   if (!canView(report, user)) return Response.json({ error: "Not allowed." }, { status: 403 });
 
-  const buffer = await renderToBuffer(React.createElement(ReportDocument, { report }));
+  const buffer = await renderToBuffer(
+    React.createElement(ReportDocument, { report, logoSrc: logoDataUrl() })
+  );
 
   return new Response(buffer, {
     status: 200,

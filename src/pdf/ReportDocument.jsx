@@ -64,7 +64,7 @@ function Cell({ children, style }) {
   return <Text style={[s.td, style]}>{children}</Text>;
 }
 
-export function ReportDocument({ report }) {
+export function ReportDocument({ report, logoSrc }) {
   const tpl = templateByCode(report.template);
   const data = report.data || {};
   const st = STATUS[report.status] || { label: report.status, color: INK };
@@ -88,11 +88,17 @@ export function ReportDocument({ report }) {
       <Page size="A4" style={s.page} wrap>
         {/* header */}
         <View style={s.topRow}>
-          <View>
-            <Text style={s.brand}>
-              QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
-            </Text>
-            <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO/IEC 17020:2012 · ILAC-MRA</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {logoSrc ? (
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image src={logoSrc} style={{ width: 34, height: 34, marginRight: 8 }} />
+            ) : null}
+            <View>
+              <Text style={s.brand}>
+                QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
+              </Text>
+              <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO/IEC 17020:2012 · ILAC-MRA</Text>
+            </View>
           </View>
           <View style={s.metaRight}>
             <Text style={s.sys}>QSL MAINTENANCE MANAGEMENT SYSTEM v2.4</Text>

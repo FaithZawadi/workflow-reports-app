@@ -1,5 +1,7 @@
 # QSL Maintenance Management System
 
+![Qalibrated Systems](public/brand/logo.png)
+
 A production full-stack application for **Qalibrated Systems Ltd** that turns the printed
 QSL/F/WB-01…06 weighbridge maintenance sheets into a real system with a database, secure
 logins, an approval workflow, and server-generated PDF reports.
@@ -18,7 +20,8 @@ no app-store step).
 | Secure login | Email + password, bcrypt-hashed, signed httpOnly session cookies (JWT) |
 | Roles & access | Technician, Engineer, Supervisor, Manager, Project Manager, Technical Manager, Admin |
 | Approval workflow | Submit → Supervisor review → Manager approval, with full audit trail |
-| All 7 forms | WB-01 Daily, WB-02 Weekly Accuracy, WB-03 Monthly, WB-04 Engineer Service, WB-05 Breakdown, WB-06 Calibration |
+| All 6 forms | WB-01 Daily, WB-02 Weekly Accuracy, WB-03 Monthly, WB-04 Engineer Service, WB-05 Breakdown, WB-06 Calibration |
+| Maintenance schedule | Due/overdue board per plant & site (daily/weekly/monthly/quarterly service/annual calibration) plus a cron-able email reminder endpoint |
 | PDF reports | True PDF files generated on the server (`@react-pdf/renderer`) — download from any report |
 | Photo evidence | Camera capture with GPS + timestamp burned into the image |
 | Auto serials | Atomic per-year-per-form numbering (e.g. `QSL-WB01-2026-00001`) |
@@ -83,7 +86,10 @@ App runs on http://localhost:3000.
 | `APP_URL` | Public URL, used inside notification emails |
 | `PROJECT_MANAGER_CODE` / `TECHNICAL_MANAGER_CODE` | Second factor for oversight roles |
 | `EMAIL_ENABLED` + `SMTP_*` | Turn on SMTP email notifications |
+| `CRON_SECRET` | Authorises the `/api/schedule/reminders` cron endpoint |
+| `SCHEDULE_ALERT_EMAILS` | Comma-separated recipients of the due/overdue digest |
 | `SEED_ADMIN_*` | First admin created by the seed |
+| `SEED_DEMO_ACCOUNTS` | Set `false` to stop seeding the demo staff accounts |
 
 ---
 
@@ -104,6 +110,15 @@ overseeing approver. **Admin** sees everything and onboards users (`/api/users`)
 
 Any viewer of a report can **Download PDF** — a branded A4 PDF generated on the server.
 
+**Maintenance schedule.** The *Schedule* tab tracks, for every plant and site, when each
+routine is next due — WB-01 daily, WB-02 weekly, WB-03 every 30 days, WB-04 engineer
+service every 90 days, and WB-06 calibration from the "next calibration due" date recorded
+on the last certificate (falling back to yearly). Items show **on track / due now /
+overdue / no record yet**, computed from the last filed report. Admins can push reminder
+emails from the page, and `GET /api/schedule/reminders` (authorised by `CRON_SECRET`, e.g.
+`curl -H "Authorization: Bearer $CRON_SECRET" $APP_URL/api/schedule/reminders`) can be hit
+by any daily cron to email the alert list and the affected site technicians automatically.
+
 ---
 
 ## Installing on a phone (the "mobile app")
@@ -120,6 +135,30 @@ If you later need a store-listed native wrapper, the same codebase can be packag
 ---
 
 ## Deploying to production
+
+### Render (one-click blueprint)
+
+The repo ships with a [`render.yaml`](render.yaml) blueprint:
+
+1. Push the repo to GitHub and, in Render, choose **New + → Blueprint** and select the repo.
+2. Render creates a free PostgreSQL database and the web service. `AUTH_SECRET` and
+   `CRON_SECRET` are generated automatically.
+3. Fill in the env vars marked `sync: false` in the dashboard: `APP_URL` (the
+   `https://….onrender.com` URL Render assigns), the two manager access codes,
+   `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`, and the SMTP settings if you enable email.
+4. Deploy. The start command runs `prisma migrate deploy` and the idempotent seed before
+   `next start`, and Render health-checks `/api/health`, so a fresh instance comes up
+   migrated, seeded, and ready to sign in.
+5. (Optional) point any daily cron — the commented Render cron job in `render.yaml`,
+   GitHub Actions, or cron-job.org — at
+   `GET $APP_URL/api/schedule/reminders` with header `Authorization: Bearer $CRON_SECRET`
+   for automatic maintenance reminders.
+
+Notes for the free tier: the instance sleeps when idle (first request wakes it) and free
+databases expire after 30 days — upgrade both for production use. Set
+`SEED_DEMO_ACCOUNTS=false` once real staff are onboarded.
+
+### Any VPS / local server with Docker
 
 **Any VPS / server with Docker:** copy the repo, set a real `.env` (strong `AUTH_SECRET`,
 production `APP_URL`, SMTP), run `docker compose up -d --build`, and put it behind a

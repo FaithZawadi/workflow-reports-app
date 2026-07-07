@@ -1,6 +1,6 @@
 // Minimal service worker: enables install-to-home-screen and a network-first
 // cache so the app opens quickly and survives brief connection drops.
-const CACHE = "qsl-v1";
+const CACHE = "qsl-v2";
 const SHELL = ["/dashboard", "/login", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
