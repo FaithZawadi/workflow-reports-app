@@ -4,6 +4,7 @@ import { reportScope } from "@/lib/rbac";
 import { nextSerial } from "@/lib/serial";
 import { templateByCode, TECH_TEMPLATES, ENGINEER_TEMPLATES } from "@/lib/templates";
 import { sendMail, reviewRequestEmail } from "@/lib/email";
+import { addCycle } from "@/lib/schedule";
 
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
 
@@ -170,8 +171,49 @@ export async function POST(req) {
     },
   });
 
+  // Advance the matching maintenance schedule, if any (best-effort — never blocks filing).
+  let scheduleAdvanced = false;
+  try {
+    let sched = null;
+    if (body.scheduleId) {
+      sched = await prisma.schedule.findUnique({ where: { id: String(body.scheduleId) } });
+      if (sched && sched.template !== tpl.code) sched = null;
+    }
+    if (!sched && clientId) {
+      sched = await prisma.schedule.findFirst({
+        where: {
+          active: true,
+          template: tpl.code,
+          clientId,
+          ...(report.weighbridgeId ? { weighbridgeId: report.weighbridgeId } : {}),
+        },
+        orderBy: { nextDueAt: "asc" },
+      });
+    }
+    if (sched) {
+      const now = new Date();
+      const base = now > new Date(sched.nextDueAt) ? now : new Date(sched.nextDueAt);
+      await prisma.schedule.update({
+        where: { id: sched.id },
+        data: {
+          lastDoneAt: now,
+          nextDueAt: addCycle(base, sched.frequency, sched.intervalDays),
+          lastReportSerial: report.serial,
+        },
+      });
+      scheduleAdvanced = true;
+    }
+  } catch {
+    // scheduling is best-effort
+  }
+
   // Notify supervisor (best-effort).
   const mail = await sendMail(reviewRequestEmail(report));
 
-  return Response.json({ serial: report.serial, emailSent: mail.sent, emailReason: mail.reason });
+  return Response.json({
+    serial: report.serial,
+    emailSent: mail.sent,
+    emailReason: mail.reason,
+    scheduleAdvanced,
+  });
 }

@@ -1,25 +1,39 @@
 "use client";
-import { STATUS, GOLD, COAL, INK, MUTE } from "@/lib/theme";
+import { STATUS, GOLD, COAL, INK, MUTE, PAPER } from "@/lib/theme";
 
 export function Stripe() {
   return <div className="stripe" />;
 }
 
-export function Brand({ small }) {
+export function Brand({ small, tile }) {
+  const mark = small ? 30 : 46;
+  const img = (
+    <img
+      src="/brand/qsl-mark.svg"
+      alt="Qalibrated Systems"
+      width={mark}
+      height={mark}
+      style={{ display: "block", width: mark, height: mark }}
+    />
+  );
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <span
-        aria-hidden
-        style={{
-          width: 22,
-          height: 22,
-          transform: "rotate(45deg)",
-          backgroundImage: `repeating-linear-gradient(45deg, ${GOLD} 0 5px, ${COAL} 5px 10px)`,
-          display: "inline-block",
-          borderRadius: 2,
-        }}
-      />
-      <span style={{ fontWeight: 900, letterSpacing: "-.01em", fontSize: small ? 15 : 18 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: small ? 9 : 12 }}>
+      {tile ? (
+        <span
+          style={{
+            display: "inline-flex",
+            padding: small ? 3 : 5,
+            background: PAPER,
+            borderRadius: 8,
+            boxShadow: "0 1px 0 rgba(0,0,0,.15)",
+          }}
+        >
+          {img}
+        </span>
+      ) : (
+        img
+      )}
+      <span style={{ fontWeight: 900, letterSpacing: "-.01em", fontSize: small ? 16 : 20, lineHeight: 1 }}>
         QALIBRATED <span style={{ color: GOLD }}>SYSTEMS</span>
       </span>
     </div>

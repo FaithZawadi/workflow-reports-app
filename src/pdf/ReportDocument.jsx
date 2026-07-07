@@ -1,6 +1,21 @@
 import React from "react";
+import fs from "node:fs";
+import path from "node:path";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { templateByCode } from "@/lib/templates";
+
+// The QSL emblem, embedded as a data URL so the PDF is self-contained.
+let _markUri = null;
+function markUri() {
+  if (_markUri !== null) return _markUri || null;
+  try {
+    const file = path.join(process.cwd(), "public", "icons", "icon-512-transparent.png");
+    _markUri = "data:image/png;base64," + fs.readFileSync(file).toString("base64");
+  } catch {
+    _markUri = "";
+  }
+  return _markUri || null;
+}
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -20,6 +35,8 @@ const STATUS = {
 const s = StyleSheet.create({
   page: { paddingTop: 34, paddingBottom: 46, paddingHorizontal: 34, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  brandRow: { flexDirection: "row", alignItems: "center" },
+  brandMark: { width: 30, height: 30, marginRight: 8 },
   brand: { fontSize: 15, fontFamily: "Helvetica-Bold", color: COAL },
   brandGold: { color: GOLD },
   accred: { fontSize: 6.5, color: MUTE, marginTop: 3, fontFamily: "Courier" },
@@ -88,11 +105,15 @@ export function ReportDocument({ report }) {
       <Page size="A4" style={s.page} wrap>
         {/* header */}
         <View style={s.topRow}>
-          <View>
-            <Text style={s.brand}>
-              QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
-            </Text>
-            <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO/IEC 17020:2012 · ILAC-MRA</Text>
+          <View style={s.brandRow}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            {markUri() && <Image style={s.brandMark} src={markUri()} />}
+            <View>
+              <Text style={s.brand}>
+                QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
+              </Text>
+              <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO/IEC 17020:2012 · ILAC-MRA</Text>
+            </View>
           </View>
           <View style={s.metaRight}>
             <Text style={s.sys}>QSL MAINTENANCE MANAGEMENT SYSTEM v2.4</Text>

@@ -23,7 +23,7 @@ export default function AppShell({ user, children }) {
         >
           <Link href="/dashboard" style={{ textDecoration: "none", color: "#fff" }}>
             <span style={{ color: "#fff" }}>
-              <Brand small />
+              <Brand small tile />
             </span>
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -41,6 +41,9 @@ export default function AppShell({ user, children }) {
       <nav className="wrap" style={{ display: "flex", gap: 8, padding: "12px 16px 0" }}>
         <Link href="/dashboard" className="btn" style={{ fontSize: 13 }}>
           Report registry
+        </Link>
+        <Link href="/schedule" className="btn" style={{ fontSize: 13 }}>
+          Maintenance schedule
         </Link>
         {canFile && (
           <Link href="/reports/new" className="btn btn-dark" style={{ fontSize: 13 }}>
