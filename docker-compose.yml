@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: qsl
+      POSTGRES_PASSWORD: qsl_password
+      POSTGRES_DB: qsl
+    volumes:
+      - qsl_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qsl -d qsl"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Override host to the compose service name regardless of .env value.
+      DATABASE_URL: "postgresql://qsl:qsl_password@db:5432/qsl?schema=public"
+    ports:
+      - "3000:3000"
+
+volumes:
+  qsl_db:

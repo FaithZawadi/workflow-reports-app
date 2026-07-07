@@ -1,0 +1,187 @@
+"use client";
+import { useEffect, useState } from "react";
+import { PaperCard, SectionBar, Pill } from "./ui";
+import { templateByCode } from "@/lib/templates";
+import { COAL, GOLD, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
+
+export default function ReportDetail({ serial, profile }) {
+  const [rep, setRep] = useState(null);
+  const [actAs, setActAs] = useState(null);
+  const [err, setErr] = useState("");
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
+
+  const load = async () => {
+    setErr("");
+    const res = await fetch(`/api/reports/${serial}`);
+    const data = await res.json();
+    if (!res.ok) return setErr(data.error || "Could not load report.");
+    setRep(data.report);
+    setActAs(data.permissions?.actAs || null);
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serial]);
+
+  const decide = async (decision) => {
+    if (decision === "reject" && !comment.trim()) return setNote("A comment is required to reject.");
+    setBusy(true);
+    setNote("Saving…");
+    const res = await fetch(`/api/reports/${serial}/decision`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ decision, comment }),
+    });
+    const data = await res.json();
+    setBusy(false);
+    if (!res.ok) return setNote(data.error || "Could not save.");
+    setNote(data.emailSent ? "Done. Notification sent." : "Saved. (Email notification is off or failed.)");
+    setComment("");
+    load();
+  };
+
+  if (err)
+    return (
+      <div style={{ marginTop: 16 }} className="err">
+        {err}
+      </div>
+    );
+  if (!rep) return <div className="muted" style={{ marginTop: 24 }}>Loading report…</div>;
+
+  const tpl = templateByCode(rep.template);
+  const data = rep.data || {};
+  const pending = rep.status === "PENDING_SUPERVISOR" || rep.status === "PENDING_MANAGER";
+
+  const freeFields = Object.entries(data.values || {}).filter(([k, v]) => k !== "weighbridgeId" && v);
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <PaperCard>
+        <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <span className="mono" style={{ fontSize: 13, fontWeight: 700, background: COAL, color: GOLD, padding: "4px 8px" }}>{rep.serial}</span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <a className="btn btn-dark" href={`/api/reports/${rep.serial}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, textDecoration: "none" }}>
+              Download PDF
+            </a>
+            <Pill status={rep.status} />
+          </div>
+        </div>
+
+        <h1 className="h1" style={{ marginTop: 10 }}>{rep.templateName}</h1>
+        <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
+          {rep.clientName}
+          {rep.site ? " - " + rep.site : ""} · {rep.weighbridgeId || "weighbridge not stated"} · by <b>{rep.authorName}</b> ·{" "}
+          {new Date(rep.createdAt).toLocaleString()}
+        </div>
+
+        {/* action panel */}
+        {pending && actAs && (
+          <div className="card" style={{ borderColor: GOLD, background: "#fdf6e3", padding: 14, marginTop: 14 }}>
+            <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK }}>
+              {actAs === "SUPERVISOR" ? "Supervisor review" : "Manager approval"}
+            </div>
+            <div className="muted" style={{ margin: "4px 0 10px" }}>
+              Your decision is recorded with your name and the time.
+            </div>
+            <input className="input" placeholder="Comment (required to reject)" value={comment} onChange={(e) => setComment(e.target.value)} style={{ marginBottom: 10 }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn" disabled={busy} onClick={() => decide("approve")} style={{ flex: 1, background: PASS, color: "#fff", borderColor: PASS, fontWeight: 900, textTransform: "uppercase" }}>
+                Approve
+              </button>
+              <button className="btn" disabled={busy || !comment.trim()} onClick={() => decide("reject")} style={{ flex: 1, background: comment.trim() ? FAIL : "#d8b4ac", color: "#fff", borderColor: comment.trim() ? FAIL : "#d8b4ac", fontWeight: 900, textTransform: "uppercase" }}>
+                Reject
+              </button>
+            </div>
+            {note && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, marginTop: 8 }}>{note}</div>}
+          </div>
+        )}
+        {pending && !actAs && (
+          <div className="card" style={{ padding: 12, marginTop: 14, background: "#f3eee2", color: MUTE, fontSize: 13 }}>
+            Waiting for {rep.status === "PENDING_SUPERVISOR" ? "supervisor review by " + rep.supervisorEmail : "manager approval by " + rep.managerEmail}.
+          </div>
+        )}
+
+        {/* free fields */}
+        {freeFields.map(([k, v]) => (
+          <div key={k} style={{ fontSize: 14, marginTop: 8 }}>
+            <b style={{ textTransform: "uppercase", fontSize: 11, color: MUTE }}>{k}: </b>
+            {String(v)}
+          </div>
+        ))}
+
+        {/* checklists */}
+        {(tpl?.sections || []).map((sec, si) =>
+          sec.type === "checklist" ? (
+            <div key={si}>
+              <SectionBar>{sec.title}</SectionBar>
+              {sec.items.map((it, ii) => {
+                const v = data.checks?.[`${si}:${ii}`];
+                const label = v?.state === "problem" ? sec.no || "NEEDS ATTENTION" : v?.state === "ok" ? sec.yes || "OK" : "—";
+                const color = v?.state === "problem" ? FAIL : v?.state === "ok" ? PASS : "#b8af9e";
+                return (
+                  <div key={ii} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 14, padding: "6px 0", borderBottom: "1px solid #eae4d6" }}>
+                    <span style={{ color: INK }}>
+                      {it}
+                      {v?.remark ? <span style={{ color: FAIL }}> — {v.remark}</span> : ""}
+                    </span>
+                    <b style={{ color, flexShrink: 0 }}>{label}</b>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null
+        )}
+
+        {/* weekly */}
+        {data.weekly && data.weekly.pass !== null && (
+          <div style={{ padding: 10, marginTop: 12, borderRadius: 2, fontSize: 14, fontWeight: 700, color: "#fff", background: data.weekly.pass ? PASS : FAIL }}>
+            Weekly test: {data.weekly.pass ? "WITHIN LIMIT" : "OVER LIMIT — QSL attention required"} (limit {data.weekly.limit} kg)
+          </div>
+        )}
+
+        {/* photos */}
+        {(rep.photos || []).length > 0 && (
+          <div>
+            <SectionBar>Photos</SectionBar>
+            <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))" }}>
+              {rep.photos.map((p, i) => (
+                <figure key={i} style={{ margin: 0 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.dataUrl} alt={p.caption || "photo"} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 2, border: "1px solid var(--line)" }} />
+                  <figcaption className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+                    {p.caption || "(no caption)"}
+                    {p.gpsLat != null && (
+                      <span className="mono" style={{ display: "block" }}>
+                        {p.gpsLat.toFixed(5)}, {p.gpsLng.toFixed(5)}
+                      </span>
+                    )}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* trail */}
+        <SectionBar>Approval trail</SectionBar>
+        {(rep.trailEvents || []).map((t, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13, padding: "6px 0", borderBottom: "1px solid #eae4d6" }}>
+            <span>
+              <b>{t.action}</b> by {t.byName}
+              {t.comment ? ` — "${t.comment}"` : ""}
+            </span>
+            <span className="muted" style={{ flexShrink: 0, fontSize: 12 }}>{new Date(t.at).toLocaleString()}</span>
+          </div>
+        ))}
+        {rep.status === "APPROVED" && (
+          <div style={{ marginTop: 12, padding: 12, borderRadius: 2, fontWeight: 900, textTransform: "uppercase", color: "#fff", background: PASS, textAlign: "center" }}>
+            Fully approved — record closed
+          </div>
+        )}
+      </PaperCard>
+    </div>
+  );
+}
