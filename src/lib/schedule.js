@@ -1,186 +1,131 @@
-import { prisma } from "./db";
-import { reportScope } from "./rbac";
-import { TECH_TEMPLATES, ENGINEER_TEMPLATES, templateByCode } from "./templates";
+// Maintenance scheduling helpers — frequency maths, due-status and access rules.
+import { TECH_TEMPLATES, ENGINEER_TEMPLATES } from "./templates";
 
-// Maintenance cadence for each recurring form. WB05 (breakdown) is on-demand
-// and therefore never scheduled.
-export const CADENCE = {
-  WB01: { everyDays: 1, leadDays: 0 },
-  WB02: { everyDays: 7, leadDays: 2 },
-  WB03: { everyDays: 30, leadDays: 5 },
-  WB04: { everyDays: 90, leadDays: 14 },
-  WB06: { everyDays: 365, leadDays: 30 },
+// How soon (in days) before the due date an item is flagged "due soon".
+export const FREQUENCIES = {
+  DAILY: { label: "Daily", soon: 1, months: 0, days: 1 },
+  WEEKLY: { label: "Weekly", soon: 2, months: 0, days: 7 },
+  MONTHLY: { label: "Monthly", soon: 7, months: 1, days: 0 },
+  QUARTERLY: { label: "Quarterly", soon: 14, months: 3, days: 0 },
+  SEMIANNUAL: { label: "Every 6 months", soon: 21, months: 6, days: 0 },
+  ANNUAL: { label: "Annual", soon: 30, months: 12, days: 0 },
+  CUSTOM: { label: "Custom", soon: 7, months: 0, days: 0 },
 };
 
-export const SCHEDULED_TEMPLATES = Object.keys(CADENCE);
+export const FREQUENCY_KEYS = Object.keys(FREQUENCIES);
 
-const DAY = 24 * 60 * 60 * 1000;
+// The default frequency suggested for each form when creating a schedule.
+export const DEFAULT_FREQUENCY = {
+  WB01: "DAILY",
+  WB02: "WEEKLY",
+  WB03: "MONTHLY",
+  WB04: "SEMIANNUAL",
+  WB05: "CUSTOM",
+  WB06: "ANNUAL",
+};
 
-function templatesForRole(role) {
-  switch (role) {
-    case "TECHNICIAN":
-    case "PROJECT_MANAGER":
-      return TECH_TEMPLATES.filter((t) => CADENCE[t]);
-    case "ENGINEER":
-    case "TECHNICAL_MANAGER":
-      return ENGINEER_TEMPLATES.filter((t) => CADENCE[t]);
-    default:
-      return SCHEDULED_TEMPLATES;
+// Advance a date forward by one cycle of the given frequency.
+export function addCycle(from, frequency, intervalDays) {
+  const d = new Date(from);
+  const f = FREQUENCIES[frequency] || FREQUENCIES.CUSTOM;
+  if (frequency === "CUSTOM") {
+    const n = Number(intervalDays) > 0 ? Number(intervalDays) : 7;
+    d.setDate(d.getDate() + n);
+    return d;
   }
+  if (f.months) d.setMonth(d.getMonth() + f.months);
+  if (f.days) d.setDate(d.getDate() + f.days);
+  return d;
 }
 
-// Tech forms are per client+site (each site keeps its own routine); engineer
-// forms are per client (site varies per job).
-function keyFor(template, clientName, site) {
-  const useSite = TECH_TEMPLATES.includes(template);
-  return `${clientName}||${useSite ? site || "" : ""}||${template}`;
+// Given a due date, classify it relative to "now".
+// Returns { status: OVERDUE|DUE_SOON|SCHEDULED, days } where days is the signed
+// number of whole days until due (negative = overdue).
+export function dueStatus(nextDueAt, frequency, now = new Date()) {
+  const due = new Date(nextDueAt);
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const startOfDue = new Date(due);
+  startOfDue.setHours(0, 0, 0, 0);
+  const days = Math.round((startOfDue - startOfToday) / 86400000);
+  const soon = (FREQUENCIES[frequency] || FREQUENCIES.CUSTOM).soon;
+  let status = "SCHEDULED";
+  if (days < 0) status = "OVERDUE";
+  else if (days <= soon) status = "DUE_SOON";
+  return { status, days };
 }
 
-// Builds the maintenance schedule visible to `user`.
-// Returns items: { clientName, site, template, templateName, cadenceDays,
-//                  lastSerial, lastAt, dueAt, status, daysLeft }
-export async function buildSchedule(user) {
-  const now = new Date();
-  const templates = templatesForRole(user.role);
+export const STATUS_META = {
+  OVERDUE: { label: "Overdue", color: "#B03A2E", rank: 0 },
+  DUE_SOON: { label: "Due soon", color: "#946B00", rank: 1 },
+  SCHEDULED: { label: "Scheduled", color: "#2E7D46", rank: 2 },
+};
 
-  const reports = await prisma.report.findMany({
-    where: { AND: [reportScope(user), { template: { in: templates } }] },
-    orderBy: { createdAt: "desc" },
-    take: 5000,
-    select: {
-      serial: true,
-      template: true,
-      clientName: true,
-      site: true,
-      createdAt: true,
-      status: true,
-      data: true,
-    },
-  });
-
-  // Latest report per schedule key (reports are ordered newest first).
-  const latest = new Map();
-  for (const r of reports) {
-    const key = keyFor(r.template, r.clientName, r.site);
-    if (!latest.has(key)) latest.set(key, r);
-  }
-
-  // Determine which client/site rows the schedule should show even when no
-  // report has ever been filed.
-  const targets = new Map(); // "client||site" -> { clientName, site }
-  const addTarget = (clientName, site) => {
-    if (!clientName) return;
-    const k = `${clientName}||${site || ""}`;
-    if (!targets.has(k)) targets.set(k, { clientName, site: site || "" });
-  };
-
-  if (user.role === "TECHNICIAN") {
-    // Their own plant/site only.
-    if (user.clientId) {
-      const c = await prisma.client.findUnique({ where: { id: user.clientId } });
-      if (c) addTarget(c.name, user.site || "");
-    }
-  } else if (["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "ENGINEER"].includes(user.role)) {
-    // Every active client, plus each technician posting (client+site).
-    const clients = await prisma.client.findMany({ where: { active: true }, select: { name: true } });
-    for (const c of clients) addTarget(c.name, "");
-    if (user.role !== "ENGINEER" && user.role !== "TECHNICAL_MANAGER") {
-      const techs = await prisma.user.findMany({
-        where: { role: "TECHNICIAN", active: true, clientId: { not: null } },
-        select: { site: true, client: { select: { name: true } } },
-      });
-      for (const t of techs) addTarget(t.client?.name, t.site || "");
-    }
-  }
-  // Supervisors/managers only see rows derived from reports routed to them.
-  for (const r of reports) addTarget(r.clientName, TECH_TEMPLATES.includes(r.template) ? r.site : "");
-
-  // Clients that have at least one named-site row (used to hide the redundant
-  // bare-client row for site-level tech forms).
-  const clientsWithSites = new Set(
-    [...targets.values()].filter((t) => t.site).map((t) => t.clientName)
-  );
-
-  const items = [];
-  for (const { clientName, site } of targets.values()) {
-    for (const template of templates) {
-      const useSite = TECH_TEMPLATES.includes(template);
-      // Engineer forms are tracked per client (bare row only); tech forms per
-      // site — skip the bare row when the client has named-site rows.
-      if (!useSite && site) continue;
-      if (useSite && !site && clientsWithSites.has(clientName)) continue;
-      const last = latest.get(keyFor(template, clientName, useSite ? site : ""));
-      const cadence = CADENCE[template];
-
-      let dueAt = null;
-      if (last) {
-        dueAt = new Date(last.createdAt.getTime() + cadence.everyDays * DAY);
-        // WB06 records its own "next calibration due" date — trust it if set.
-        if (template === "WB06") {
-          const nextDue = new Date(last.data?.values?.nextDue || "");
-          if (!isNaN(nextDue.getTime())) dueAt = nextDue;
-        }
-      }
-
-      let status = "NO_RECORD";
-      let daysLeft = null;
-      if (dueAt) {
-        // Compare calendar days so "due tomorrow" never reads as due today.
-        const day = (d) => {
-          const x = new Date(d);
-          x.setHours(0, 0, 0, 0);
-          return x.getTime();
-        };
-        daysLeft = Math.round((day(dueAt) - day(now)) / DAY);
-        status = daysLeft < 0 ? "OVERDUE" : daysLeft <= cadence.leadDays ? "DUE_SOON" : "OK";
-      }
-
-      items.push({
-        clientName,
-        site: useSite ? site : "",
-        template,
-        templateName: templateByCode(template)?.name || template,
-        cadenceDays: cadence.everyDays,
-        lastSerial: last?.serial || null,
-        lastAt: last?.createdAt || null,
-        lastStatus: last?.status || null,
-        dueAt,
-        status,
-        daysLeft,
-      });
-    }
-  }
-
-  // Most urgent first: overdue (most days late first), due soon, no record, ok.
-  const rank = { OVERDUE: 0, DUE_SOON: 1, NO_RECORD: 2, OK: 3 };
-  items.sort(
-    (a, b) =>
-      rank[a.status] - rank[b.status] ||
-      (a.daysLeft ?? 0) - (b.daysLeft ?? 0) ||
-      a.clientName.localeCompare(b.clientName)
-  );
-
-  return items;
+// Human phrasing for the day offset.
+export function duePhrase(days) {
+  if (days === 0) return "due today";
+  if (days === 1) return "due tomorrow";
+  if (days === -1) return "1 day overdue";
+  if (days < 0) return `${-days} days overdue`;
+  return `in ${days} days`;
 }
 
+// Which templates a user may see/manage in the scheduler.
+export function scheduleTemplateScope(role) {
+  if (role === "ADMIN") return null; // all
+  if (role === "PROJECT_MANAGER" || role === "TECHNICIAN") return TECH_TEMPLATES;
+  if (role === "TECHNICAL_MANAGER" || role === "ENGINEER") return ENGINEER_TEMPLATES;
+  return null; // supervisors/managers: view all
+}
+
+// Prisma `where` clause limiting schedules to what this user may list.
+export function scheduleScope(user) {
+  const where = { AND: [] };
+  const tpls = scheduleTemplateScope(user.role);
+  if (tpls) where.AND.push({ template: { in: tpls } });
+  // Technicians only see their own plant's schedules.
+  if (user.role === "TECHNICIAN" && user.clientId) {
+    where.AND.push({ clientId: user.clientId });
+  }
+  return where.AND.length ? where : {};
+}
+
+// Who may create / edit / delete schedules (and for which templates).
+export function canManageSchedules(role) {
+  return ["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER"].includes(role);
+}
+
+export function canManageTemplate(role, template) {
+  if (!canManageSchedules(role)) return false;
+  if (role === "ADMIN") return true;
+  if (role === "PROJECT_MANAGER") return TECH_TEMPLATES.includes(template);
+  if (role === "TECHNICAL_MANAGER") return ENGINEER_TEMPLATES.includes(template);
+  return false;
+}
+
+// Build the daily "maintenance due" digest for one recipient. `overdue` and
+// `dueSoon` are Schedule rows (each carrying dueDays from dueStatus()).
 export function scheduleReminderEmail(to, overdue, dueSoon) {
-  const line = (i) =>
-    `- ${i.templateName} (${i.template}) — ${i.clientName}${i.site ? " / " + i.site : ""}: ` +
-    (i.status === "OVERDUE"
-      ? `${Math.abs(i.daysLeft)} day(s) overdue (was due ${i.dueAt.toDateString()})`
-      : `due ${i.dueAt.toDateString()}`) +
-    (i.lastSerial ? ` — last: ${i.lastSerial}` : " — never filed");
-
+  const line = (i) => {
+    const due = new Date(i.nextDueAt);
+    const when =
+      i.dueDays < 0
+        ? `${Math.abs(i.dueDays)} day(s) overdue (was due ${due.toDateString()})`
+        : `due ${due.toDateString()}`;
+    return (
+      `- ${i.templateName} (${i.template}) — ${i.clientName}${i.site ? " / " + i.site : ""}` +
+      ` · ${i.weighbridgeId || "—"}: ${when}` +
+      (i.lastReportSerial ? ` — last: ${i.lastReportSerial}` : "")
+    );
+  };
+  const url = (process.env.APP_URL || "http://localhost:3000") + "/schedule";
   return {
     to,
     subject: `MAINTENANCE DUE: ${overdue.length} overdue, ${dueSoon.length} due soon — QSL schedule`,
-    text: `QSL maintenance schedule update
-
-${overdue.length ? `OVERDUE:\n${overdue.map(line).join("\n")}\n` : ""}${
-      dueSoon.length ? `DUE SOON:\n${dueSoon.map(line).join("\n")}\n` : ""
-    }
-Open the schedule: ${(process.env.APP_URL || "http://localhost:3000") + "/schedule"}
-
-- QSL Maintenance Management System`,
+    text:
+      `QSL maintenance schedule update\n\n` +
+      (overdue.length ? `OVERDUE:\n${overdue.map(line).join("\n")}\n\n` : "") +
+      (dueSoon.length ? `DUE SOON:\n${dueSoon.map(line).join("\n")}\n\n` : "") +
+      `Open the schedule: ${url}\n\n— QSL Maintenance Management System`,
   };
 }

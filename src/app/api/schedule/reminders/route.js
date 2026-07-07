@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { buildSchedule, scheduleReminderEmail } from "@/lib/schedule";
+import { dueStatus, scheduleReminderEmail } from "@/lib/schedule";
 import { sendMail } from "@/lib/email";
 import { TECH_TEMPLATES } from "@/lib/templates";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // overdue or due soon. Meant to be hit daily by a cron (Render cron job,
 // GitHub Action, cron-job.org…) with the CRON_SECRET, e.g.:
 //   curl -H "Authorization: Bearer $CRON_SECRET" https://app/api/schedule/reminders
-// A signed-in ADMIN may also trigger it manually from the schedule page.
+// A signed-in ADMIN may also trigger it manually.
 async function run(req) {
   const secret = process.env.CRON_SECRET || "";
   const auth = req.headers.get("authorization") || "";
@@ -23,22 +23,25 @@ async function run(req) {
       return Response.json({ error: "Not allowed." }, { status: 401 });
   }
 
-  // Full visibility for the schedule computation.
-  const items = await buildSchedule({ role: "ADMIN" });
-  const overdue = items.filter((i) => i.status === "OVERDUE");
-  const dueSoon = items.filter((i) => i.status === "DUE_SOON");
+  const rows = await prisma.schedule.findMany({ where: { active: true } });
+  const items = rows.map((r) => {
+    const { status, days } = dueStatus(r.nextDueAt, r.frequency);
+    return { ...r, dueState: status, dueDays: days };
+  });
+  const overdue = items.filter((i) => i.dueState === "OVERDUE");
+  const dueSoon = items.filter((i) => i.dueState === "DUE_SOON");
 
   if (overdue.length === 0 && dueSoon.length === 0)
     return Response.json({ ok: true, overdue: 0, dueSoon: 0, emails: [] });
 
-  // Recipients: the configured alert list, plus each technician whose own
-  // plant/site has tech-form items due.
+  // Recipients: the configured alert list (everything), each schedule's own
+  // assignee, and technicians whose plant/site has tech-form items due.
   const recipients = new Map(); // email -> { overdue: [], dueSoon: [] }
   const add = (email, item) => {
     const e = String(email || "").trim().toLowerCase();
     if (!/\S+@\S+\.\S+/.test(e)) return;
     if (!recipients.has(e)) recipients.set(e, { overdue: [], dueSoon: [] });
-    recipients.get(e)[item.status === "OVERDUE" ? "overdue" : "dueSoon"].push(item);
+    recipients.get(e)[item.dueState === "OVERDUE" ? "overdue" : "dueSoon"].push(item);
   };
 
   const alertList = (process.env.SCHEDULE_ALERT_EMAILS || "")
@@ -46,6 +49,8 @@ async function run(req) {
     .map((s) => s.trim())
     .filter(Boolean);
   for (const email of alertList) for (const item of [...overdue, ...dueSoon]) add(email, item);
+
+  for (const item of [...overdue, ...dueSoon]) if (item.assignedEmail) add(item.assignedEmail, item);
 
   const techs = await prisma.user.findMany({
     where: { role: "TECHNICIAN", active: true },

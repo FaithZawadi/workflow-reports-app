@@ -29,6 +29,16 @@ enum ReportStatus {
   REJECTED
 }
 
+enum MaintenanceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMIANNUAL
+  ANNUAL
+  CUSTOM
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -52,12 +62,47 @@ model User {
 }
 
 model Client {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  active    Boolean  @default(true)
+  id        String     @id @default(cuid())
+  name      String     @unique
+  active    Boolean    @default(true)
   users     User[]
   reports   Report[]
-  createdAt DateTime @default(now())
+  schedules Schedule[]
+  createdAt DateTime   @default(now())
+}
+
+// A recurring maintenance obligation for one weighbridge (e.g. WB01 daily on
+// TATA Magadi's dispatch-gate weighbridge). Filing the matching report advances it.
+model Schedule {
+  id           String               @id @default(cuid())
+  clientId     String?
+  client       Client?              @relation(fields: [clientId], references: [id])
+  clientName   String // snapshot
+  site         String?
+  weighbridgeId String?
+
+  template     String // WB01..WB06
+  templateName String
+  frequency    MaintenanceFrequency
+  intervalDays Int? // used when frequency = CUSTOM
+
+  assignedName  String?
+  assignedEmail String?
+
+  lastDoneAt       DateTime?
+  nextDueAt        DateTime
+  lastReportSerial String?
+
+  active      Boolean  @default(true)
+  notes       String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([nextDueAt])
+  @@index([clientId])
+  @@index([template])
+  @@index([active])
 }
 
 model Report {
