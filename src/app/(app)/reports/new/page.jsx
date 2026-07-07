@@ -5,7 +5,7 @@ import ReportForm from "@/components/ReportForm";
 
 export const metadata = { title: "New report · QSL Reports" };
 
-export default async function NewReportPage() {
+export default async function NewReportPage({ searchParams }) {
   const claims = await getCurrentUser();
   if (!["TECHNICIAN", "ENGINEER", "ADMIN"].includes(claims.role)) redirect("/dashboard");
 
@@ -22,5 +22,16 @@ export default async function NewReportPage() {
     clientName,
     site: claims.site,
   };
-  return <ReportForm profile={profile} />;
+
+  // Prefill when arriving from a maintenance schedule ("File report").
+  const sp = searchParams || {};
+  const prefill = {
+    template: typeof sp.template === "string" ? sp.template : null,
+    weighbridgeId: typeof sp.weighbridgeId === "string" ? sp.weighbridgeId : "",
+    client: typeof sp.client === "string" ? sp.client : "",
+    site: typeof sp.site === "string" ? sp.site : "",
+    scheduleId: typeof sp.scheduleId === "string" ? sp.scheduleId : null,
+  };
+
+  return <ReportForm profile={profile} prefill={prefill} />;
 }

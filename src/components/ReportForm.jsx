@@ -7,26 +7,30 @@ import Photos from "./Photos";
 import { TEMPLATES } from "@/lib/templates";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
-export default function ReportForm({ profile }) {
+export default function ReportForm({ profile, prefill = {} }) {
   const router = useRouter();
-  const [tpl, setTpl] = useState(null);
-  const [values, setValues] = useState({});
-  const [checks, setChecks] = useState({});
-  const [grids, setGrids] = useState({});
-  const [runs, setRuns] = useState({});
-  const [photos, setPhotos] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [clientName, setClientName] = useState(profile.clientName || "");
-  const [site, setSite] = useState(profile.site || "");
-  const [supervisorEmail, setSupervisorEmail] = useState("");
-  const [managerEmail, setManagerEmail] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
 
   const isTech = profile.role === "TECHNICIAN";
   const available = TEMPLATES.filter((t) =>
     profile.role === "ENGINEER" ? t.who === "QSL Engineer" : t.who === "Site Technician" || profile.role === "ADMIN"
   );
+
+  const prefillTpl = prefill.template ? available.find((t) => t.code === prefill.template) || null : null;
+
+  const [tpl, setTpl] = useState(prefillTpl);
+  const [values, setValues] = useState(prefill.weighbridgeId ? { weighbridgeId: prefill.weighbridgeId } : {});
+  const [checks, setChecks] = useState({});
+  const [grids, setGrids] = useState({});
+  const [runs, setRuns] = useState({});
+  const [photos, setPhotos] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [clientName, setClientName] = useState(profile.clientName || prefill.client || "");
+  const [site, setSite] = useState(profile.site || prefill.site || "");
+  const [supervisorEmail, setSupervisorEmail] = useState("");
+  const [managerEmail, setManagerEmail] = useState("");
+  const [scheduleId] = useState(prefill.scheduleId || null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
 
   useEffect(() => {
     fetch("/api/clients")
@@ -65,6 +69,7 @@ export default function ReportForm({ profile }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           template: tpl.code,
+          scheduleId: scheduleId || undefined,
           weighbridgeId: values.weighbridgeId || "",
           clientName: isTech ? undefined : clientName.trim(),
           site: isTech ? undefined : site.trim(),

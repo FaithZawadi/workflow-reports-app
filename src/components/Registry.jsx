@@ -17,6 +17,8 @@ export default function Registry({ profile }) {
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
 
+  const [due, setDue] = useState(null);
+
   const load = useCallback(async () => {
     const params = new URLSearchParams();
     if (filter !== "all") params.set("status", filter);
@@ -30,6 +32,13 @@ export default function Registry({ profile }) {
     const t = setTimeout(load, 200);
     return () => clearTimeout(t);
   }, [load]);
+
+  useEffect(() => {
+    fetch("/api/schedules")
+      .then((r) => r.json())
+      .then((d) => setDue(d.summary || null))
+      .catch(() => {});
+  }, []);
 
   const exportCsv = () => {
     const rows = [["serial", "template", "author", "client", "site", "weighbridge", "status", "created"]].concat(
@@ -54,6 +63,35 @@ export default function Registry({ profile }) {
           <button className="btn btn-dark" onClick={exportCsv} style={{ fontSize: 12 }}>Export CSV</button>
         </div>
       </div>
+
+      {due && (due.overdue > 0 || due.dueSoon > 0) && (
+        <Link
+          href="/schedule"
+          className="card"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            marginTop: 12,
+            textDecoration: "none",
+            borderColor: due.overdue > 0 ? "#B03A2E" : "#946B00",
+            borderLeftWidth: 5,
+          }}
+        >
+          <span style={{ fontSize: 20 }}>🛠️</span>
+          <span style={{ fontSize: 13, color: INK, fontWeight: 700 }}>
+            {due.overdue > 0 && (
+              <span style={{ color: "#B03A2E" }}>{due.overdue} overdue</span>
+            )}
+            {due.overdue > 0 && due.dueSoon > 0 && " · "}
+            {due.dueSoon > 0 && (
+              <span style={{ color: "#946B00" }}>{due.dueSoon} due soon</span>
+            )}
+            <span style={{ color: MUTE, fontWeight: 400 }}> — open maintenance schedule →</span>
+          </span>
+        </Link>
+      )}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "12px 0" }}>
         {FILTERS.map(([k, l]) => (

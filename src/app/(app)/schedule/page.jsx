@@ -1,10 +1,15 @@
 import { getCurrentUser } from "@/lib/auth";
-import ScheduleBoard from "@/components/ScheduleBoard";
+import Schedule from "@/components/Schedule";
 
-export const metadata = { title: "Schedule · QSL Reports" };
+export const metadata = { title: "Maintenance schedule · QSL Reports" };
 
 export default async function SchedulePage() {
   const claims = await getCurrentUser();
-  const profile = { role: claims.role, name: claims.name };
-  return <ScheduleBoard profile={profile} />;
+  const profile = {
+    role: claims.role,
+    name: claims.name,
+    clientId: claims.clientId,
+    site: claims.site,
+  };
+  return <Schedule profile={profile} />;
 }
