@@ -25,8 +25,6 @@ export const TEMPLATES = [
           "Cables look OK - not cut, not chewed by rats",
           "Screen shows 0 when the deck is empty",
           "Printer works and has paper",
-          "Traffic light / barrier / camera works (if fitted)",
-          "No truck left parked on the deck",
         ],
       },
       { type: "textarea", k: "notes", label: "Anything else you saw today" },

@@ -1,6 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { templateByCode } from "@/lib/templates";
+import { COMPANY } from "@/lib/company";
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -18,17 +19,19 @@ const STATUS = {
 };
 
 const s = StyleSheet.create({
-  page: { paddingTop: 34, paddingBottom: 46, paddingHorizontal: 34, fontSize: 9, color: INK, fontFamily: "Helvetica" },
+  page: { paddingTop: 34, paddingBottom: 52, paddingHorizontal: 34, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brand: { fontSize: 15, fontFamily: "Helvetica-Bold", color: COAL },
   brandGold: { color: GOLD },
   accred: { fontSize: 6.5, color: MUTE, marginTop: 3, fontFamily: "Courier" },
+  contact: { fontSize: 6.5, color: MUTE, marginTop: 1.5 },
   metaRight: { alignItems: "flex-end" },
   sys: { fontSize: 6.5, color: MUTE, fontFamily: "Courier-Bold" },
   mono: { fontSize: 8, fontFamily: "Courier", marginTop: 1 },
   rule: { borderBottomWidth: 2, borderBottomColor: COAL, marginTop: 8, marginBottom: 8 },
-  title: { fontSize: 15, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
-  statusLine: { fontSize: 8, color: MUTE, marginTop: 2, marginBottom: 6 },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  title: { fontSize: 15, fontFamily: "Helvetica-Bold", textTransform: "uppercase", flex: 1, marginRight: 10 },
+  statusBadge: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#fff", paddingVertical: 3, paddingHorizontal: 6, borderRadius: 2 },
   table: { marginBottom: 6 },
   row: { flexDirection: "row" },
   key: { backgroundColor: "#F5EEDD", fontFamily: "Helvetica-Bold", padding: 3, width: "17%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
@@ -38,17 +41,17 @@ const s = StyleSheet.create({
   sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
   th: { backgroundColor: COAL, color: "#fff", fontSize: 7.5, padding: 3, fontFamily: "Helvetica-Bold" },
   td: { fontSize: 8, padding: 3, borderBottomWidth: 0.5, borderBottomColor: "#DDD" },
+  tdCell: { fontSize: 8, padding: 3, borderWidth: 0.5, borderColor: "#DDD" },
   box: { width: 10, height: 10, borderWidth: 1, borderColor: "#111", textAlign: "center", fontSize: 8 },
   freeField: { fontSize: 8.5, marginVertical: 1.5 },
   photoWrap: { flexDirection: "row", flexWrap: "wrap", marginTop: 4 },
   photoCell: { width: "48%", margin: "1%" },
   photoImg: { width: "100%", height: 120, objectFit: "cover", borderWidth: 1, borderColor: "#999" },
   photoCap: { fontSize: 7, marginTop: 2 },
-  sigRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 20 },
-  sigCol: { width: "31%" },
-  sigLine: { borderTopWidth: 1, borderTopColor: "#111", paddingTop: 3, fontSize: 8, fontFamily: "Helvetica-Bold" },
-  sigHint: { fontSize: 7, color: MUTE },
-  footer: { position: "absolute", bottom: 20, left: 34, right: 34, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4, flexDirection: "row", justifyContent: "space-between" },
+  sysNote: { marginTop: 18, padding: 8, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA" },
+  sysNoteText: { fontSize: 8, color: INK, fontFamily: "Helvetica-Bold" },
+  sysNoteSub: { fontSize: 7.5, color: MUTE, marginTop: 2 },
+  footer: { position: "absolute", bottom: 20, left: 34, right: 34, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4 },
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier" },
 });
 
@@ -60,6 +63,17 @@ function fmt(d) {
   }
 }
 
+// Right-aligned figures with a thousands separator (e.g. 1,250.5). Non-numeric
+// text (positions, labels) is returned unchanged.
+function fmtNum(v) {
+  const str = String(v == null ? "" : v).trim();
+  if (str === "") return "";
+  const n = Number(str.replace(/,/g, ""));
+  return Number.isNaN(n) ? str : n.toLocaleString("en-US");
+}
+
+const isNumericCol = (col) => !/position/i.test(col || "");
+
 function Cell({ children, style }) {
   return <Text style={[s.td, style]}>{children}</Text>;
 }
@@ -67,6 +81,7 @@ function Cell({ children, style }) {
 export function ReportDocument({ report, logoSrc }) {
   const tpl = templateByCode(report.template);
   const data = report.data || {};
+  const grids = data.grids || {};
   const st = STATUS[report.status] || { label: report.status, color: INK };
   const meta = [
     ["Client", report.clientName || "-", "Site", report.site || "-"],
@@ -77,10 +92,17 @@ export function ReportDocument({ report, logoSrc }) {
   const checklistSections = (tpl?.sections || [])
     .map((sec, idx) => ({ sec, idx }))
     .filter(({ sec }) => sec.type === "checklist");
+  const rowSections = (tpl?.sections || []).filter((sec) => sec.type === "rows");
+  const hasLoadcells = (tpl?.sections || []).some((sec) => sec.type === "loadcells");
+  // The built-in Helvetica PDF font has no Greek omega glyph, so spell out "Ohm".
+  const lcUnitLabel = grids.lcUnit === "ohm" ? "Impedance (Ohm)" : "Output (mV)";
+  const lcRows = [
+    { key: "lc", label: lcUnitLabel },
+    { key: "corner", label: "Corner (kg)" },
+  ];
   const freeFields = Object.entries(data.values || {}).filter(
     ([k, v]) => k !== "weighbridgeId" && v
   );
-  const gridEntries = Object.entries(data.grids || {}).filter(([, v]) => v);
   const photos = (report.photos || []).filter((p) => (p.dataUrl || "").startsWith("data:image"));
 
   return (
@@ -98,6 +120,12 @@ export function ReportDocument({ report, logoSrc }) {
                 QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
               </Text>
               <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO/IEC 17020:2012 · ILAC-MRA</Text>
+              <Text style={s.contact}>
+                {COMPANY.address} · {COMPANY.website}
+              </Text>
+              <Text style={s.contact}>
+                {COMPANY.email} · {COMPANY.phone}
+              </Text>
             </View>
           </View>
           <View style={s.metaRight}>
@@ -107,10 +135,12 @@ export function ReportDocument({ report, logoSrc }) {
           </View>
         </View>
         <View style={s.rule} />
-        <Text style={s.title}>{report.templateName}</Text>
-        <Text style={s.statusLine}>
-          STATUS: <Text style={{ color: st.color, fontFamily: "Helvetica-Bold" }}>{st.label}</Text>
-        </Text>
+
+        {/* title left · status on the extreme right, same line */}
+        <View style={s.titleRow}>
+          <Text style={s.title}>{report.templateName}</Text>
+          <Text style={[s.statusBadge, { backgroundColor: st.color }]}>{st.label}</Text>
+        </View>
 
         {/* meta */}
         <View style={s.table}>
@@ -134,7 +164,7 @@ export function ReportDocument({ report, logoSrc }) {
           </Text>
         ))}
 
-        {/* checklists */}
+        {/* checklists — OK / ATTN moved left, REMARKS widened for comments */}
         {checklistSections.map(({ sec, idx }) => (
           <View key={idx} wrap={false}>
             <View style={s.sectionBar}>
@@ -142,19 +172,19 @@ export function ReportDocument({ report, logoSrc }) {
               <Text style={s.sectionTitle}>{sec.title}</Text>
             </View>
             <View style={s.row}>
-              <Text style={[s.th, { width: "58%" }]}>ITEM</Text>
-              <Text style={[s.th, { width: "10%", textAlign: "center" }]}>{sec.yes || "OK"}</Text>
-              <Text style={[s.th, { width: "12%", textAlign: "center" }]}>{sec.no || "ATTN"}</Text>
-              <Text style={[s.th, { width: "20%" }]}>REMARKS</Text>
+              <Text style={[s.th, { width: "40%" }]}>ITEM</Text>
+              <Text style={[s.th, { width: "9%", textAlign: "center" }]}>{sec.yes || "OK"}</Text>
+              <Text style={[s.th, { width: "13%", textAlign: "center" }]}>{sec.no || "ATTN"}</Text>
+              <Text style={[s.th, { width: "38%" }]}>REMARKS</Text>
             </View>
             {sec.items.map((it, ii) => {
               const v = data.checks?.[`${idx}:${ii}`];
               return (
                 <View style={s.row} key={ii}>
-                  <Cell style={{ width: "58%" }}>{it}</Cell>
-                  <Cell style={{ width: "10%", textAlign: "center" }}>{v?.state === "ok" ? "X" : ""}</Cell>
-                  <Cell style={{ width: "12%", textAlign: "center" }}>{v?.state === "problem" ? "X" : ""}</Cell>
-                  <Cell style={{ width: "20%", color: FAIL }}>{v?.remark || ""}</Cell>
+                  <Cell style={{ width: "40%" }}>{it}</Cell>
+                  <Cell style={{ width: "9%", textAlign: "center" }}>{v?.state === "ok" ? "X" : ""}</Cell>
+                  <Cell style={{ width: "13%", textAlign: "center" }}>{v?.state === "problem" ? "X" : ""}</Cell>
+                  <Cell style={{ width: "38%", color: FAIL }}>{v?.remark || ""}</Cell>
                 </View>
               );
             })}
@@ -171,32 +201,74 @@ export function ReportDocument({ report, logoSrc }) {
                 : data.weekly.pass
                 ? "WITHIN LIMIT"
                 : "OVER LIMIT - QSL ATTENTION REQUIRED"}{" "}
-              (limit {data.weekly.limit || "-"} kg)
+              (limit {fmtNum(data.weekly.limit) || "-"} kg)
             </Text>
             <Text style={{ fontSize: 8, marginTop: 2, fontFamily: "Courier" }}>
               Runs:{" "}
               {["1", "2"]
                 .map(
                   (r) =>
-                    `[${data.runs?.[r + "a"] || "-"} / ${data.runs?.[r + "m"] || "-"} / ${data.runs?.[r + "b"] || "-"}]`
+                    `[${fmtNum(data.runs?.[r + "a"]) || "-"} / ${fmtNum(data.runs?.[r + "m"]) || "-"} / ${fmtNum(data.runs?.[r + "b"]) || "-"}]`
                 )
                 .join("   ")}
             </Text>
           </View>
         )}
 
-        {/* grids */}
-        {gridEntries.length > 0 && (
-          <View style={{ marginTop: 8 }}>
+        {/* load cell readings — proper table, right-aligned figures */}
+        {hasLoadcells && (
+          <View wrap={false} style={{ marginTop: 4 }}>
             <View style={s.sectionBar}>
               <View style={s.swatch} />
-              <Text style={s.sectionTitle}>Recorded readings</Text>
+              <Text style={s.sectionTitle}>Load cell readings</Text>
             </View>
-            <Text style={{ fontSize: 7.5, color: "#333", fontFamily: "Courier" }}>
-              {gridEntries.map(([k, v]) => `${k}=${v}`).join("   |   ")}
-            </Text>
+            {lcRows.map((row) => (
+              <View style={s.row} key={row.key}>
+                <Text style={[s.tdCell, { width: "20%", fontFamily: "Helvetica-Bold", backgroundColor: "#F5EEDD" }]}>
+                  {row.label}
+                </Text>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <Text style={[s.tdCell, { width: "10%", textAlign: "right" }]} key={i}>
+                    {fmtNum(grids[`${row.key}:${i}`])}
+                  </Text>
+                ))}
+              </View>
+            ))}
           </View>
         )}
+
+        {/* calibration / measurement tables (WB06 increasing-load & eccentricity) */}
+        {rowSections.map((sec, si) => {
+          const w = `${(100 / sec.cols.length).toFixed(2)}%`;
+          return (
+            <View key={si} wrap={false} style={{ marginTop: 4 }}>
+              <View style={s.sectionBar}>
+                <View style={s.swatch} />
+                <Text style={s.sectionTitle}>{sec.title}</Text>
+              </View>
+              <View style={s.row}>
+                {sec.cols.map((c) => (
+                  <Text style={[s.th, { width: w, textAlign: isNumericCol(c) ? "right" : "left" }]} key={c}>
+                    {c}
+                  </Text>
+                ))}
+              </View>
+              {Array.from({ length: sec.rows }).map((_, ri) => (
+                <View style={s.row} key={ri}>
+                  {sec.cols.map((c, ci) => {
+                    const raw = grids[`${sec.key}:${ri}:${ci}`] ?? (sec.prefill?.[ri]?.[ci] || "");
+                    const numeric = isNumericCol(c);
+                    return (
+                      <Text style={[s.tdCell, { width: w, textAlign: numeric ? "right" : "left" }]} key={ci}>
+                        {numeric ? fmtNum(raw) : String(raw)}
+                      </Text>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          );
+        })}
 
         {/* photos */}
         {photos.length > 0 && (
@@ -242,21 +314,24 @@ export function ReportDocument({ report, logoSrc }) {
           </View>
         ))}
 
-        {/* signatures */}
-        <View style={s.sigRow}>
-          {["Technician / Engineer", "Supervisor", "Manager"].map((who) => (
-            <View style={s.sigCol} key={who}>
-              <Text style={s.sigLine}>{who}</Text>
-              <Text style={s.sigHint}>Name / Signature / Date</Text>
-            </View>
-          ))}
+        {/* system-generated note — approvals are electronic, no physical signing */}
+        <View style={s.sysNote} wrap={false}>
+          <Text style={s.sysNoteText}>
+            System-generated document — no physical signature required.
+          </Text>
+          <Text style={s.sysNoteSub}>
+            All approvals are captured electronically by the named supervisor and manager and are
+            recorded in the approval trail above.
+          </Text>
         </View>
 
         <View style={s.footer} fixed>
           <Text style={s.footText}>
-            SYSTEM-GENERATED {report.serial} | QALIBRATED SYSTEMS LTD | KENAS ISO/IEC 17025 + 17020 | ILAC-MRA
+            {COMPANY.name} · {COMPANY.address} · {COMPANY.website}
           </Text>
-          <Text style={s.footText}>+254 714 999 996</Text>
+          <Text style={s.footText}>
+            {COMPANY.email} · {COMPANY.phone} · {report.serial} · {COMPANY.accreditation}
+          </Text>
         </View>
       </Page>
     </Document>
