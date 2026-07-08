@@ -22,11 +22,22 @@ export function claimsFromUser(user) {
   };
 }
 
+// Whether to mark the session cookie `Secure`. On by default in production
+// (required so cookies survive over the public internet / HTTPS). Set
+// COOKIE_SECURE=false to allow login over plain HTTP on a TRUSTED local network
+// — e.g. an on-site server reached by LAN IP without TLS. Never do this on a
+// publicly reachable host.
+function cookieSecure() {
+  if (process.env.COOKIE_SECURE === "true") return true;
+  if (process.env.COOKIE_SECURE === "false") return false;
+  return process.env.NODE_ENV === "production";
+}
+
 export async function startSession(user) {
   const token = await signSession(claimsFromUser(user));
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecure(),
     sameSite: "lax",
     path: "/",
     maxAge: sessionMaxAgeSeconds,
