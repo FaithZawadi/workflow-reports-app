@@ -25,6 +25,9 @@ services:
     environment:
       # Override host to the compose service name regardless of .env value.
       DATABASE_URL: "postgresql://qsl:qsl_password@db:5432/qsl?schema=public"
+      # For a trusted LAN server reached over plain HTTP by IP, uncomment so
+      # phones/laptops can log in (see .env.example). Omit for localhost/HTTPS.
+      # COOKIE_SECURE: "false"
     ports:
       - "3000:3000"
 

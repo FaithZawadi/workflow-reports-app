@@ -44,6 +44,13 @@ docker compose up --build
 Open **http://localhost:3000**. On first boot the container applies the database
 migration and seeds an admin plus demo accounts.
 
+> **Serving other devices on your LAN (phones/laptops):** the session cookie is
+> marked `Secure` in production, so login only works over `localhost` or HTTPS.
+> To let staff reach the server by its LAN IP over plain HTTP, set
+> `COOKIE_SECURE=false` in `.env` (trusted networks only — never on a public
+> host). For a public/production deployment, keep the default and put the app
+> behind a reverse proxy with HTTPS (Caddy/Nginx).
+
 **Seeded logins** (change these immediately in production):
 
 | Role | Email | Password | Extra |
