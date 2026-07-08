@@ -61,6 +61,11 @@ export default function Registry({ profile }) {
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn" onClick={load} style={{ fontSize: 12 }}>Refresh</button>
           <button className="btn btn-dark" onClick={exportCsv} style={{ fontSize: 12 }}>Export CSV</button>
+          {profile.role === "ADMIN" && (
+            <a className="btn btn-primary" href="/api/reports/export" style={{ fontSize: 12 }}>
+              Export Excel
+            </a>
+          )}
         </div>
       </div>
 

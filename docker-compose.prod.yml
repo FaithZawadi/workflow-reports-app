@@ -1,0 +1,28 @@
+# Production overlay: puts a Caddy reverse proxy with automatic HTTPS in front
+# of the app, so the site is reachable over TLS (required for PWA install on
+# phones and for the Secure session cookie on the public internet).
+#
+# Usage on the server (after DNS for $DOMAIN points here and 80/443 are open):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  # The app publishes no host port here (the base file has none, and this
+  # explicit -f list skips docker-compose.override.yml). Only Caddy is exposed;
+  # it reaches the app internally at app:3000 on the compose network.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
