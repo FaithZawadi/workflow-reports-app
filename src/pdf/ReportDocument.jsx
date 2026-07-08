@@ -58,8 +58,8 @@ const s = StyleSheet.create({
   sysNote: { marginTop: 10, padding: 6, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA" },
   sysNoteText: { fontSize: 8, color: INK, fontFamily: "Helvetica-Bold" },
   sysNoteSub: { fontSize: 7.5, color: MUTE, marginTop: 2 },
-  footer: { position: "absolute", bottom: 16, left: 30, right: 30, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4 },
-  footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier" },
+  footer: { position: "absolute", bottom: 16, left: 30, right: 30, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4, alignItems: "center" },
+  footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
 });
 
 function fmt(d) {
