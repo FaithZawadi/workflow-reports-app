@@ -48,6 +48,9 @@ const s = StyleSheet.create({
   photoCell: { width: "48%", margin: "1%" },
   photoImg: { width: "100%", height: 120, objectFit: "cover", borderWidth: 1, borderColor: "#999" },
   photoCap: { fontSize: 7, marginTop: 2 },
+  narrative: { marginTop: 6 },
+  narrativeLabel: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: MUTE, textTransform: "uppercase" },
+  narrativeText: { fontSize: 8.5, marginTop: 1.5, lineHeight: 1.35 },
   sysNote: { marginTop: 18, padding: 8, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA" },
   sysNoteText: { fontSize: 8, color: INK, fontFamily: "Helvetica-Bold" },
   sysNoteSub: { fontSize: 7.5, color: MUTE, marginTop: 2 },
@@ -103,6 +106,26 @@ export function ReportDocument({ report, logoSrc }) {
   const freeFields = Object.entries(data.values || {}).filter(
     ([k, v]) => k !== "weighbridgeId" && v
   );
+
+  // Proper field labels (from the template) so the calibration / service sheets
+  // show "Certificate no." rather than the raw "CERTNO" key. Long narrative
+  // fields (textareas) are kept full width; short fields go in a tidy table.
+  const fieldLabels = {};
+  const longKeys = new Set();
+  (tpl?.sections || []).forEach((sec) => {
+    if (sec.type === "fields") sec.fields.forEach((f) => (fieldLabels[f.k] = f.label));
+    else if (sec.type === "choices") fieldLabels[sec.k] = sec.title;
+    else if (sec.type === "textarea") {
+      fieldLabels[sec.k] = sec.label;
+      longKeys.add(sec.k);
+    }
+  });
+  const labelFor = (k) =>
+    fieldLabels[k] || k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+  const detailFields = freeFields.filter(([k]) => !longKeys.has(k));
+  const narrativeFields = freeFields.filter(([k]) => longKeys.has(k));
+  const detailRows = [];
+  for (let i = 0; i < detailFields.length; i += 2) detailRows.push(detailFields.slice(i, i + 2));
   const photos = (report.photos || []).filter((p) => (p.dataUrl || "").startsWith("data:image"));
 
   return (
@@ -154,14 +177,31 @@ export function ReportDocument({ report, logoSrc }) {
           ))}
         </View>
 
-        {/* free fields */}
-        {freeFields.map(([k, v]) => (
-          <Text style={s.freeField} key={k}>
-            <Text style={{ fontFamily: "Helvetica-Bold", color: MUTE, textTransform: "uppercase", fontSize: 7.5 }}>
-              {k}:{" "}
-            </Text>
-            {String(v)}
-          </Text>
+        {/* key details — tidy labelled key/value table (no raw machine keys) */}
+        {detailRows.length > 0 && (
+          <View style={s.table}>
+            {detailRows.map((pair, ri) => (
+              <View style={s.row} key={ri}>
+                {[0, 1].map((ci) => {
+                  const cell = pair[ci];
+                  return (
+                    <React.Fragment key={ci}>
+                      <Text style={s.key}>{cell ? labelFor(cell[0]) : ""}</Text>
+                      <Text style={s.val}>{cell ? String(cell[1]) : ""}</Text>
+                    </React.Fragment>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* narrative fields — full width so long text stays readable */}
+        {narrativeFields.map(([k, v]) => (
+          <View style={s.narrative} key={k} wrap={false}>
+            <Text style={s.narrativeLabel}>{labelFor(k)}</Text>
+            <Text style={s.narrativeText}>{String(v)}</Text>
+          </View>
         ))}
 
         {/* checklists — OK / ATTN moved left, REMARKS widened for comments */}
