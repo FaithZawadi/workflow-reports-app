@@ -28,8 +28,9 @@ services:
       # For a trusted LAN server reached over plain HTTP by IP, uncomment so
       # phones/laptops can log in (see .env.example). Omit for localhost/HTTPS.
       # COOKIE_SECURE: "false"
-    ports:
-      - "3000:3000"
+    # No host port here on purpose:
+    #  - local/LAN  → docker-compose.override.yml publishes 3000 (auto-loaded)
+    #  - production → docker-compose.prod.yml fronts it with Caddy (HTTPS)
 
 volumes:
   qsl_db:

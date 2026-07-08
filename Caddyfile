@@ -1,0 +1,9 @@
+# Caddy reverse proxy — automatic HTTPS (Let's Encrypt) in front of the app.
+# {$DOMAIN} is read from the environment (set DOMAIN in .env). Caddy obtains and
+# renews the TLS certificate automatically once DNS for DOMAIN points at this
+# server and ports 80 + 443 are open. HTTPS is what makes the PWA installable
+# on phones and lets the Secure session cookie work over the public internet.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000
+}

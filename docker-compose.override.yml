@@ -1,0 +1,12 @@
+# Auto-loaded by `docker compose up` (local / LAN use). Publishes the app on
+# host port 3000 so you can reach it at http://localhost:3000 or, from other
+# devices, http://<this-machine-LAN-IP>:3000 (set COOKIE_SECURE=false in .env
+# for LAN-over-HTTP logins).
+#
+# This file is NOT used by the production command, which passes an explicit
+# file list (-f docker-compose.yml -f docker-compose.prod.yml) and therefore
+# skips auto-override loading — in production only Caddy is exposed (80/443).
+services:
+  app:
+    ports:
+      - "3000:3000"
