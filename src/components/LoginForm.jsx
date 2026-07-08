@@ -40,19 +40,44 @@ export default function LoginForm() {
   };
 
   return (
-    <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: 16 }}>
-      <div className="card" style={{ width: "100%", maxWidth: 400 }}>
+    <div className="login-shell">
+      <div className="card login-card">
         <Stripe />
-        <div className="paper" style={{ padding: 24 }}>
-          <Brand />
-          <h1 className="h1" style={{ marginTop: 16 }}>
-            Sign in
-          </h1>
-          <p className="muted" style={{ marginTop: 4 }}>
-            Maintenance Management System — weighbridge reports, approvals and calibration records.
-          </p>
+        <div className="login-grid">
+          {/* Branded panel — desktop only */}
+          <div className="login-brandpane">
+            <span style={{ color: "#fff" }}>
+              <Brand onDark />
+            </span>
+            <div>
+              <div style={{ fontSize: 24, fontWeight: 900, lineHeight: 1.15, textTransform: "uppercase", letterSpacing: "-.01em" }}>
+                Weighbridge maintenance,<br />calibration &amp; approvals
+              </div>
+              <p style={{ color: "#cfc8ba", fontSize: 13.5, marginTop: 12, lineHeight: 1.55 }}>
+                File daily, weekly and monthly checks, route them through supervisor and
+                manager approval, generate branded PDF reports, and stay ahead of the
+                maintenance schedule — on the web and installable on your phone.
+              </p>
+            </div>
+            <div className="mono" style={{ fontSize: 10.5, color: "#9a9282", letterSpacing: ".02em", lineHeight: 1.6 }}>
+              KENAS ISO/IEC 17025 + 17020 · ILAC-MRA<br />+254 714 999 996 · info@qalibrated.co.ke
+            </div>
+          </div>
 
-          <form onSubmit={submit} style={{ marginTop: 16 }}>
+          {/* Form panel */}
+          <div className="login-formpane paper">
+            <div className="login-formbrand">
+              <Brand />
+            </div>
+            <p className="eyebrow">Qalibrated Systems Ltd</p>
+            <h1 className="h1" style={{ marginTop: 4 }}>
+              Sign in
+            </h1>
+            <p className="muted" style={{ marginTop: 4 }}>
+              Maintenance Management System — weighbridge reports, approvals and calibration records.
+            </p>
+
+            <form onSubmit={submit} style={{ marginTop: 18 }}>
             <label className="field">
               <span className="label">Email</span>
               <input
@@ -95,10 +120,11 @@ export default function LoginForm() {
             </button>
           </form>
 
-          <p className="muted" style={{ marginTop: 14, fontSize: 12 }}>
-            Accounts are created by your QSL administrator. If you can&apos;t sign in, contact QSL on
-            +254&nbsp;714&nbsp;999&nbsp;996.
-          </p>
+            <p className="muted" style={{ marginTop: 14, fontSize: 12 }}>
+              Accounts are created by your QSL administrator. If you can&apos;t sign in, contact QSL on
+              +254&nbsp;714&nbsp;999&nbsp;996.
+            </p>
+          </div>
         </div>
         <Stripe />
       </div>

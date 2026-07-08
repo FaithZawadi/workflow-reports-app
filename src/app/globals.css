@@ -50,6 +50,24 @@ input, textarea, select { font-family: inherit; }
 .grid { display: grid; gap: 12px; }
 @media (min-width: 780px) { .md-2 { grid-template-columns: 1fr 1fr; } .md-3 { grid-template-columns: 1fr 1fr 1fr; } }
 
+/* Login: single column on phones, branded split panel on wider screens */
+.login-shell { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
+.login-card { width: 100%; max-width: 440px; }
+.login-grid { display: grid; grid-template-columns: 1fr; }
+.login-brandpane { display: none; }
+.login-formpane { padding: 26px 24px; }
+.login-formbrand { margin-bottom: 14px; }
+@media (min-width: 880px) {
+  .login-card { max-width: 900px; }
+  .login-grid { grid-template-columns: 1.05fr 1fr; }
+  .login-brandpane {
+    display: flex; flex-direction: column; justify-content: space-between; gap: 24px;
+    background: var(--coal); color: #fff; padding: 40px 36px;
+  }
+  .login-formpane { padding: 44px 44px; }
+  .login-formbrand { display: none; }
+}
+
 *:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 
 @media print {
