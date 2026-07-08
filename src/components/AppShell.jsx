@@ -7,6 +7,7 @@ import { ROLE_LABEL, GOLD, COAL } from "@/lib/theme";
 export default function AppShell({ user, children }) {
   const router = useRouter();
   const canFile = user.role === "TECHNICIAN" || user.role === "ENGINEER" || user.role === "ADMIN";
+  const isAdmin = user.role === "ADMIN";
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -27,10 +28,10 @@ export default function AppShell({ user, children }) {
             </span>
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ textAlign: "right", lineHeight: 1.2 }}>
+            <Link href="/account" title="My account" style={{ textAlign: "right", lineHeight: 1.2, textDecoration: "none", color: "#fff" }}>
               <div style={{ fontWeight: 800, fontSize: 13 }}>{user.name}</div>
               <div style={{ fontSize: 11, color: GOLD, fontWeight: 700 }}>{ROLE_LABEL[user.role] || user.role}</div>
-            </div>
+            </Link>
             <button className="btn" onClick={logout} style={{ padding: "6px 10px", fontSize: 12 }}>
               Sign out
             </button>
@@ -44,6 +45,14 @@ export default function AppShell({ user, children }) {
         </Link>
         <Link href="/schedule" className="btn" style={{ fontSize: 13 }}>
           Schedule
+        </Link>
+        {isAdmin && (
+          <Link href="/users" className="btn" style={{ fontSize: 13 }}>
+            Users
+          </Link>
+        )}
+        <Link href="/account" className="btn" style={{ fontSize: 13 }}>
+          Account
         </Link>
         {canFile && (
           <Link href="/reports/new" className="btn btn-dark" style={{ fontSize: 13 }}>
