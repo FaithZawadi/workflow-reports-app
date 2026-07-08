@@ -21,6 +21,9 @@ export async function GET(req) {
   const status = searchParams.get("status");
   const template = searchParams.get("template");
   const q = (searchParams.get("q") || "").trim();
+  const name = (searchParams.get("name") || "").trim();
+  const from = (searchParams.get("from") || "").trim();
+  const to = (searchParams.get("to") || "").trim();
 
   const where = { AND: [reportScope(user)] };
   if (status && status !== "all") where.AND.push({ status });
@@ -37,6 +40,24 @@ export async function GET(req) {
       ],
     });
   }
+
+  // Filter by the name of the person who filed the report (or the client/plant).
+  if (name) {
+    where.AND.push({
+      OR: [
+        { authorName: { contains: name, mode: "insensitive" } },
+        { clientName: { contains: name, mode: "insensitive" } },
+      ],
+    });
+  }
+
+  // Filter by the date the report was filed (inclusive range, local calendar days).
+  const createdAt = {};
+  const fromDate = from ? new Date(`${from}T00:00:00`) : null;
+  if (fromDate && !isNaN(fromDate)) createdAt.gte = fromDate;
+  const toDate = to ? new Date(`${to}T23:59:59.999`) : null;
+  if (toDate && !isNaN(toDate)) createdAt.lte = toDate;
+  if (createdAt.gte || createdAt.lte) where.AND.push({ createdAt });
 
   const reports = await prisma.report.findMany({
     where,

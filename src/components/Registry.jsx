@@ -16,6 +16,9 @@ export default function Registry({ profile }) {
   const [reports, setReports] = useState(null);
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
+  const [name, setName] = useState("");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
 
   const [due, setDue] = useState(null);
 
@@ -23,10 +26,22 @@ export default function Registry({ profile }) {
     const params = new URLSearchParams();
     if (filter !== "all") params.set("status", filter);
     if (q.trim()) params.set("q", q.trim());
+    if (name.trim()) params.set("name", name.trim());
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
     const res = await fetch("/api/reports?" + params.toString());
     const data = await res.json();
     setReports(data.reports || []);
-  }, [filter, q]);
+  }, [filter, q, name, from, to]);
+
+  const clearFilters = () => {
+    setFilter("all");
+    setQ("");
+    setName("");
+    setFrom("");
+    setTo("");
+  };
+  const anyFilter = filter !== "all" || q || name || from || to;
 
   useEffect(() => {
     const t = setTimeout(load, 200);
@@ -111,12 +126,40 @@ export default function Registry({ profile }) {
         ))}
       </div>
 
-      <input className="input" placeholder="Search serial, author, site or weighbridge…" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 12 }} />
+      <input className="input" placeholder="Search serial, author, site or weighbridge…" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 8 }} />
+
+      <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 8, marginBottom: 12, alignItems: "end" }}>
+        <label className="field" style={{ margin: 0 }}>
+          <span className="label">Filed by (name / plant)</span>
+          <input className="input" placeholder="e.g. John or TATA" value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label className="field" style={{ margin: 0 }}>
+          <span className="label">From date</span>
+          <input className="input" type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+        </label>
+        <label className="field" style={{ margin: 0 }}>
+          <span className="label">To date</span>
+          <input className="input" type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+        </label>
+        {anyFilter && (
+          <button className="btn" onClick={clearFilters} style={{ fontSize: 12, height: 42 }}>
+            Clear filters
+          </button>
+        )}
+      </div>
 
       {reports === null && <div className="muted">Loading registry…</div>}
+      {reports && (
+        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+          {reports.length} report{reports.length === 1 ? "" : "s"}
+          {anyFilter ? " match your filters" : ""}
+        </div>
+      )}
       {reports && reports.length === 0 && (
         <div className="card" style={{ borderStyle: "dashed", padding: 24, textAlign: "center", color: MUTE }}>
-          Nothing here yet. {(profile.role === "TECHNICIAN" || profile.role === "ENGINEER") && "Tap New report to start."}
+          {anyFilter
+            ? "No reports match these filters. Try widening the dates or clearing filters."
+            : `Nothing here yet. ${profile.role === "TECHNICIAN" || profile.role === "ENGINEER" ? "Tap New report to start." : ""}`}
         </div>
       )}
 
