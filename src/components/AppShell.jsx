@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Brand } from "./ui";
+import OutboxSync from "./OutboxSync";
 import { ROLE_LABEL, GOLD, COAL } from "@/lib/theme";
 import { COMPANY } from "@/lib/company";
 
@@ -65,6 +66,8 @@ export default function AppShell({ user, children }) {
       <main className="wrap" style={{ padding: "8px 16px 48px" }}>
         {children}
       </main>
+
+      <OutboxSync />
 
       <footer className="wrap" style={{ padding: "24px 16px 40px", borderTop: "3px solid var(--gold)", marginTop: 24 }}>
         <div style={{ fontWeight: 800, fontSize: 13, color: "var(--ink)" }}>{COMPANY.name}</div>

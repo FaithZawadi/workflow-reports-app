@@ -1,5 +1,5 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from "@react-pdf/renderer";
 import { templateByCode } from "@/lib/templates";
 import { COMPANY } from "@/lib/company";
 
@@ -79,6 +79,16 @@ const isNumericCol = (col) => !/position/i.test(col || "");
 
 function Cell({ children, style }) {
   return <Text style={[s.td, style]}>{children}</Text>;
+}
+
+// Standard PDF Helvetica has no check-mark glyph, so draw the tick as vector
+// strokes. Used to mark an "OK" inspection result in place of a plain "X".
+function Tick() {
+  return (
+    <Svg width={9} height={9} viewBox="0 0 12 12">
+      <Path d="M1.5 6.5 L4.5 9.5 L10.5 2.5" stroke={PASS} strokeWidth={2} fill="none" />
+    </Svg>
+  );
 }
 
 export function ReportDocument({ report, logoSrc }) {
@@ -222,7 +232,9 @@ export function ReportDocument({ report, logoSrc }) {
               return (
                 <View style={s.row} key={ii}>
                   <Cell style={{ width: "40%" }}>{it}</Cell>
-                  <Cell style={{ width: "9%", textAlign: "center" }}>{v?.state === "ok" ? "X" : ""}</Cell>
+                  <View style={[s.td, { width: "9%", alignItems: "center", justifyContent: "center" }]}>
+                    {v?.state === "ok" ? <Tick /> : null}
+                  </View>
                   <Cell style={{ width: "13%", textAlign: "center" }}>{v?.state === "problem" ? "X" : ""}</Cell>
                   <Cell style={{ width: "38%", color: FAIL }}>{v?.remark || ""}</Cell>
                 </View>

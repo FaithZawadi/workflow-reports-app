@@ -113,25 +113,40 @@ export default function ReportDetail({ serial, profile }) {
           </div>
         ))}
 
-        {/* checklists */}
+        {/* checklists — columnar table: Item | Result | Remarks */}
         {(tpl?.sections || []).map((sec, si) =>
           sec.type === "checklist" ? (
             <div key={si}>
               <SectionBar>{sec.title}</SectionBar>
-              {sec.items.map((it, ii) => {
-                const v = data.checks?.[`${si}:${ii}`];
-                const label = v?.state === "problem" ? sec.no || "NEEDS ATTENTION" : v?.state === "ok" ? sec.yes || "OK" : "—";
-                const color = v?.state === "problem" ? FAIL : v?.state === "ok" ? PASS : "#b8af9e";
-                return (
-                  <div key={ii} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 14, padding: "6px 0", borderBottom: "1px solid #eae4d6" }}>
-                    <span style={{ color: INK }}>
-                      {it}
-                      {v?.remark ? <span style={{ color: FAIL }}> — {v.remark}</span> : ""}
-                    </span>
-                    <b style={{ color, flexShrink: 0 }}>{label}</b>
+              <div style={{ overflowX: "auto" }}>
+                <div style={{ minWidth: 480, border: "1px solid #e6e0d2", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(160px,1fr) 150px minmax(120px,1fr)", background: COAL, color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
+                    <span style={{ padding: "6px 10px", borderRight: "1px solid #2c2720" }}>Item</span>
+                    <span style={{ padding: "6px 10px", borderRight: "1px solid #2c2720", textAlign: "center" }}>Result</span>
+                    <span style={{ padding: "6px 10px" }}>Remarks</span>
                   </div>
-                );
-              })}
+                  {sec.items.map((it, ii) => {
+                    const v = data.checks?.[`${si}:${ii}`];
+                    const isOk = v?.state === "ok";
+                    const isProblem = v?.state === "problem";
+                    return (
+                      <div key={ii} style={{ display: "grid", gridTemplateColumns: "minmax(160px,1fr) 150px minmax(120px,1fr)", fontSize: 14, borderTop: "1px solid #eae4d6" }}>
+                        <span style={{ padding: "8px 10px", borderRight: "1px solid #eae4d6", color: INK }}>{it}</span>
+                        <span style={{ padding: "8px 10px", borderRight: "1px solid #eae4d6", textAlign: "center", fontWeight: 800, color: isProblem ? FAIL : isOk ? PASS : "#b8af9e" }}>
+                          {isOk ? (
+                            <span aria-label={sec.yes || "OK"}>✓ {sec.yes || "OK"}</span>
+                          ) : isProblem ? (
+                            sec.no || "NEEDS ATTENTION"
+                          ) : (
+                            "—"
+                          )}
+                        </span>
+                        <span style={{ padding: "8px 10px", color: v?.remark ? FAIL : MUTE }}>{v?.remark || "—"}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           ) : null
         )}

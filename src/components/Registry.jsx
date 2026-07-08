@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Pill } from "./ui";
-import { COAL, GOLD, INK, MUTE } from "@/lib/theme";
+import { COAL, GOLD, INK, MUTE, WAIT } from "@/lib/theme";
 
 const FILTERS = [
   ["all", "All"],
@@ -21,6 +21,7 @@ export default function Registry({ profile }) {
   const [to, setTo] = useState("");
 
   const [due, setDue] = useState(null);
+  const [queuedNotice, setQueuedNotice] = useState(false);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -55,6 +56,21 @@ export default function Registry({ profile }) {
       .catch(() => {});
   }, []);
 
+  // A report filed while offline lands here with ?queued=1. Show a reassurance
+  // note, and reload the registry once the outbox has synced to the server.
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("queued") === "1") {
+      setQueuedNotice(true);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    const onSynced = () => {
+      setQueuedNotice(false);
+      load();
+    };
+    window.addEventListener("qsl:outbox-synced", onSynced);
+    return () => window.removeEventListener("qsl:outbox-synced", onSynced);
+  }, [load]);
+
   const exportCsv = () => {
     const rows = [["serial", "template", "author", "client", "site", "weighbridge", "status", "created"]].concat(
       (reports || []).map((r) => [r.serial, r.templateName, r.authorName, r.clientName, r.site, r.weighbridgeId, r.status, r.createdAt])
@@ -83,6 +99,20 @@ export default function Registry({ profile }) {
           )}
         </div>
       </div>
+
+      {queuedNotice && (
+        <div
+          className="card"
+          style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", marginTop: 12, borderColor: WAIT, borderLeftWidth: 5 }}
+          role="status"
+        >
+          <span style={{ fontSize: 18 }}>📩</span>
+          <span style={{ fontSize: 13, color: INK, fontWeight: 700 }}>
+            Report saved on this device.
+            <span style={{ color: MUTE, fontWeight: 400 }}> It will be sent automatically as soon as you have a network connection.</span>
+          </span>
+        </div>
+      )}
 
       {due && (due.overdue > 0 || due.dueSoon > 0) && (
         <Link

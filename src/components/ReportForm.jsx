@@ -2,9 +2,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar, Field, Textarea } from "./ui";
-import CheckItem from "./CheckItem";
+import CheckItem, { CheckHeader, CHECK_TABLE_MINWIDTH } from "./CheckItem";
 import Photos from "./Photos";
 import { TEMPLATES } from "@/lib/templates";
+import { enqueueReport } from "@/lib/outbox";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
 export default function ReportForm({ profile, prefill = {} }) {
@@ -63,24 +64,48 @@ export default function ReportForm({ profile, prefill = {} }) {
     if (!isTech && !clientName.trim()) return setMsg("Choose the client (plant).");
     setBusy(true);
     setMsg("Submitting…");
+
+    const payload = {
+      template: tpl.code,
+      scheduleId: scheduleId || undefined,
+      weighbridgeId: values.weighbridgeId || "",
+      clientName: isTech ? undefined : clientName.trim(),
+      site: isTech ? undefined : site.trim(),
+      supervisorEmail: supervisorEmail.trim(),
+      managerEmail: managerEmail.trim(),
+      values,
+      checks,
+      grids,
+      runs,
+      photos,
+    };
+
+    // Save-and-forward: keep the report on the device and let the outbox deliver
+    // it when the network returns.
+    const queueOffline = async () => {
+      try {
+        await enqueueReport(payload);
+        window.dispatchEvent(new CustomEvent("qsl:outbox-queued"));
+        router.push("/dashboard?queued=1");
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    // No connection at all — don't even try the request; queue straight away.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      if (await queueOffline()) return;
+      setMsg("Could not save on this device. Please try again.");
+      setBusy(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/reports", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          template: tpl.code,
-          scheduleId: scheduleId || undefined,
-          weighbridgeId: values.weighbridgeId || "",
-          clientName: isTech ? undefined : clientName.trim(),
-          site: isTech ? undefined : site.trim(),
-          supervisorEmail: supervisorEmail.trim(),
-          managerEmail: managerEmail.trim(),
-          values,
-          checks,
-          grids,
-          runs,
-          photos,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -90,6 +115,9 @@ export default function ReportForm({ profile, prefill = {} }) {
       }
       router.push(`/reports/${data.serial}`);
     } catch {
+      // The request failed to reach the server (dropped connection). Queue it
+      // and move on instead of losing the technician's work.
+      if (await queueOffline()) return;
       setMsg("Network problem. Try again.");
       setBusy(false);
     }
@@ -179,16 +207,24 @@ export default function ReportForm({ profile, prefill = {} }) {
               return (
                 <div key={si}>
                   <SectionBar>{sec.title}</SectionBar>
-                  {sec.items.map((it, ii) => (
-                    <CheckItem
-                      key={ii}
-                      text={it}
-                      yes={sec.yes || "OK"}
-                      no={sec.no || "NEEDS ATTENTION"}
-                      val={checks[`${si}:${ii}`]}
-                      onChange={(v) => setChecks((s) => ({ ...s, [`${si}:${ii}`]: v }))}
-                    />
-                  ))}
+                  <div style={{ overflowX: "auto" }}>
+                    <div
+                      className="card"
+                      style={{ minWidth: CHECK_TABLE_MINWIDTH, marginBottom: 8, overflow: "hidden" }}
+                    >
+                      <CheckHeader yes={sec.yes || "OK"} no={sec.no || "NEEDS ATTENTION"} />
+                      {sec.items.map((it, ii) => (
+                        <CheckItem
+                          key={ii}
+                          text={it}
+                          yes={sec.yes || "OK"}
+                          no={sec.no || "NEEDS ATTENTION"}
+                          val={checks[`${si}:${ii}`]}
+                          onChange={(v) => setChecks((s) => ({ ...s, [`${si}:${ii}`]: v }))}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               );
             if (sec.type === "textarea")
