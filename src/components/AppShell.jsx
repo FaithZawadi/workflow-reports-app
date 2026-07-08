@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Brand } from "./ui";
 import { ROLE_LABEL, GOLD, COAL } from "@/lib/theme";
+import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
   const router = useRouter();
@@ -66,8 +67,15 @@ export default function AppShell({ user, children }) {
       </main>
 
       <footer className="wrap" style={{ padding: "24px 16px 40px", borderTop: "3px solid var(--gold)", marginTop: 24 }}>
-        <div className="mono" style={{ fontSize: 11, color: "var(--mute)" }}>
-          QALIBRATED SYSTEMS LIMITED · KENAS ISO/IEC 17025 + 17020 · ILAC-MRA · info@qalibrated.co.ke · +254 714 999 996
+        <div style={{ fontWeight: 800, fontSize: 13, color: "var(--ink)" }}>{COMPANY.name}</div>
+        <div className="mono" style={{ fontSize: 11, color: "var(--mute)", marginTop: 4 }}>
+          {COMPANY.address} · {COMPANY.website}
+        </div>
+        <div className="mono" style={{ fontSize: 11, color: "var(--mute)", marginTop: 2 }}>
+          {COMPANY.email} · {COMPANY.phone}
+        </div>
+        <div className="mono" style={{ fontSize: 11, color: "var(--mute)", marginTop: 2 }}>
+          KENAS ISO/IEC 17025 + 17020 · ILAC-MRA
         </div>
       </footer>
     </div>

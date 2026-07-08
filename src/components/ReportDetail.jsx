@@ -62,15 +62,16 @@ export default function ReportDetail({ serial, profile }) {
       <PaperCard>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
           <span className="mono" style={{ fontSize: 13, fontWeight: 700, background: COAL, color: GOLD, padding: "4px 8px" }}>{rep.serial}</span>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <a className="btn btn-dark" href={`/api/reports/${rep.serial}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, textDecoration: "none" }}>
-              Download PDF
-            </a>
-            <Pill status={rep.status} />
-          </div>
+          <a className="btn btn-dark" href={`/api/reports/${rep.serial}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, textDecoration: "none" }}>
+            Download PDF
+          </a>
         </div>
 
-        <h1 className="h1" style={{ marginTop: 10 }}>{rep.templateName}</h1>
+        {/* Title on the left, STATUS on the extreme right — same line to save space */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: 10 }}>
+          <h1 className="h1" style={{ margin: 0 }}>{rep.templateName}</h1>
+          <Pill status={rep.status} />
+        </div>
         <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
           {rep.clientName}
           {rep.site ? " - " + rep.site : ""} · {rep.weighbridgeId || "weighbridge not stated"} · by <b>{rep.authorName}</b> ·{" "}

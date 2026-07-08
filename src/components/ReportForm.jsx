@@ -243,22 +243,54 @@ export default function ReportForm({ profile, prefill = {} }) {
                   )}
                 </div>
               );
-            if (sec.type === "loadcells")
+            if (sec.type === "loadcells") {
+              const unit = grids.lcUnit || "mV";
+              const primaryLabel = unit === "ohm" ? "Impedance (Ω)" : "Output (mV)";
+              const rows = [
+                { key: "lc", label: primaryLabel },
+                { key: "corner", label: "Corner (kg)" },
+              ];
               return (
                 <div key={si}>
                   <SectionBar>Load cell readings</SectionBar>
-                  {["Output (mV)", "Corner (kg)"].map((row) => (
-                    <div key={row} style={{ marginBottom: 8 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: MUTE }}>{row}</span>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "center" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: MUTE }}>Measure:</span>
+                    {[
+                      { k: "mV", label: "Output (mV)" },
+                      { k: "ohm", label: "Impedance (Ω)" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.k}
+                        type="button"
+                        onClick={() => setGrids((s) => ({ ...s, lcUnit: opt.k }))}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          padding: "6px 12px",
+                          borderRadius: 2,
+                          border: "1px solid",
+                          borderColor: unit === opt.k ? COAL : "#cfc8ba",
+                          background: unit === opt.k ? COAL : "#fff",
+                          color: unit === opt.k ? GOLD : INK,
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  {rows.map((row) => (
+                    <div key={row.key} style={{ marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: MUTE }}>{row.label}</span>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4, marginTop: 4 }}>
                         {Array.from({ length: 8 }).map((_, i) => (
-                          <input key={i} className="input" type="number" placeholder={`#${i + 1}`} value={grids[`${row}:${i}`] || ""} onChange={(e) => setGrids((s) => ({ ...s, [`${row}:${i}`]: e.target.value }))} />
+                          <input key={i} className="input" type="number" style={{ textAlign: "right" }} placeholder={`#${i + 1}`} value={grids[`${row.key}:${i}`] || ""} onChange={(e) => setGrids((s) => ({ ...s, [`${row.key}:${i}`]: e.target.value }))} />
                         ))}
                       </div>
                     </div>
                   ))}
                 </div>
               );
+            }
             if (sec.type === "rows")
               return (
                 <div key={si}>
@@ -271,9 +303,12 @@ export default function ReportForm({ profile, prefill = {} }) {
                     </div>
                     {Array.from({ length: sec.rows }).map((_, ri) => (
                       <div key={ri} style={{ display: "grid", gridTemplateColumns: `repeat(${sec.cols.length}, minmax(90px,1fr))`, gap: 4, marginBottom: 4 }}>
-                        {sec.cols.map((_, ci) => (
-                          <input key={ci} className="input" value={grids[`${sec.key}:${ri}:${ci}`] ?? (sec.prefill?.[ri]?.[ci] || "")} onChange={(e) => setGrids((s) => ({ ...s, [`${sec.key}:${ri}:${ci}`]: e.target.value }))} />
-                        ))}
+                        {sec.cols.map((col, ci) => {
+                          const numeric = /\(kg\)|\(mv\)|\(Ω\)/i.test(col);
+                          return (
+                            <input key={ci} className="input" style={numeric ? { textAlign: "right" } : undefined} value={grids[`${sec.key}:${ri}:${ci}`] ?? (sec.prefill?.[ri]?.[ci] || "")} onChange={(e) => setGrids((s) => ({ ...s, [`${sec.key}:${ri}:${ci}`]: e.target.value }))} />
+                          );
+                        })}
                       </div>
                     ))}
                   </div>

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Brand, Stripe } from "./ui";
 import { GOLD, COAL, INK, MUTE } from "@/lib/theme";
+import { COMPANY } from "@/lib/company";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -60,7 +61,9 @@ export default function LoginForm() {
               </p>
             </div>
             <div className="mono" style={{ fontSize: 10.5, color: "#9a9282", letterSpacing: ".02em", lineHeight: 1.6 }}>
-              KENAS ISO/IEC 17025 + 17020 · ILAC-MRA<br />+254 714 999 996 · info@qalibrated.co.ke
+              {COMPANY.name} · {COMPANY.address}<br />
+              {COMPANY.website} · {COMPANY.email} · {COMPANY.phone}<br />
+              KENAS ISO/IEC 17025 + 17020 · ILAC-MRA
             </div>
           </div>
 
