@@ -1,7 +1,8 @@
-// Service worker: enables install-to-home-screen and an offline-capable shell.
-// The app opens and the report form works with no connection; submissions are
-// queued in IndexedDB by the page and forwarded when the network returns.
-const CACHE = "qsl-v3";
+// Service worker: install-to-home-screen + offline-capable shell + read-through
+// caching of report/schedule data so past records are viewable offline. Report
+// submissions are queued in IndexedDB by the page and forwarded when back online.
+const CACHE = "qsl-v4";
+const API_CACHE = "qsl-api-v1";
 const SHELL = ["/dashboard", "/reports/new", "/login", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
@@ -11,20 +12,55 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE && k !== API_CACHE).map((k) => caches.delete(k)))
+    )
   );
   self.clients.claim();
 });
 
+// Read-only data endpoints worth caching so the registry, a report's details
+// and the schedule still render with no connection. Never caches mutations,
+// PDFs, exports or auth.
+function isCacheableApiGet(req) {
+  if (req.method !== "GET") return false;
+  const p = new URL(req.url).pathname;
+  if (p === "/api/reports/export") return false; // spreadsheet download
+  if (p === "/api/reports") return true; // registry list
+  if (p === "/api/schedules") return true; // schedule list
+  if (p === "/api/clients") return true;
+  if (p === "/api/users/directory") return true;
+  if (/^\/api\/reports\/[^/]+$/.test(p)) return true; // a single report's detail
+  return false;
+}
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
-  // Never cache API calls — always go to network for live data. (POST /api/reports
-  // failing offline is handled by the page's outbox, not here.)
-  if (req.method !== "GET" || req.url.includes("/api/")) return;
 
-  // Navigations (opening a page): network-first, then fall back to a cached
-  // page so the app still launches offline. Query strings are ignored on the
-  // fallback so /dashboard?queued=1 resolves to the cached /dashboard.
+  // Cacheable data GETs: network-first (fresh when online), fall back to the
+  // last cached copy when offline.
+  if (req.url.includes("/api/")) {
+    if (isCacheableApiGet(req)) {
+      e.respondWith(
+        fetch(req)
+          .then((res) => {
+            if (res && res.ok) {
+              const copy = res.clone();
+              caches.open(API_CACHE).then((c) => c.put(req, copy)).catch(() => {});
+            }
+            return res;
+          })
+          .catch(() => caches.match(req).then((hit) => hit || Response.error()))
+      );
+    }
+    // All other API calls (mutations, PDF, auth) always go straight to network.
+    return;
+  }
+
+  if (req.method !== "GET") return;
+
+  // Navigations: network-first, fall back to a cached page so the app still
+  // launches offline (query strings ignored on the fallback).
   if (req.mode === "navigate") {
     e.respondWith(
       fetch(req)

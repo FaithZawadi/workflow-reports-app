@@ -4,6 +4,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Brand } from "./ui";
 import OutboxSync from "./OutboxSync";
 import InstallPrompt from "./InstallPrompt";
+import OfflineBadge from "./OfflineBadge";
 import { ROLE_LABEL, GOLD, COAL } from "@/lib/theme";
 import { canFileReports, canManageUsers } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
@@ -54,6 +55,7 @@ export default function AppShell({ user, children }) {
             </button>
           </div>
         </div>
+        <OfflineBadge />
       </header>
 
       <nav className="wrap topnav" style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "12px 16px 0" }}>
