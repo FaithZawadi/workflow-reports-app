@@ -177,3 +177,21 @@ model Counter {
   scope String @id // e.g. "WB01-2026"
   value Int    @default(0)
 }
+
+// System-wide audit trail of create/update/delete actions across users,
+// reports and schedules — visible to administrators.
+model AuditLog {
+  id        String   @id @default(cuid())
+  at        DateTime @default(now())
+  actorId   String?
+  actorName String
+  actorRole String?
+  action    String // CREATE | UPDATE | DELETE | APPROVE | REJECT
+  entity    String // USER | REPORT | SCHEDULE
+  entityId  String?
+  summary   String
+
+  @@index([at])
+  @@index([entity])
+  @@index([actorId])
+}

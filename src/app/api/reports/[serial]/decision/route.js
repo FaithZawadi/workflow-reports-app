@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canAct } from "@/lib/rbac";
 import { sendMail, approvalRequestEmail, decisionEmail } from "@/lib/email";
+import { recordAudit } from "@/lib/audit";
 
 export async function POST(req, { params }) {
   let user;
@@ -50,6 +51,14 @@ export async function POST(req, { params }) {
         create: [{ action, byName: user.name, byUserId: user.sub, comment: comment || null }],
       },
     },
+  });
+
+  await recordAudit({
+    actor: user,
+    action: decision === "approve" ? "APPROVE" : "REJECT",
+    entity: "REPORT",
+    entityId: report.serial,
+    summary: `${action} ${report.serial}${comment ? ` — "${comment}"` : ""}`,
   });
 
   // Notifications (best-effort).

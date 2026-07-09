@@ -8,6 +8,8 @@ import {
   scheduleScope,
   canManageTemplate,
 } from "@/lib/schedule";
+import { recordAudit } from "@/lib/audit";
+import { SCHEDULE_MANAGER_ROLES } from "@/lib/roles";
 
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
 
@@ -71,7 +73,7 @@ export async function GET(req) {
 export async function POST(req) {
   let user;
   try {
-    user = await requireUser(["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER"]);
+    user = await requireUser(SCHEDULE_MANAGER_ROLES);
   } catch (res) {
     return res;
   }
@@ -132,6 +134,15 @@ export async function POST(req) {
       notes: String(body.notes || "").trim() || null,
       createdById: user.sub,
     },
+  });
+
+  await recordAudit({
+    actor: user,
+    action: "CREATE",
+    entity: "SCHEDULE",
+    entityId: schedule.id,
+    summary: `Created ${tpl.code} ${FREQUENCIES[frequency]?.label || frequency} schedule for ${clientName} · ${weighbridgeId}` +
+      (schedule.assignedName ? ` → ${schedule.assignedName}` : ""),
   });
 
   return Response.json({ schedule: withStatus(schedule) });

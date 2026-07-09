@@ -3,13 +3,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Brand } from "./ui";
 import OutboxSync from "./OutboxSync";
+import InstallPrompt from "./InstallPrompt";
 import { ROLE_LABEL, GOLD, COAL } from "@/lib/theme";
+import { canFileReports, canManageUsers } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
   const router = useRouter();
-  const canFile = user.role === "TECHNICIAN" || user.role === "ENGINEER" || user.role === "ADMIN";
+  const canFile = canFileReports(user.role);
   const isAdmin = user.role === "ADMIN";
+  const showUsers = canManageUsers(user.role);
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -41,16 +44,21 @@ export default function AppShell({ user, children }) {
         </div>
       </header>
 
-      <nav className="wrap" style={{ display: "flex", gap: 8, padding: "12px 16px 0" }}>
+      <nav className="wrap" style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "12px 16px 0" }}>
         <Link href="/dashboard" className="btn" style={{ fontSize: 13 }}>
           Report registry
         </Link>
         <Link href="/schedule" className="btn" style={{ fontSize: 13 }}>
           Schedule
         </Link>
-        {isAdmin && (
+        {showUsers && (
           <Link href="/users" className="btn" style={{ fontSize: 13 }}>
             Users
+          </Link>
+        )}
+        {isAdmin && (
+          <Link href="/audit" className="btn" style={{ fontSize: 13 }}>
+            Audit log
           </Link>
         )}
         <Link href="/account" className="btn" style={{ fontSize: 13 }}>
@@ -68,6 +76,7 @@ export default function AppShell({ user, children }) {
       </main>
 
       <OutboxSync />
+      <InstallPrompt />
 
       <footer className="wrap" style={{ padding: "24px 16px 40px", borderTop: "3px solid var(--gold)", marginTop: 24 }}>
         <div style={{ fontWeight: 800, fontSize: 13, color: "var(--ink)" }}>{COMPANY.name}</div>

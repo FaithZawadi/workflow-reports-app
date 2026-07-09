@@ -10,9 +10,7 @@ import {
   STATUS_META,
   duePhrase,
 } from "@/lib/schedule";
-
-const CAN_MANAGE = ["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
-const CAN_FILE = ["TECHNICIAN", "ENGINEER", "ADMIN"];
+import { canManageSchedulesRole, canFileReports } from "@/lib/roles";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -50,8 +48,8 @@ function StatusTag({ state }) {
 }
 
 export default function Schedule({ profile }) {
-  const canManage = CAN_MANAGE.includes(profile.role);
-  const canFile = CAN_FILE.includes(profile.role);
+  const canManage = canManageSchedulesRole(profile.role);
+  const canFile = canFileReports(profile.role);
 
   const [data, setData] = useState(null);
   const [q, setQ] = useState("");
@@ -294,7 +292,7 @@ function EditRow({ schedule, onSaved }) {
 
 function ScheduleForm({ profile, onCreated }) {
   const manageable = useMemo(() => {
-    if (profile.role === "ADMIN") return TEMPLATES;
+    if (["ADMIN", "SUPERVISOR", "MANAGER"].includes(profile.role)) return TEMPLATES;
     if (profile.role === "PROJECT_MANAGER") return TEMPLATES.filter((t) => t.who === "Site Technician");
     if (profile.role === "TECHNICAL_MANAGER") return TEMPLATES.filter((t) => t.who === "QSL Engineer");
     return [];
@@ -311,11 +309,13 @@ function ScheduleForm({ profile, onCreated }) {
   const [firstDueAt, setFirstDueAt] = useState("");
   const [notes, setNotes] = useState("");
   const [clients, setClients] = useState([]);
+  const [assignees, setAssignees] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     fetch("/api/clients").then((r) => r.json()).then((d) => setClients(d.clients || [])).catch(() => {});
+    fetch("/api/users/directory").then((r) => r.json()).then((d) => setAssignees(d.assignees || [])).catch(() => {});
   }, []);
 
   const pickTemplate = (code) => {
@@ -379,12 +379,28 @@ function ScheduleForm({ profile, onCreated }) {
           <input className="input" type="date" value={firstDueAt} onChange={(e) => setFirstDueAt(e.target.value)} />
         </label>
         <label className="field">
-          <span className="label">Assign to (name)</span>
-          <input className="input" value={assignedName} onChange={(e) => setAssignedName(e.target.value)} />
-        </label>
-        <label className="field">
-          <span className="label">Assignee email (optional)</span>
-          <input className="input" type="email" value={assignedEmail} onChange={(e) => setAssignedEmail(e.target.value)} />
+          <span className="label">Assign to</span>
+          {assignees.length > 0 ? (
+            <select
+              className="input"
+              value={assignedEmail}
+              onChange={(e) => {
+                const email = e.target.value;
+                const p = assignees.find((a) => a.email === email);
+                setAssignedEmail(email);
+                setAssignedName(p ? p.name : "");
+              }}
+            >
+              <option value="">— Unassigned —</option>
+              {assignees.map((a) => (
+                <option key={a.id} value={a.email}>
+                  {a.name} · {a.role === "TECHNICIAN" ? "Technician" : "Engineer"}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input className="input" value={assignedName} onChange={(e) => setAssignedName(e.target.value)} placeholder="assignee name" />
+          )}
         </label>
       </div>
       <label className="field">

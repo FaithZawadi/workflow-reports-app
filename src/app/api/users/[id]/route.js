@@ -1,23 +1,16 @@
 import { prisma } from "@/lib/db";
 import { requireUser, hashPassword } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
+import { USER_ADMIN_ROLES, assignableRoles, canActOnUserRole } from "@/lib/roles";
 
-const ROLES = [
-  "TECHNICIAN",
-  "ENGINEER",
-  "SUPERVISOR",
-  "MANAGER",
-  "PROJECT_MANAGER",
-  "TECHNICAL_MANAGER",
-  "ADMIN",
-];
-
-// PATCH /api/users/[id] — admin edits a user: role, active, name, site, phone,
-// client, and/or reset password. Users are deactivated, never deleted, so the
-// audit trail and authored reports stay intact.
+// PATCH /api/users/[id] — edit a user: role, active, name, site, phone, client,
+// and/or reset password. Users are deactivated, never deleted, so the audit
+// trail and authored reports stay intact. Admins may act on anyone; managers
+// may only act on the staff roles they are allowed to manage.
 export async function PATCH(req, { params }) {
   let admin;
   try {
-    admin = await requireUser(["ADMIN"]);
+    admin = await requireUser(USER_ADMIN_ROLES);
   } catch (res) {
     return res;
   }
@@ -25,12 +18,17 @@ export async function PATCH(req, { params }) {
   const target = await prisma.user.findUnique({ where: { id: params.id } });
   if (!target) return Response.json({ error: "User not found." }, { status: 404 });
 
+  // A manager cannot touch admins or other managers.
+  if (!canActOnUserRole(admin.role, target.role))
+    return Response.json({ error: "You can't manage this user." }, { status: 403 });
+
+  const allowedRoles = assignableRoles(admin.role);
   const body = await req.json().catch(() => ({}));
   const data = {};
 
   if (body.role !== undefined) {
-    if (!ROLES.includes(body.role))
-      return Response.json({ error: "Invalid role." }, { status: 400 });
+    if (!allowedRoles.includes(body.role))
+      return Response.json({ error: "You can't assign that role." }, { status: 400 });
     if (target.id === admin.sub && body.role !== "ADMIN")
       return Response.json({ error: "You can't change your own role." }, { status: 400 });
     data.role = body.role;
@@ -65,6 +63,18 @@ export async function PATCH(req, { params }) {
     return Response.json({ error: "Nothing to update." }, { status: 400 });
 
   const u = await prisma.user.update({ where: { id: params.id }, data, include: { client: { select: { name: true } } } });
+
+  const changed = Object.keys(data)
+    .map((k) => (k === "passwordHash" ? "password" : k))
+    .join(", ");
+  await recordAudit({
+    actor: admin,
+    action: "UPDATE",
+    entity: "USER",
+    entityId: u.id,
+    summary: `Updated ${u.name} <${u.email}> (${changed})`,
+  });
+
   return Response.json({
     user: { id: u.id, email: u.email, name: u.name, role: u.role, site: u.site, client: u.client?.name || null, active: u.active },
   });

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { FREQUENCIES, dueStatus, canManageTemplate } from "@/lib/schedule";
+import { recordAudit } from "@/lib/audit";
+import { SCHEDULE_MANAGER_ROLES } from "@/lib/roles";
 
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
 
@@ -13,7 +15,7 @@ function withStatus(row) {
 export async function PATCH(req, { params }) {
   let user;
   try {
-    user = await requireUser(["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER"]);
+    user = await requireUser(SCHEDULE_MANAGER_ROLES);
   } catch (res) {
     return res;
   }
@@ -63,6 +65,13 @@ export async function PATCH(req, { params }) {
   }
 
   const schedule = await prisma.schedule.update({ where: { id: params.id }, data });
+  await recordAudit({
+    actor: user,
+    action: "UPDATE",
+    entity: "SCHEDULE",
+    entityId: schedule.id,
+    summary: `Updated ${schedule.template} schedule for ${schedule.clientName} · ${schedule.weighbridgeId || "—"}`,
+  });
   return Response.json({ schedule: withStatus(schedule) });
 }
 
@@ -70,7 +79,7 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
   let user;
   try {
-    user = await requireUser(["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER"]);
+    user = await requireUser(SCHEDULE_MANAGER_ROLES);
   } catch (res) {
     return res;
   }
@@ -80,5 +89,12 @@ export async function DELETE(req, { params }) {
     return Response.json({ error: "You can't delete this schedule." }, { status: 403 });
 
   await prisma.schedule.delete({ where: { id: params.id } });
+  await recordAudit({
+    actor: user,
+    action: "DELETE",
+    entity: "SCHEDULE",
+    entityId: existing.id,
+    summary: `Deleted ${existing.template} schedule for ${existing.clientName} · ${existing.weighbridgeId || "—"}`,
+  });
   return Response.json({ ok: true });
 }

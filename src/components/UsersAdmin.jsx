@@ -1,18 +1,10 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { COAL, GOLD, INK, MUTE, PAPER, LINE, ROLE_LABEL } from "@/lib/theme";
-
-const ROLES = [
-  "TECHNICIAN",
-  "ENGINEER",
-  "SUPERVISOR",
-  "MANAGER",
-  "PROJECT_MANAGER",
-  "TECHNICAL_MANAGER",
-  "ADMIN",
-];
+import { assignableRoles } from "@/lib/roles";
 
 export default function UsersAdmin({ profile }) {
+  const roleOptions = assignableRoles(profile.role);
   const [users, setUsers] = useState(null);
   const [q, setQ] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -54,7 +46,7 @@ export default function UsersAdmin({ profile }) {
       </div>
 
       {err && <div className="err" style={{ margin: "10px 0" }}>{err}</div>}
-      {showAdd && <AddUser onCreated={() => { setShowAdd(false); load(); }} />}
+      {showAdd && <AddUser roleOptions={roleOptions} onCreated={() => { setShowAdd(false); load(); }} />}
 
       <input className="input" placeholder="Search name, email, role, client…" value={q} onChange={(e) => setQ(e.target.value)} style={{ margin: "10px 0 12px" }} />
 
@@ -80,7 +72,7 @@ export default function UsersAdmin({ profile }) {
                 {editing === u.id ? "Cancel" : "Manage"}
               </button>
             </div>
-            {editing === u.id && <EditUser user={u} isSelf={u.id === profile.id} onSaved={() => { setEditing(null); load(); }} />}
+            {editing === u.id && <EditUser user={u} roleOptions={roleOptions} isSelf={u.id === profile.id} onSaved={() => { setEditing(null); load(); }} />}
           </div>
         ))}
         {users && shown.length === 0 && <div className="muted">No users match.</div>}
@@ -89,8 +81,8 @@ export default function UsersAdmin({ profile }) {
   );
 }
 
-function AddUser({ onCreated }) {
-  const [f, setF] = useState({ name: "", email: "", password: "", role: "TECHNICIAN", clientName: "", site: "", phone: "" });
+function AddUser({ roleOptions, onCreated }) {
+  const [f, setF] = useState({ name: "", email: "", password: "", role: roleOptions[0] || "TECHNICIAN", clientName: "", site: "", phone: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -119,7 +111,7 @@ function AddUser({ onCreated }) {
         <L label="Temporary password"><input className="input" type="text" value={f.password} onChange={(e) => set("password", e.target.value)} placeholder="min 8 chars — user can change it" /></L>
         <L label="Role">
           <select className="input" value={f.role} onChange={(e) => set("role", e.target.value)}>
-            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r] || r}</option>)}
+            {roleOptions.map((r) => <option key={r} value={r}>{ROLE_LABEL[r] || r}</option>)}
           </select>
         </L>
         <L label="Client / plant (technicians)"><input className="input" value={f.clientName} onChange={(e) => set("clientName", e.target.value)} placeholder="e.g. TATA Chemicals Magadi" /></L>
@@ -134,7 +126,7 @@ function AddUser({ onCreated }) {
   );
 }
 
-function EditUser({ user, isSelf, onSaved }) {
+function EditUser({ user, roleOptions, isSelf, onSaved }) {
   const [role, setRole] = useState(user.role);
   const [site, setSite] = useState(user.site || "");
   const [clientName, setClientName] = useState(user.client || "");
@@ -172,7 +164,7 @@ function EditUser({ user, isSelf, onSaved }) {
       <div className="grid md-2" style={{ gap: 8 }}>
         <L label="Role">
           <select className="input" value={role} onChange={(e) => setRole(e.target.value)} disabled={isSelf}>
-            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r] || r}</option>)}
+            {(roleOptions.includes(role) ? roleOptions : [role, ...roleOptions]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r] || r}</option>)}
           </select>
         </L>
         <L label="Client / plant"><input className="input" value={clientName} onChange={(e) => setClientName(e.target.value)} /></L>

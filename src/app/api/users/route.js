@@ -1,23 +1,19 @@
 import { prisma } from "@/lib/db";
 import { requireUser, hashPassword } from "@/lib/auth";
-
-const ROLES = [
-  "TECHNICIAN",
-  "ENGINEER",
-  "SUPERVISOR",
-  "MANAGER",
-  "PROJECT_MANAGER",
-  "TECHNICAL_MANAGER",
-  "ADMIN",
-];
+import { recordAudit } from "@/lib/audit";
+import { USER_ADMIN_ROLES, MANAGER_ASSIGNABLE_ROLES, assignableRoles } from "@/lib/roles";
 
 export async function GET() {
+  let me;
   try {
-    await requireUser(["ADMIN"]);
+    me = await requireUser(USER_ADMIN_ROLES);
   } catch (res) {
     return res;
   }
+  // Admins see everyone; managers see only the staff they can manage.
+  const where = me.role === "ADMIN" ? {} : { role: { in: MANAGER_ASSIGNABLE_ROLES } };
   const users = await prisma.user.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     include: { client: { select: { name: true } } },
   });
@@ -35,8 +31,9 @@ export async function GET() {
 }
 
 export async function POST(req) {
+  let me;
   try {
-    await requireUser(["ADMIN"]);
+    me = await requireUser(USER_ADMIN_ROLES);
   } catch (res) {
     return res;
   }
@@ -48,8 +45,14 @@ export async function POST(req) {
   const site = String(body.site || "").trim() || null;
   const clientName = String(body.clientName || "").trim();
 
-  if (!email || !name || !password || !ROLES.includes(role))
-    return Response.json({ error: "Name, email, password and a valid role are required." }, { status: 400 });
+  const allowedRoles = assignableRoles(me.role);
+  if (!email || !name || !password || !allowedRoles.includes(role))
+    return Response.json(
+      { error: "Name, email, password and a role you are allowed to assign are required." },
+      { status: 400 }
+    );
+  if (password.length < 8)
+    return Response.json({ error: "Password must be at least 8 characters." }, { status: 400 });
 
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) return Response.json({ error: "A user with that email already exists." }, { status: 409 });
@@ -66,6 +69,13 @@ export async function POST(req) {
 
   const user = await prisma.user.create({
     data: { email, name, passwordHash: await hashPassword(password), role, site, clientId },
+  });
+  await recordAudit({
+    actor: me,
+    action: "CREATE",
+    entity: "USER",
+    entityId: user.id,
+    summary: `Created ${role} ${name} <${email}>`,
   });
   return Response.json({ user: { id: user.id, email: user.email, role: user.role } });
 }

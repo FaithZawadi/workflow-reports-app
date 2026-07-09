@@ -83,21 +83,23 @@ export function scheduleScope(user) {
   const where = { AND: [] };
   const tpls = scheduleTemplateScope(user.role);
   if (tpls) where.AND.push({ template: { in: tpls } });
-  // Technicians only see their own plant's schedules.
-  if (user.role === "TECHNICIAN" && user.clientId) {
-    where.AND.push({ clientId: user.clientId });
+  // Technicians see their own plant's schedules plus anything assigned to them.
+  if (user.role === "TECHNICIAN") {
+    const or = [{ assignedEmail: { equals: user.email, mode: "insensitive" } }];
+    if (user.clientId) or.push({ clientId: user.clientId });
+    where.AND.push({ OR: or });
   }
   return where.AND.length ? where : {};
 }
 
 // Who may create / edit / delete schedules (and for which templates).
 export function canManageSchedules(role) {
-  return ["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER"].includes(role);
+  return ["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "SUPERVISOR", "MANAGER"].includes(role);
 }
 
 export function canManageTemplate(role, template) {
   if (!canManageSchedules(role)) return false;
-  if (role === "ADMIN") return true;
+  if (role === "ADMIN" || role === "SUPERVISOR" || role === "MANAGER") return true;
   if (role === "PROJECT_MANAGER") return TECH_TEMPLATES.includes(template);
   if (role === "TECHNICAL_MANAGER") return ENGINEER_TEMPLATES.includes(template);
   return false;

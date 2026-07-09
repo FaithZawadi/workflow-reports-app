@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/jwt";
 
 // Protect the authenticated app area and redirect signed-in users away from login.
-const PROTECTED = ["/dashboard", "/reports", "/schedule", "/users", "/account"];
+const PROTECTED = ["/dashboard", "/reports", "/schedule", "/users", "/audit", "/account"];
 
 export async function middleware(req) {
   const { pathname } = req.nextUrl;
@@ -29,5 +29,5 @@ export async function middleware(req) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/dashboard/:path*", "/reports/:path*", "/schedule/:path*", "/users/:path*", "/account/:path*"],
+  matcher: ["/", "/login", "/dashboard/:path*", "/reports/:path*", "/schedule/:path*", "/users/:path*", "/audit/:path*", "/account/:path*"],
 };

@@ -181,17 +181,26 @@ export default function ReportDetail({ serial, profile }) {
           </div>
         )}
 
-        {/* trail */}
-        <SectionBar>Approval trail</SectionBar>
-        {(rep.trailEvents || []).map((t, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13, padding: "6px 0", borderBottom: "1px solid #eae4d6" }}>
-            <span>
-              <b>{t.action}</b> by {t.byName}
-              {t.comment ? ` — "${t.comment}"` : ""}
-            </span>
-            <span className="muted" style={{ flexShrink: 0, fontSize: 12 }}>{new Date(t.at).toLocaleString()}</span>
-          </div>
-        ))}
+        {/* trail — each action clearly badged (created / approved / rejected) */}
+        <SectionBar>Activity &amp; approval trail</SectionBar>
+        {(rep.trailEvents || []).map((t, i) => {
+          const a = (t.action || "").toLowerCase();
+          const color = a.includes("reject") ? FAIL : a.includes("approv") ? PASS : a.includes("submit") ? WAIT : MUTE;
+          return (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13, padding: "8px 0", borderBottom: "1px solid #eae4d6", alignItems: "flex-start" }}>
+              <span style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".03em", color: "#fff", background: color, padding: "2px 6px", borderRadius: 3, flexShrink: 0 }}>
+                  {t.action}
+                </span>
+                <span style={{ color: INK }}>
+                  by <b>{t.byName}</b>
+                  {t.comment ? ` — "${t.comment}"` : ""}
+                </span>
+              </span>
+              <span className="muted" style={{ flexShrink: 0, fontSize: 12 }}>{new Date(t.at).toLocaleString()}</span>
+            </div>
+          );
+        })}
         {rep.status === "APPROVED" && (
           <div style={{ marginTop: 12, padding: 12, borderRadius: 2, fontWeight: 900, textTransform: "uppercase", color: "#fff", background: PASS, textAlign: "center" }}>
             Fully approved — record closed

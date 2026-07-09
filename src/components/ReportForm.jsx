@@ -12,9 +12,13 @@ export default function ReportForm({ profile, prefill = {} }) {
   const router = useRouter();
 
   const isTech = profile.role === "TECHNICIAN";
-  const available = TEMPLATES.filter((t) =>
-    profile.role === "ENGINEER" ? t.who === "QSL Engineer" : t.who === "Site Technician" || profile.role === "ADMIN"
-  );
+  // Technicians file WB01-03, engineers WB04-06; supervisors, managers and
+  // admins may file any form type.
+  const available = TEMPLATES.filter((t) => {
+    if (profile.role === "TECHNICIAN") return t.who === "Site Technician";
+    if (profile.role === "ENGINEER") return t.who === "QSL Engineer";
+    return true;
+  });
 
   const prefillTpl = prefill.template ? available.find((t) => t.code === prefill.template) || null : null;
 
@@ -25,6 +29,8 @@ export default function ReportForm({ profile, prefill = {} }) {
   const [runs, setRuns] = useState({});
   const [photos, setPhotos] = useState([]);
   const [clients, setClients] = useState([]);
+  const [supervisors, setSupervisors] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [clientName, setClientName] = useState(profile.clientName || prefill.client || "");
   const [site, setSite] = useState(profile.site || prefill.site || "");
   const [supervisorEmail, setSupervisorEmail] = useState("");
@@ -37,6 +43,13 @@ export default function ReportForm({ profile, prefill = {} }) {
     fetch("/api/clients")
       .then((r) => r.json())
       .then((d) => setClients(d.clients || []))
+      .catch(() => {});
+    fetch("/api/users/directory")
+      .then((r) => r.json())
+      .then((d) => {
+        setSupervisors(d.supervisors || []);
+        setManagers(d.managers || []);
+      })
       .catch(() => {});
   }, []);
 
@@ -157,8 +170,20 @@ export default function ReportForm({ profile, prefill = {} }) {
         {(isTech ? profile.clientName : clientName) ? " · " + (isTech ? profile.clientName : clientName) : ""}
         {(isTech ? profile.site : site) ? " - " + (isTech ? profile.site : site) : ""}
       </div>
-      <Field label="Supervisor email (reviews first)" type="email" value={supervisorEmail} onChange={setSupervisorEmail} />
-      <Field label="Manager email (approves after supervisor)" type="email" value={managerEmail} onChange={setManagerEmail} />
+      <ReviewerPicker
+        label="Supervisor (reviews first)"
+        people={supervisors}
+        value={supervisorEmail}
+        onChange={setSupervisorEmail}
+        placeholder="supervisor@company.com"
+      />
+      <ReviewerPicker
+        label="Manager (approves after supervisor)"
+        people={managers}
+        value={managerEmail}
+        onChange={setManagerEmail}
+        placeholder="manager@company.com"
+      />
       {msg && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, margin: "8px 0" }}>{msg}</div>}
       <button className="btn btn-primary" style={{ width: "100%", padding: "13px" }} disabled={busy} onClick={submit}>
         {busy ? "Working…" : "Submit — send to supervisor"}
@@ -358,5 +383,33 @@ export default function ReportForm({ profile, prefill = {} }) {
         </PaperCard>
       </div>
     </div>
+  );
+}
+
+// Pick a reviewer from registered staff. Falls back to a plain email input when
+// no one with that role is registered yet, so filing is never blocked.
+function ReviewerPicker({ label, people, value, onChange, placeholder }) {
+  const known = people.some((p) => p.email.toLowerCase() === (value || "").toLowerCase());
+  return (
+    <label className="field">
+      <span className="label">{label}</span>
+      {people.length > 0 ? (
+        <>
+          <select className="input" value={known ? value : ""} onChange={(e) => onChange(e.target.value)}>
+            <option value="">— choose —</option>
+            {people.map((p) => (
+              <option key={p.id} value={p.email}>
+                {p.name} ({p.email})
+              </option>
+            ))}
+          </select>
+          {value && !known && (
+            <span className="muted" style={{ fontSize: 11, marginTop: 4 }}>Using a custom address: {value}</span>
+          )}
+        </>
+      ) : (
+        <input className="input" type="email" value={value || ""} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+      )}
+    </label>
   );
 }

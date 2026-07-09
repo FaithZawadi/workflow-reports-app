@@ -5,6 +5,8 @@ import { nextSerial } from "@/lib/serial";
 import { templateByCode, TECH_TEMPLATES, ENGINEER_TEMPLATES } from "@/lib/templates";
 import { sendMail, reviewRequestEmail } from "@/lib/email";
 import { addCycle } from "@/lib/schedule";
+import { recordAudit } from "@/lib/audit";
+import { FILER_ROLES } from "@/lib/roles";
 
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
 
@@ -85,7 +87,7 @@ export async function GET(req) {
 export async function POST(req) {
   let user;
   try {
-    user = await requireUser(["TECHNICIAN", "ENGINEER", "ADMIN"]);
+    user = await requireUser(FILER_ROLES);
   } catch (res) {
     return res;
   }
@@ -100,7 +102,8 @@ export async function POST(req) {
   const tpl = templateByCode(body.template);
   if (!tpl) return Response.json({ error: "Unknown form type." }, { status: 400 });
 
-  // Technicians file WB01-03; engineers file WB04-06.
+  // Technicians file WB01-03; engineers file WB04-06. Supervisors, managers and
+  // admins may file any form type.
   if (user.role === "TECHNICIAN" && !TECH_TEMPLATES.includes(tpl.code))
     return Response.json({ error: "This form is for QSL engineers." }, { status: 403 });
   if (user.role === "ENGINEER" && !ENGINEER_TEMPLATES.includes(tpl.code))
@@ -190,6 +193,14 @@ export async function POST(req) {
         create: [{ action: "Submitted", byName: authorName, byUserId: user.sub }],
       },
     },
+  });
+
+  await recordAudit({
+    actor: user,
+    action: "CREATE",
+    entity: "REPORT",
+    entityId: report.serial,
+    summary: `Filed ${tpl.code} ${report.serial} for ${clientName}${site ? " - " + site : ""}`,
   });
 
   // Advance the matching maintenance schedule, if any (best-effort — never blocks filing).
