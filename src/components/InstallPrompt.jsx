@@ -67,6 +67,7 @@ export default function InstallPrompt() {
     <div
       role="dialog"
       aria-label="Install the QSL app"
+      className="app-toast"
       style={{
         position: "fixed",
         left: 16,

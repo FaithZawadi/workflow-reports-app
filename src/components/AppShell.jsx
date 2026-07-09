@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Brand } from "./ui";
 import OutboxSync from "./OutboxSync";
 import InstallPrompt from "./InstallPrompt";
@@ -10,9 +10,21 @@ import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
   const router = useRouter();
+  const pathname = usePathname();
   const canFile = canFileReports(user.role);
   const isAdmin = user.role === "ADMIN";
   const showUsers = canManageUsers(user.role);
+
+  // Bottom tab bar (mobile) — the primary destinations as a native-style bar.
+  const tabs = [
+    { href: "/dashboard", label: "Reports", icon: "📋", match: (p) => p.startsWith("/dashboard") || (p.startsWith("/reports") && p !== "/reports/new") },
+    { href: "/schedule", label: "Schedule", icon: "🗓️" },
+    canFile && { href: "/reports/new", label: "New", icon: "＋", primary: true },
+    showUsers && { href: "/users", label: "Users", icon: "👥" },
+    isAdmin && { href: "/audit", label: "Audit", icon: "🧾" },
+    { href: "/account", label: "Account", icon: "👤" },
+  ].filter(Boolean);
+  const isActive = (t) => (t.match ? t.match(pathname) : pathname === t.href || pathname.startsWith(t.href + "/"));
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -20,8 +32,8 @@ export default function AppShell({ user, children }) {
   };
 
   return (
-    <div style={{ minHeight: "100dvh" }}>
-      <header style={{ background: COAL, color: "#fff", position: "sticky", top: 0, zIndex: 20 }}>
+    <div className="has-tabbar" style={{ minHeight: "100dvh" }}>
+      <header className="app-header" style={{ background: COAL, color: "#fff", position: "sticky", top: 0, zIndex: 20 }}>
         <div className="stripe" />
         <div
           className="wrap"
@@ -44,7 +56,7 @@ export default function AppShell({ user, children }) {
         </div>
       </header>
 
-      <nav className="wrap" style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "12px 16px 0" }}>
+      <nav className="wrap topnav" style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "12px 16px 0" }}>
         <Link href="/dashboard" className="btn" style={{ fontSize: 13 }}>
           Report registry
         </Link>
@@ -77,6 +89,16 @@ export default function AppShell({ user, children }) {
 
       <OutboxSync />
       <InstallPrompt />
+
+      {/* Native-style bottom tab bar — shown on phones only (see globals.css) */}
+      <nav className="tabbar" aria-label="Primary">
+        {tabs.map((t) => (
+          <Link key={t.href} href={t.href} className={`${isActive(t) ? "active" : ""} ${t.primary ? "tab-primary" : ""}`.trim()} aria-current={isActive(t) ? "page" : undefined}>
+            <span className="tab-ic" aria-hidden>{t.icon}</span>
+            <span>{t.label}</span>
+          </Link>
+        ))}
+      </nav>
 
       <footer className="wrap" style={{ padding: "24px 16px 40px", borderTop: "3px solid var(--gold)", marginTop: 24 }}>
         <div style={{ fontWeight: 800, fontSize: 13, color: "var(--ink)" }}>{COMPANY.name}</div>

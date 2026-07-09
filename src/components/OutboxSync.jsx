@@ -80,7 +80,7 @@ export default function OutboxSync() {
 
   if (pending > 0) {
     return (
-      <div style={{ ...banner, background: COAL, color: "#fff", border: `1px solid ${GOLD}` }} role="status">
+      <div className="app-toast" style={{ ...banner, background: COAL, color: "#fff", border: `1px solid ${GOLD}` }} role="status">
         <span aria-hidden style={{ width: 8, height: 8, borderRadius: "50%", background: online ? GOLD : "#9a9083", flexShrink: 0 }} />
         {online
           ? `Sending ${pending} saved report${pending > 1 ? "s" : ""}…`
@@ -90,7 +90,7 @@ export default function OutboxSync() {
   }
 
   return (
-    <div style={{ ...banner, background: PASS, color: "#fff" }} role="status">
+    <div className="app-toast" style={{ ...banner, background: PASS, color: "#fff" }} role="status">
       <span aria-hidden>✓</span>
       {justSent} saved report{justSent > 1 ? "s" : ""} sent successfully.
     </div>
