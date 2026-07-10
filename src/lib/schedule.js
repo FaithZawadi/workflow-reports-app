@@ -1,5 +1,6 @@
 // Maintenance scheduling helpers — frequency maths, due-status and access rules.
 import { TECH_TEMPLATES, ENGINEER_TEMPLATES } from "./templates";
+import { rolesOf } from "./roles";
 
 // How soon (in days) before the due date an item is flagged "due soon".
 export const FREQUENCIES = {
@@ -70,21 +71,25 @@ export function duePhrase(days) {
   return `in ${days} days`;
 }
 
-// Which templates a user may see/manage in the scheduler.
-export function scheduleTemplateScope(role) {
-  if (role === "ADMIN") return null; // all
-  if (role === "PROJECT_MANAGER" || role === "TECHNICIAN") return TECH_TEMPLATES;
-  if (role === "TECHNICAL_MANAGER" || role === "ENGINEER") return ENGINEER_TEMPLATES;
-  return null; // supervisors/managers: view all
+// Which templates a user may see/manage in the scheduler. Accepts a user/claims
+// object, a role string, or an array of roles; a multi-role user gets the union.
+export function scheduleTemplateScope(input) {
+  const roles = rolesOf(input);
+  // Any of these roles => all templates.
+  if (roles.some((r) => ["ADMIN", "SUPERVISOR", "MANAGER"].includes(r))) return null;
+  const set = new Set();
+  if (roles.some((r) => ["PROJECT_MANAGER", "TECHNICIAN"].includes(r))) TECH_TEMPLATES.forEach((t) => set.add(t));
+  if (roles.some((r) => ["TECHNICAL_MANAGER", "ENGINEER"].includes(r))) ENGINEER_TEMPLATES.forEach((t) => set.add(t));
+  return set.size ? [...set] : null; // no restriction found: view all
 }
 
 // Prisma `where` clause limiting schedules to what this user may list.
 export function scheduleScope(user) {
   const where = { AND: [] };
-  const tpls = scheduleTemplateScope(user.role);
+  const tpls = scheduleTemplateScope(user);
   if (tpls) where.AND.push({ template: { in: tpls } });
   // Technicians see their own plant's schedules plus anything assigned to them.
-  if (user.role === "TECHNICIAN") {
+  if (rolesOf(user).includes("TECHNICIAN")) {
     const or = [{ assignedEmail: { equals: user.email, mode: "insensitive" } }];
     if (user.clientId) or.push({ clientId: user.clientId });
     where.AND.push({ OR: or });
@@ -93,15 +98,16 @@ export function scheduleScope(user) {
 }
 
 // Who may create / edit / delete schedules (and for which templates).
-export function canManageSchedules(role) {
-  return ["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "SUPERVISOR", "MANAGER"].includes(role);
+export function canManageSchedules(input) {
+  return rolesOf(input).some((r) => ["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "SUPERVISOR", "MANAGER"].includes(r));
 }
 
-export function canManageTemplate(role, template) {
-  if (!canManageSchedules(role)) return false;
-  if (role === "ADMIN" || role === "SUPERVISOR" || role === "MANAGER") return true;
-  if (role === "PROJECT_MANAGER") return TECH_TEMPLATES.includes(template);
-  if (role === "TECHNICAL_MANAGER") return ENGINEER_TEMPLATES.includes(template);
+export function canManageTemplate(input, template) {
+  const roles = rolesOf(input);
+  if (!canManageSchedules(roles)) return false;
+  if (roles.some((r) => ["ADMIN", "SUPERVISOR", "MANAGER"].includes(r))) return true;
+  if (roles.includes("PROJECT_MANAGER") && TECH_TEMPLATES.includes(template)) return true;
+  if (roles.includes("TECHNICAL_MANAGER") && ENGINEER_TEMPLATES.includes(template)) return true;
   return false;
 }
 

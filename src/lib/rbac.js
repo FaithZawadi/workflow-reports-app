@@ -1,37 +1,33 @@
 import { TECH_TEMPLATES, ENGINEER_TEMPLATES } from "./templates";
+import { rolesOf } from "./roles";
 
 const norm = (v) => (v || "").trim().toLowerCase();
 
 // Build a Prisma `where` clause limiting reports to what this user may see.
+// A user may hold several roles; the visible set is the UNION of what each role
+// allows.
 export function reportScope(user) {
-  switch (user.role) {
-    case "ADMIN":
-      return {};
-    case "PROJECT_MANAGER":
-      return { template: { in: TECH_TEMPLATES } };
-    case "TECHNICAL_MANAGER":
-      return { template: { in: ENGINEER_TEMPLATES } };
-    case "SUPERVISOR":
-    case "MANAGER":
-      // Reviewers see everything routed to them at either stage.
-      return {
-        OR: [
-          { supervisorEmail: { equals: user.email, mode: "insensitive" } },
-          { managerEmail: { equals: user.email, mode: "insensitive" } },
-        ],
-      };
-    case "TECHNICIAN":
-    case "ENGINEER":
-    default:
-      // Field staff also see anything routed to them for review, plus their own.
-      return {
-        OR: [
-          { authorId: user.sub },
-          { supervisorEmail: { equals: user.email, mode: "insensitive" } },
-          { managerEmail: { equals: user.email, mode: "insensitive" } },
-        ],
-      };
+  const roles = rolesOf(user);
+  if (roles.includes("ADMIN")) return {};
+
+  const clauses = [];
+  const routedToMe = () => {
+    clauses.push({ supervisorEmail: { equals: user.email, mode: "insensitive" } });
+    clauses.push({ managerEmail: { equals: user.email, mode: "insensitive" } });
+  };
+
+  if (roles.includes("PROJECT_MANAGER")) clauses.push({ template: { in: TECH_TEMPLATES } });
+  if (roles.includes("TECHNICAL_MANAGER")) clauses.push({ template: { in: ENGINEER_TEMPLATES } });
+  if (roles.includes("SUPERVISOR") || roles.includes("MANAGER")) routedToMe();
+
+  // Field staff (and any other role) also see their own reports plus anything
+  // routed to them for review.
+  if (roles.some((r) => ["TECHNICIAN", "ENGINEER"].includes(r)) || clauses.length === 0) {
+    clauses.push({ authorId: user.sub });
+    routedToMe();
   }
+
+  return { OR: clauses };
 }
 
 // A user is the routed reviewer for a report if their email is on it.
@@ -41,9 +37,10 @@ function isReviewer(report, user) {
 }
 
 export function canView(report, user) {
-  if (user.role === "ADMIN") return true;
-  if (user.role === "PROJECT_MANAGER") return TECH_TEMPLATES.includes(report.template);
-  if (user.role === "TECHNICAL_MANAGER") return ENGINEER_TEMPLATES.includes(report.template);
+  const roles = rolesOf(user);
+  if (roles.includes("ADMIN")) return true;
+  if (roles.includes("PROJECT_MANAGER") && TECH_TEMPLATES.includes(report.template)) return true;
+  if (roles.includes("TECHNICAL_MANAGER") && ENGINEER_TEMPLATES.includes(report.template)) return true;
   if (isReviewer(report, user)) return true;
   return report.authorId === user.sub;
 }
@@ -60,12 +57,13 @@ export function canAct(report, user) {
   const pendingMgr = report.status === "PENDING_MANAGER";
   if (!pendingSup && !pendingMgr) return null;
 
+  const roles = rolesOf(user);
   const email = norm(user.email);
 
-  if (user.role === "ADMIN") return pendingSup ? "SUPERVISOR" : "MANAGER";
-  if (user.role === "PROJECT_MANAGER" && TECH_TEMPLATES.includes(report.template))
+  if (roles.includes("ADMIN")) return pendingSup ? "SUPERVISOR" : "MANAGER";
+  if (roles.includes("PROJECT_MANAGER") && TECH_TEMPLATES.includes(report.template))
     return pendingSup ? "SUPERVISOR" : "MANAGER";
-  if (user.role === "TECHNICAL_MANAGER" && ENGINEER_TEMPLATES.includes(report.template))
+  if (roles.includes("TECHNICAL_MANAGER") && ENGINEER_TEMPLATES.includes(report.template))
     return pendingSup ? "SUPERVISOR" : "MANAGER";
 
   if (pendingSup && email && norm(report.supervisorEmail) === email) return "SUPERVISOR";

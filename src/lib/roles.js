@@ -1,5 +1,9 @@
 // Central role groupings and access helpers, shared by API routes and UI so the
 // rules stay in one place.
+//
+// A user may hold MORE THAN ONE role. Everywhere that used to take a single
+// `role` string now accepts a user/claims object, a role string, or an array of
+// roles — access is granted when ANY of the user's roles qualifies.
 
 export const MANAGER_ROLES = ["MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
 
@@ -41,20 +45,38 @@ export const ALL_ROLES = [
   "ADMIN",
 ];
 
-export const canManageUsers = (role) => USER_ADMIN_ROLES.includes(role);
-export const canFileReports = (role) => FILER_ROLES.includes(role);
-export const canManageSchedulesRole = (role) => SCHEDULE_MANAGER_ROLES.includes(role);
+// Normalize whatever we're given (a claims/user object, a single role string, or
+// an array of roles) into a de-duplicated array of role strings.
+export function rolesOf(input) {
+  if (!input) return [];
+  if (typeof input === "string") return [input];
+  if (Array.isArray(input)) return [...new Set(input.filter(Boolean))];
+  const list = Array.isArray(input.roles) && input.roles.length ? input.roles : input.role ? [input.role] : [];
+  return [...new Set(list.filter(Boolean))];
+}
+
+const intersects = (input, group) => rolesOf(input).some((r) => group.includes(r));
+
+export const canManageUsers = (input) => intersects(input, USER_ADMIN_ROLES);
+export const canFileReports = (input) => intersects(input, FILER_ROLES);
+export const canManageSchedulesRole = (input) => intersects(input, SCHEDULE_MANAGER_ROLES);
 
 // Which target roles an actor may assign when creating/editing a user.
-export function assignableRoles(actorRole) {
-  if (actorRole === "ADMIN") return ALL_ROLES;
-  if (MANAGER_ROLES.includes(actorRole)) return MANAGER_ASSIGNABLE_ROLES;
+export function assignableRoles(actor) {
+  const roles = rolesOf(actor);
+  if (roles.includes("ADMIN")) return ALL_ROLES;
+  if (roles.some((r) => MANAGER_ROLES.includes(r))) return MANAGER_ASSIGNABLE_ROLES;
   return [];
 }
 
-// Whether an actor may create/edit/deactivate a user who holds `targetRole`.
-export function canActOnUserRole(actorRole, targetRole) {
-  if (actorRole === "ADMIN") return true;
-  if (MANAGER_ROLES.includes(actorRole)) return MANAGER_ASSIGNABLE_ROLES.includes(targetRole);
+// Whether an actor may create/edit/deactivate a user who holds `target` role(s).
+// A manager may only touch a user whose roles are ALL within the roles a manager
+// is allowed to assign (so they can't manage admins or other managers).
+export function canActOnUserRole(actor, target) {
+  const roles = rolesOf(actor);
+  const targets = rolesOf(target);
+  if (roles.includes("ADMIN")) return true;
+  if (roles.some((r) => MANAGER_ROLES.includes(r)))
+    return targets.length > 0 && targets.every((t) => MANAGER_ASSIGNABLE_ROLES.includes(t));
   return false;
 }

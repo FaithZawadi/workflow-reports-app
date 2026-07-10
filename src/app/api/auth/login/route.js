@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { verifyPassword, startSession } from "@/lib/auth";
+import { rolesOf } from "@/lib/roles";
 
 export async function POST(req) {
   let body;
@@ -26,11 +27,13 @@ export async function POST(req) {
     return Response.json({ error: "Wrong email or password." }, { status: 401 });
   }
 
-  // Oversight roles require the second-factor access code.
-  if (user.role === "PROJECT_MANAGER" && code !== (process.env.PROJECT_MANAGER_CODE || "")) {
+  // Oversight roles require the second-factor access code (whether held as a
+  // primary or secondary role).
+  const heldRoles = rolesOf(user);
+  if (heldRoles.includes("PROJECT_MANAGER") && code !== (process.env.PROJECT_MANAGER_CODE || "")) {
     return Response.json({ error: "Project Manager access code is required." }, { status: 401 });
   }
-  if (user.role === "TECHNICAL_MANAGER" && code !== (process.env.TECHNICAL_MANAGER_CODE || "")) {
+  if (heldRoles.includes("TECHNICAL_MANAGER") && code !== (process.env.TECHNICAL_MANAGER_CODE || "")) {
     return Response.json({ error: "Technical Manager access code is required." }, { status: 401 });
   }
 
@@ -42,6 +45,7 @@ export async function POST(req) {
       email: user.email,
       name: user.name,
       role: user.role,
+      roles: user.roles && user.roles.length ? user.roles : [user.role],
       clientId: user.clientId,
       clientName: user.client?.name || null,
       site: user.site,

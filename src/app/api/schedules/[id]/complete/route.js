@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { addCycle, dueStatus } from "@/lib/schedule";
 import { scheduleTemplateScope } from "@/lib/schedule";
+import { rolesOf } from "@/lib/roles";
 
 // POST /api/schedules/[id]/complete — record that the check was done and roll the
 // next due date forward one cycle. Used for offline/paper completions; filing a
@@ -18,10 +19,10 @@ export async function POST(req, { params }) {
   if (!sch) return Response.json({ error: "Schedule not found." }, { status: 404 });
 
   // Template scope check (technicians only their plant).
-  const tpls = scheduleTemplateScope(user.role);
+  const tpls = scheduleTemplateScope(user);
   if (tpls && !tpls.includes(sch.template))
     return Response.json({ error: "Not your schedule to complete." }, { status: 403 });
-  if (user.role === "TECHNICIAN" && user.clientId && sch.clientId !== user.clientId)
+  if (rolesOf(user).includes("TECHNICIAN") && user.clientId && sch.clientId !== user.clientId)
     return Response.json({ error: "Not your plant's schedule." }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));

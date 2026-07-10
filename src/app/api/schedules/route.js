@@ -82,7 +82,7 @@ export async function POST(req) {
 
   const tpl = templateByCode(body.template);
   if (!tpl) return Response.json({ error: "Choose a valid form." }, { status: 400 });
-  if (!canManageTemplate(user.role, tpl.code))
+  if (!canManageTemplate(user, tpl.code))
     return Response.json({ error: "You can't schedule this form type." }, { status: 403 });
 
   const frequency = String(body.frequency || "").toUpperCase();
