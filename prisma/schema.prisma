@@ -44,7 +44,12 @@ model User {
   email        String   @unique
   passwordHash String
   name         String
+  // Primary role — kept for display, reviewer routing and backward compatibility.
   role         Role
+  // Every role this user holds. A user may hold more than one (e.g. technician
+  // AND engineer); their access is the union across all of them. Always includes
+  // `role`.
+  roles        Role[]   @default([])
   phone        String?
   site         String? // for technicians: their site within the plant
   active       Boolean  @default(true)

@@ -6,15 +6,15 @@ import OutboxSync from "./OutboxSync";
 import InstallPrompt from "./InstallPrompt";
 import OfflineBadge from "./OfflineBadge";
 import { ROLE_LABEL, GOLD, COAL } from "@/lib/theme";
-import { canFileReports, canManageUsers } from "@/lib/roles";
+import { canFileReports, canManageUsers, rolesOf } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
   const router = useRouter();
   const pathname = usePathname();
-  const canFile = canFileReports(user.role);
-  const isAdmin = user.role === "ADMIN";
-  const showUsers = canManageUsers(user.role);
+  const canFile = canFileReports(user);
+  const isAdmin = rolesOf(user).includes("ADMIN");
+  const showUsers = canManageUsers(user);
 
   // Bottom tab bar (mobile) — the primary destinations as a native-style bar.
   const tabs = [

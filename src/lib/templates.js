@@ -281,3 +281,19 @@ export const TEMPLATES = [
 export function templateByCode(code) {
   return TEMPLATES.find((t) => t.code === code) || null;
 }
+
+// Which forms a set of roles may file. Supervisors, managers and admins may file
+// any form. Technicians file WB01-03, engineers WB04-06; a user holding both
+// gets both. WB07 (Photo Evidence) is available to anyone. Pass an array of role
+// strings.
+const FULL_ACCESS_ROLES = ["ADMIN", "SUPERVISOR", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
+export function templatesForRoles(roles = []) {
+  const held = Array.isArray(roles) ? roles : [roles];
+  if (held.some((r) => FULL_ACCESS_ROLES.includes(r))) return TEMPLATES;
+  return TEMPLATES.filter((t) => {
+    if (t.anyone) return true;
+    if (held.includes("TECHNICIAN") && TECH_TEMPLATES.includes(t.code)) return true;
+    if (held.includes("ENGINEER") && ENGINEER_TEMPLATES.includes(t.code)) return true;
+    return false;
+  });
+}

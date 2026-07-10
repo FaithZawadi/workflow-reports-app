@@ -2,11 +2,11 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { reportScope } from "@/lib/rbac";
 import { nextSerial } from "@/lib/serial";
-import { templateByCode, TECH_TEMPLATES, ENGINEER_TEMPLATES } from "@/lib/templates";
+import { templateByCode, templatesForRoles } from "@/lib/templates";
 import { sendMail, reviewRequestEmail } from "@/lib/email";
 import { addCycle } from "@/lib/schedule";
 import { recordAudit } from "@/lib/audit";
-import { FILER_ROLES } from "@/lib/roles";
+import { FILER_ROLES, rolesOf } from "@/lib/roles";
 
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
 
@@ -102,12 +102,12 @@ export async function POST(req) {
   const tpl = templateByCode(body.template);
   if (!tpl) return Response.json({ error: "Unknown form type." }, { status: 400 });
 
-  // Technicians file WB01-03; engineers file WB04-06. Supervisors, managers and
-  // admins may file any form type.
-  if (user.role === "TECHNICIAN" && !TECH_TEMPLATES.includes(tpl.code))
-    return Response.json({ error: "This form is for QSL engineers." }, { status: 403 });
-  if (user.role === "ENGINEER" && !ENGINEER_TEMPLATES.includes(tpl.code))
-    return Response.json({ error: "This form is for site technicians." }, { status: 403 });
+  // A user files any form allowed by any of their roles. Technicians file
+  // WB01-03, engineers WB04-06; supervisors, managers and admins file anything.
+  // A user holding several roles gets the union.
+  const allowedTemplates = templatesForRoles(rolesOf(user));
+  if (!allowedTemplates.some((t) => t.code === tpl.code))
+    return Response.json({ error: "This form is not available for your role." }, { status: 403 });
 
   const supervisorEmail = String(body.supervisorEmail || "").trim();
   const managerEmail = String(body.managerEmail || "").trim();

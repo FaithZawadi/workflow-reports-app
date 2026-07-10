@@ -17,10 +17,13 @@ export async function GET() {
   const users = await prisma.user.findMany({
     where: { active: true },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, email: true, role: true },
+    select: { id: true, name: true, email: true, role: true, roles: true },
   });
 
-  const pick = (roles) => users.filter((u) => roles.includes(u.role));
+  // Match on any role the person holds, so a user who is (say) a supervisor as a
+  // secondary role still appears in the supervisor picker.
+  const rolesOfRow = (u) => (u.roles && u.roles.length ? u.roles : [u.role]);
+  const pick = (wanted) => users.filter((u) => rolesOfRow(u).some((r) => wanted.includes(r)));
   return Response.json({
     supervisors: pick(["SUPERVISOR"]),
     managers: pick(["MANAGER"]),

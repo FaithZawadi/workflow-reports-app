@@ -12,11 +12,14 @@ export async function verifyPassword(plain, hash) {
 
 // Build the claims we keep in the session token.
 export function claimsFromUser(user) {
+  const roles = user.roles && user.roles.length ? user.roles : [user.role];
   return {
     sub: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+    // Full set of roles this user holds (always includes the primary role).
+    roles: [...new Set([user.role, ...roles].filter(Boolean))],
     clientId: user.clientId || null,
     site: user.site || null,
   };
@@ -54,6 +57,8 @@ export async function getCurrentUser() {
   if (!token) return null;
   const claims = await verifySession(token);
   if (!claims) return null;
+  // Older tokens issued before multi-role — treat their single role as the set.
+  if (!claims.roles || !claims.roles.length) claims.roles = [claims.role];
   return claims;
 }
 
@@ -66,11 +71,14 @@ export async function requireUser(roles) {
       headers: { "content-type": "application/json" },
     });
   }
-  if (roles && roles.length && !roles.includes(user.role)) {
-    throw new Response(JSON.stringify({ error: "Not allowed" }), {
-      status: 403,
-      headers: { "content-type": "application/json" },
-    });
+  if (roles && roles.length) {
+    const held = user.roles && user.roles.length ? user.roles : [user.role];
+    if (!held.some((r) => roles.includes(r))) {
+      throw new Response(JSON.stringify({ error: "Not allowed" }), {
+        status: 403,
+        headers: { "content-type": "application/json" },
+      });
+    }
   }
   return user;
 }

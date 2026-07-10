@@ -22,7 +22,7 @@ export async function PATCH(req, { params }) {
 
   const existing = await prisma.schedule.findUnique({ where: { id: params.id } });
   if (!existing) return Response.json({ error: "Schedule not found." }, { status: 404 });
-  if (!canManageTemplate(user.role, existing.template))
+  if (!canManageTemplate(user, existing.template))
     return Response.json({ error: "You can't edit this schedule." }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
@@ -85,7 +85,7 @@ export async function DELETE(req, { params }) {
   }
   const existing = await prisma.schedule.findUnique({ where: { id: params.id } });
   if (!existing) return Response.json({ error: "Schedule not found." }, { status: 404 });
-  if (!canManageTemplate(user.role, existing.template))
+  if (!canManageTemplate(user, existing.template))
     return Response.json({ error: "You can't delete this schedule." }, { status: 403 });
 
   await prisma.schedule.delete({ where: { id: params.id } });

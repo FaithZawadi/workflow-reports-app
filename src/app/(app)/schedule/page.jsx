@@ -7,6 +7,7 @@ export default async function SchedulePage() {
   const claims = await getCurrentUser();
   const profile = {
     role: claims.role,
+    roles: claims.roles,
     name: claims.name,
     clientId: claims.clientId,
     site: claims.site,

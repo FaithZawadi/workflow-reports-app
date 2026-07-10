@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { weighbridgeScope } from "@/lib/weighbridge";
+import { rolesOf } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
 
   if (searchParams.get("manage")) {
-    if (user.role !== "ADMIN")
+    if (!rolesOf(user).includes("ADMIN"))
       return Response.json({ error: "Not allowed." }, { status: 403 });
     const list = await prisma.weighbridge.findMany({
       orderBy: [{ active: "desc" }, { label: "asc" }],
@@ -46,7 +47,7 @@ export async function GET(req) {
     include: { client: { select: { name: true } } },
   });
   // A supervisor/manager with no assignments yet shouldn't be blocked from filing.
-  if (list.length === 0 && (user.role === "SUPERVISOR" || user.role === "MANAGER")) {
+  if (list.length === 0 && rolesOf(user).some((r) => ["SUPERVISOR", "MANAGER"].includes(r))) {
     list = await prisma.weighbridge.findMany({
       where: { active: true },
       orderBy: { label: "asc" },

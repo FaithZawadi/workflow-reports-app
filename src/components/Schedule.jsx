@@ -48,8 +48,8 @@ function StatusTag({ state }) {
 }
 
 export default function Schedule({ profile }) {
-  const canManage = canManageSchedulesRole(profile.role);
-  const canFile = canFileReports(profile.role);
+  const canManage = canManageSchedulesRole(profile);
+  const canFile = canFileReports(profile);
 
   const [data, setData] = useState(null);
   const [q, setQ] = useState("");

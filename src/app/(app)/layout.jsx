@@ -18,6 +18,7 @@ export default async function AppLayout({ children }) {
     email: user.email,
     name: user.name,
     role: user.role,
+    roles: user.roles && user.roles.length ? user.roles : [user.role],
     clientId: user.clientId,
     clientName: user.client?.name || null,
     site: user.site,

@@ -13,7 +13,7 @@ async function main() {
   await prisma.user.upsert({
     where: { email: adminEmail },
     update: {},
-    create: { email: adminEmail, name: adminName, role: "ADMIN", passwordHash: await hash(adminPass) },
+    create: { email: adminEmail, name: adminName, role: "ADMIN", roles: ["ADMIN"], passwordHash: await hash(adminPass) },
   });
 
   // Demo data can be turned off in production (SEED_DEMO_ACCOUNTS=false)
@@ -44,7 +44,7 @@ async function main() {
     await prisma.user.upsert({
       where: { email: u.email },
       update: {},
-      create: { ...u, passwordHash: await hash("demo1234") },
+      create: { ...u, roles: [u.role], passwordHash: await hash("demo1234") },
     });
   }
 

@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canFileReports } from "@/lib/roles";
 import ReportForm from "@/components/ReportForm";
 
 export const metadata = { title: "New report · QSL Reports" };
 
 export default async function NewReportPage({ searchParams }) {
   const claims = await getCurrentUser();
-  if (!["TECHNICIAN", "ENGINEER", "ADMIN"].includes(claims.role)) redirect("/dashboard");
+  if (!claims || !canFileReports(claims)) redirect("/dashboard");
 
   let clientName = null;
   if (claims.clientId) {
@@ -17,6 +18,7 @@ export default async function NewReportPage({ searchParams }) {
 
   const profile = {
     role: claims.role,
+    roles: claims.roles,
     name: claims.name,
     clientId: claims.clientId,
     clientName,

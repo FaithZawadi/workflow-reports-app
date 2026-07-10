@@ -1,11 +1,49 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { COAL, GOLD, INK, MUTE, PAPER, LINE, ROLE_LABEL } from "@/lib/theme";
-import { assignableRoles } from "@/lib/roles";
+import { assignableRoles, rolesOf } from "@/lib/roles";
+
+const rolesOfUser = (u) => (u.roles && u.roles.length ? u.roles : u.role ? [u.role] : []);
+const roleNames = (u) => rolesOfUser(u).map((r) => ROLE_LABEL[r] || r).join(", ");
+
+// A checkbox group for picking one or more roles.
+function RolePicker({ options, value, onChange }) {
+  const toggle = (r) => {
+    const has = value.includes(r);
+    onChange(has ? value.filter((x) => x !== r) : [...value, r]);
+  };
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+      {options.map((r) => {
+        const on = value.includes(r);
+        return (
+          <button
+            key={r}
+            type="button"
+            onClick={() => toggle(r)}
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "6px 10px",
+              borderRadius: 4,
+              border: "1px solid",
+              borderColor: on ? COAL : LINE,
+              background: on ? COAL : "#fff",
+              color: on ? GOLD : INK,
+              cursor: "pointer",
+            }}
+          >
+            {on ? "✓ " : ""}{ROLE_LABEL[r] || r}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function UsersAdmin({ profile }) {
-  const roleOptions = assignableRoles(profile.role);
-  const isAdmin = profile.role === "ADMIN";
+  const roleOptions = assignableRoles(profile);
+  const isAdmin = rolesOf(profile).includes("ADMIN");
   const [users, setUsers] = useState(null);
   const [allWbs, setAllWbs] = useState([]);
   const [q, setQ] = useState("");
@@ -32,7 +70,7 @@ export default function UsersAdmin({ profile }) {
   const shown = (users || []).filter((u) => {
     const s = q.trim().toLowerCase();
     if (!s) return true;
-    return [u.name, u.email, u.role, u.client, u.site].some((v) => String(v || "").toLowerCase().includes(s));
+    return [u.name, u.email, roleNames(u), u.client, u.site].some((v) => String(v || "").toLowerCase().includes(s));
   });
 
   return (
@@ -69,7 +107,7 @@ export default function UsersAdmin({ profile }) {
                 </div>
                 <div className="muted" style={{ fontSize: 13 }}>{u.email}</div>
                 <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                  {ROLE_LABEL[u.role] || u.role}
+                  {roleNames(u)}
                   {u.client ? ` · ${u.client}` : ""}{u.site ? ` — ${u.site}` : ""}
                 </div>
               </div>
@@ -87,7 +125,7 @@ export default function UsersAdmin({ profile }) {
 }
 
 function AddUser({ roleOptions, onCreated }) {
-  const [f, setF] = useState({ name: "", email: "", password: "", role: roleOptions[0] || "TECHNICIAN", clientName: "", site: "", phone: "" });
+  const [f, setF] = useState({ name: "", email: "", password: "", roles: [roleOptions[0] || "TECHNICIAN"], clientName: "", site: "", phone: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -96,6 +134,7 @@ function AddUser({ roleOptions, onCreated }) {
     setErr("");
     if (!f.name.trim() || !f.email.trim() || !f.password) return setErr("Name, email and password are required.");
     if (f.password.length < 8) return setErr("Password must be at least 8 characters.");
+    if (!f.roles.length) return setErr("Choose at least one role.");
     setBusy(true);
     const res = await fetch("/api/users", {
       method: "POST",
@@ -114,10 +153,8 @@ function AddUser({ roleOptions, onCreated }) {
         <L label="Full name"><input className="input" value={f.name} onChange={(e) => set("name", e.target.value)} /></L>
         <L label="Email"><input className="input" type="email" value={f.email} onChange={(e) => set("email", e.target.value)} /></L>
         <L label="Temporary password"><input className="input" type="text" value={f.password} onChange={(e) => set("password", e.target.value)} placeholder="min 8 chars — user can change it" /></L>
-        <L label="Role">
-          <select className="input" value={f.role} onChange={(e) => set("role", e.target.value)}>
-            {roleOptions.map((r) => <option key={r} value={r}>{ROLE_LABEL[r] || r}</option>)}
-          </select>
+        <L label="Roles (choose one or more)">
+          <RolePicker options={roleOptions} value={f.roles} onChange={(v) => set("roles", v)} />
         </L>
         <L label="Client / plant (technicians)"><input className="input" value={f.clientName} onChange={(e) => set("clientName", e.target.value)} placeholder="e.g. TATA Chemicals Magadi" /></L>
         <L label="Site (technicians)"><input className="input" value={f.site} onChange={(e) => set("site", e.target.value)} placeholder="e.g. Plant Gate 1" /></L>
@@ -132,7 +169,7 @@ function AddUser({ roleOptions, onCreated }) {
 }
 
 function EditUser({ user, roleOptions, allWbs = [], isSelf, onSaved }) {
-  const [role, setRole] = useState(user.role);
+  const [roles, setRoles] = useState(rolesOfUser(user));
   const [site, setSite] = useState(user.site || "");
   const [clientName, setClientName] = useState(user.client || "");
   const [wbs, setWbs] = useState(() => new Set((user.weighbridges || []).map((w) => w.id)));
@@ -156,7 +193,8 @@ function EditUser({ user, roleOptions, allWbs = [], isSelf, onSaved }) {
   };
 
   const saveDetails = async () => {
-    const payload = { role, site, clientName };
+    if (!roles.length) { setErr("A user must have at least one role."); return; }
+    const payload = { roles, site, clientName };
     if (allWbs.length > 0) payload.weighbridgeIds = [...wbs];
     if (await patch(payload, "Saved.")) onSaved();
   };
@@ -171,10 +209,12 @@ function EditUser({ user, roleOptions, allWbs = [], isSelf, onSaved }) {
   return (
     <div style={{ marginTop: 12, padding: 12, background: PAPER, border: `1px solid ${LINE}`, borderRadius: 4 }}>
       <div className="grid md-2" style={{ gap: 8 }}>
-        <L label="Role">
-          <select className="input" value={role} onChange={(e) => setRole(e.target.value)} disabled={isSelf}>
-            {(roleOptions.includes(role) ? roleOptions : [role, ...roleOptions]).map((r) => <option key={r} value={r}>{ROLE_LABEL[r] || r}</option>)}
-          </select>
+        <L label="Roles (choose one or more)">
+          {isSelf ? (
+            <div className="muted" style={{ fontSize: 13 }}>{roles.map((r) => ROLE_LABEL[r] || r).join(", ")} <span style={{ color: MUTE }}>· you can&apos;t change your own role</span></div>
+          ) : (
+            <RolePicker options={[...new Set([...roleOptions, ...roles])]} value={roles} onChange={setRoles} />
+          )}
         </L>
         <L label="Client / plant"><input className="input" value={clientName} onChange={(e) => setClientName(e.target.value)} /></L>
         <L label="Site"><input className="input" value={site} onChange={(e) => setSite(e.target.value)} /></L>

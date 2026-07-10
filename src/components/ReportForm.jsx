@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar, Field, Textarea } from "./ui";
 import CheckItem, { CheckHeader, CHECK_TABLE_MINWIDTH, defaultStates } from "./CheckItem";
 import Photos from "./Photos";
-import { TEMPLATES } from "@/lib/templates";
+import { templatesForRoles } from "@/lib/templates";
+import { rolesOf } from "@/lib/roles";
 import { enqueueReport } from "@/lib/outbox";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
@@ -12,13 +13,8 @@ export default function ReportForm({ profile, prefill = {} }) {
   const router = useRouter();
 
   const isTech = profile.role === "TECHNICIAN";
-  // Technicians file WB01-03, engineers WB04-06; supervisors, managers and
-  // admins may file any form type.
-  const available = TEMPLATES.filter((t) => {
-    if (profile.role === "TECHNICIAN") return t.who === "Site Technician" || t.anyone;
-    if (profile.role === "ENGINEER") return t.who === "QSL Engineer" || t.anyone;
-    return true;
-  });
+  // The forms this user may file — the union across all of their roles.
+  const available = templatesForRoles(rolesOf(profile));
 
   const prefillTpl = prefill.template ? available.find((t) => t.code === prefill.template) || null : null;
 
