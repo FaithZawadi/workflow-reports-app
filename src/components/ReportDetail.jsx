@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { PaperCard, SectionBar, Pill } from "./ui";
 import { templateByCode } from "@/lib/templates";
+import { defaultStates, colorFor } from "./CheckItem";
 import { COAL, GOLD, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
 export default function ReportDetail({ serial, profile }) {
@@ -127,19 +128,14 @@ export default function ReportDetail({ serial, profile }) {
                   </div>
                   {sec.items.map((it, ii) => {
                     const v = data.checks?.[`${si}:${ii}`];
-                    const isOk = v?.state === "ok";
-                    const isProblem = v?.state === "problem";
+                    const states = sec.states || defaultStates(sec.yes, sec.no);
+                    const st = states.find((s) => s.key === v?.state);
+                    const isGood = st && st.key === states[0].key;
                     return (
                       <div key={ii} style={{ display: "grid", gridTemplateColumns: "minmax(160px,1fr) 150px minmax(120px,1fr)", fontSize: 14, borderTop: "1px solid #eae4d6" }}>
                         <span style={{ padding: "8px 10px", borderRight: "1px solid #eae4d6", color: INK }}>{it}</span>
-                        <span style={{ padding: "8px 10px", borderRight: "1px solid #eae4d6", textAlign: "center", fontWeight: 800, color: isProblem ? FAIL : isOk ? PASS : "#b8af9e" }}>
-                          {isOk ? (
-                            <span aria-label={sec.yes || "OK"}>✓ {sec.yes || "OK"}</span>
-                          ) : isProblem ? (
-                            sec.no || "NEEDS ATTENTION"
-                          ) : (
-                            "—"
-                          )}
+                        <span style={{ padding: "8px 10px", borderRight: "1px solid #eae4d6", textAlign: "center", fontWeight: 800, color: st ? colorFor(st.key) : "#b8af9e" }}>
+                          {st ? <span>{isGood ? "✓ " : ""}{st.label}</span> : "—"}
                         </span>
                         <span style={{ padding: "8px 10px", color: v?.remark ? FAIL : MUTE }}>{v?.remark || "—"}</span>
                       </div>

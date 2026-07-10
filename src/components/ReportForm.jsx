@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar, Field, Textarea } from "./ui";
-import CheckItem, { CheckHeader, CHECK_TABLE_MINWIDTH } from "./CheckItem";
+import CheckItem, { CheckHeader, CHECK_TABLE_MINWIDTH, defaultStates } from "./CheckItem";
 import Photos from "./Photos";
 import { TEMPLATES } from "@/lib/templates";
 import { enqueueReport } from "@/lib/outbox";
@@ -15,8 +15,8 @@ export default function ReportForm({ profile, prefill = {} }) {
   // Technicians file WB01-03, engineers WB04-06; supervisors, managers and
   // admins may file any form type.
   const available = TEMPLATES.filter((t) => {
-    if (profile.role === "TECHNICIAN") return t.who === "Site Technician";
-    if (profile.role === "ENGINEER") return t.who === "QSL Engineer";
+    if (profile.role === "TECHNICIAN") return t.who === "Site Technician" || t.anyone;
+    if (profile.role === "ENGINEER") return t.who === "QSL Engineer" || t.anyone;
     return true;
   });
 
@@ -257,22 +257,23 @@ export default function ReportForm({ profile, prefill = {} }) {
                 <div key={si}>
                   <SectionBar>{sec.title}</SectionBar>
                   <div style={{ overflowX: "auto" }}>
-                    <div
-                      className="card"
-                      style={{ minWidth: CHECK_TABLE_MINWIDTH, marginBottom: 8, overflow: "hidden" }}
-                    >
-                      <CheckHeader yes={sec.yes || "OK"} no={sec.no || "NEEDS ATTENTION"} />
-                      {sec.items.map((it, ii) => (
-                        <CheckItem
-                          key={ii}
-                          text={it}
-                          yes={sec.yes || "OK"}
-                          no={sec.no || "NEEDS ATTENTION"}
-                          val={checks[`${si}:${ii}`]}
-                          onChange={(v) => setChecks((s) => ({ ...s, [`${si}:${ii}`]: v }))}
-                        />
-                      ))}
-                    </div>
+                    {(() => {
+                      const states = sec.states || defaultStates(sec.yes, sec.no);
+                      return (
+                        <div className="card" style={{ minWidth: CHECK_TABLE_MINWIDTH, marginBottom: 8, overflow: "hidden" }}>
+                          <CheckHeader states={states} />
+                          {sec.items.map((it, ii) => (
+                            <CheckItem
+                              key={ii}
+                              text={it}
+                              states={states}
+                              val={checks[`${si}:${ii}`]}
+                              onChange={(v) => setChecks((s) => ({ ...s, [`${si}:${ii}`]: v }))}
+                            />
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );

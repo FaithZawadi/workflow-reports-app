@@ -1,8 +1,20 @@
 // The QSL weighbridge maintenance form catalogue.
 // Codes and content mirror the printed QSL/F/WB-01..06 sheets.
 
-export const TECH_TEMPLATES = ["WB01", "WB02", "WB03"];
-export const ENGINEER_TEMPLATES = ["WB04", "WB05", "WB06"];
+export const TECH_TEMPLATES = ["WB01", "WB02", "WB03", "WB07"];
+export const ENGINEER_TEMPLATES = ["WB04", "WB05", "WB06", "WB07"];
+
+// Result-state sets for engineer checklists.
+const OK_ATTN_NA = [
+  { key: "ok", label: "OK" },
+  { key: "attn", label: "ATTN" },
+  { key: "na", label: "N/A" },
+];
+const PASS_ADJ_FAIL = [
+  { key: "pass", label: "PASS" },
+  { key: "adj", label: "ADJ" },
+  { key: "fail", label: "FAIL" },
+];
 
 export const TEMPLATES = [
   {
@@ -104,42 +116,43 @@ export const TEMPLATES = [
     code: "WB04",
     name: "Engineer Service Checklist",
     who: "QSL Engineer",
-    desc: "Quarterly / bi-annual service inspection.",
+    desc: "Quarterly / bi-annual service inspection (QSL/F/WB-04).",
     sections: [
       {
         type: "fields",
         fields: [
+          { k: "serviceDate", label: "Service date", inputType: "date" },
           { k: "make", label: "Make / model" },
           { k: "serialNo", label: "Serial no." },
           { k: "capacity", label: "Capacity / division" },
+          { k: "deckLength", label: "Deck length" },
           { k: "jobRef", label: "Job / contract ref." },
         ],
       },
       {
         type: "checklist",
         title: "As-found condition",
-        yes: "OK",
-        no: "ATTN",
+        states: OK_ATTN_NA,
         items: [
           "Deck, foundation and approaches inspected; defects recorded",
-          "Deck free-moving; expansion gaps and clearances correct",
+          "Deck free-moving; expansion gaps and check-rod clearances correct",
           "Load cell mountings, links and bases seated and secure",
-          "Junction box dry, terminations tight; insulation resistance OK",
+          "Junction box dry, terminations tight; cable insulation resistance acceptable",
           "Indicator diagnostics reviewed; error log recorded",
-          "Surge / lightning protection intact; earthing secure",
+          "Surge / lightning protection devices intact; earthing secure",
         ],
       },
       { type: "loadcells" },
       {
         type: "checklist",
-        title: "Performance tests",
-        yes: "PASS",
-        no: "FAIL",
+        title: "Performance tests (record details on QSL/F/WB-06)",
+        states: PASS_ADJ_FAIL,
         items: [
           "Eccentricity / corner test with certified test weights",
           "Increasing-load (linearity) test to service capacity",
           "Repeatability and return-to-zero within tolerance",
-          "W&M stamp valid; indicator sealing intact",
+          "Calibration adjusted as required; as-left results recorded",
+          "W&M verification stamp valid (expiry in remarks); indicator sealing intact",
         ],
       },
       { type: "textarea", k: "remarks", label: "Engineer remarks / recommendations" },
@@ -147,23 +160,31 @@ export const TEMPLATES = [
   },
   {
     code: "WB05",
-    name: "Service / Breakdown Report",
+    name: "Weighbridge Service Report",
     who: "QSL Engineer",
-    desc: "Corrective visit: fault, diagnosis, work done, parts.",
+    desc: "Corrective / breakdown visit (QSL/F/WB-05): fault, diagnosis, work, parts.",
     sections: [
       {
         type: "fields",
         fields: [
           { k: "make", label: "Make / model" },
           { k: "serialNo", label: "Serial no." },
+          { k: "reportNo", label: "Report no." },
           { k: "callLogged", label: "Call logged (date/time)" },
           { k: "arrival", label: "Arrival (date/time)" },
+          { k: "dateOfVisit", label: "Date of visit", inputType: "date" },
         ],
       },
       { type: "textarea", k: "fault", label: "Fault reported by site" },
       { type: "textarea", k: "diagnosis", label: "Diagnosis / findings" },
       { type: "textarea", k: "work", label: "Work carried out" },
-      { type: "textarea", k: "parts", label: "Parts supplied / replaced (qty, description, part no.)" },
+      {
+        type: "rows",
+        key: "parts",
+        title: "Parts supplied / replaced",
+        cols: ["Qty", "Description", "Part no.", "Warranty / charge"],
+        rows: 6,
+      },
       {
         type: "choices",
         k: "outcome",
@@ -175,6 +196,10 @@ export const TEMPLATES = [
           "Out of service - repair quoted",
         ],
       },
+      {
+        type: "fields",
+        fields: [{ k: "numPhotos", label: "Number of photos attached", inputType: "number" }],
+      },
       { type: "textarea", k: "recs", label: "Recommendations to the client" },
     ],
   },
@@ -182,13 +207,16 @@ export const TEMPLATES = [
     code: "WB06",
     name: "Calibration & Verification Record",
     who: "QSL Engineer",
-    desc: "ISO/IEC 17025 calibration with traceable test weights.",
+    desc: "ISO/IEC 17025 calibration with traceable test weights (QSL/F/WB-06).",
     sections: [
       {
         type: "fields",
         fields: [
           { k: "certNo", label: "Certificate no." },
+          { k: "make", label: "Make / model" },
           { k: "serialNo", label: "Weighbridge serial no." },
+          { k: "capacity", label: "Capacity / division" },
+          { k: "calibrationDate", label: "Calibration date", inputType: "date" },
           { k: "weights", label: "Test weight IDs" },
           { k: "trace", label: "Traceability cert. no." },
         ],
@@ -197,7 +225,7 @@ export const TEMPLATES = [
         type: "rows",
         key: "incr",
         title: "Increasing load test",
-        cols: ["Applied (kg)", "As-found (kg)", "As-left (kg)", "Error (kg)"],
+        cols: ["Applied (kg)", "As-found (kg)", "As-left (kg)", "Error (kg)", "Tolerance / Pass"],
         rows: 5,
       },
       {
@@ -211,9 +239,11 @@ export const TEMPLATES = [
       {
         type: "fields",
         fields: [
+          { k: "repeatReadings", label: "Repeat readings, same load (kg)" },
           { k: "maxSpread", label: "Repeatability - max spread (kg)", inputType: "number" },
           { k: "returnZero", label: "Return to zero (kg)", inputType: "number" },
           { k: "nextDue", label: "Next calibration due", inputType: "date" },
+          { k: "stampExpiry", label: "Verification stamp expiry", inputType: "date" },
         ],
       },
       {
@@ -225,6 +255,25 @@ export const TEMPLATES = [
           "Submitted to Weights & Measures for stamping",
         ],
       },
+    ],
+  },
+  {
+    code: "WB07",
+    name: "Photo Evidence Sheet",
+    who: "Anyone",
+    anyone: true,
+    desc: "Attach GPS-stamped photos to any maintenance or service form (QSL/F/WB-07).",
+    sections: [
+      {
+        type: "fields",
+        fields: [
+          { k: "evidenceDate", label: "Date", inputType: "date" },
+          { k: "takenBy", label: "Taken by" },
+          { k: "attachedSerial", label: "Attached to form serial no." },
+          { k: "formType", label: "Form type (e.g. WB-05)" },
+        ],
+      },
+      { type: "textarea", k: "notes", label: "What the photos show (summary)" },
     ],
   },
 ];
