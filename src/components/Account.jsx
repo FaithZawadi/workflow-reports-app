@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import PasswordInput from "./PasswordInput";
 import { INK, MUTE, GOLD, ROLE_LABEL } from "@/lib/theme";
 
 export default function Account({ profile }) {
@@ -45,15 +46,15 @@ export default function Account({ profile }) {
         <form onSubmit={submit}>
           <label className="field">
             <span className="label">Current password</span>
-            <input className="input" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+            <PasswordInput autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
           </label>
           <label className="field">
             <span className="label">New password</span>
-            <input className="input" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="at least 8 characters" />
+            <PasswordInput autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} placeholder="at least 8 characters" />
           </label>
           <label className="field">
             <span className="label">Confirm new password</span>
-            <input className="input" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            <PasswordInput autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
           </label>
           {err && <div className="err" style={{ marginBottom: 10 }}>{err}</div>}
           {ok && <div style={{ color: "#2E7D46", fontWeight: 700, fontSize: 13, marginBottom: 10 }}>{ok}</div>}
