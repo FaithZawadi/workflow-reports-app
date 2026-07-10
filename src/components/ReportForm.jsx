@@ -29,6 +29,7 @@ export default function ReportForm({ profile, prefill = {} }) {
   const [runs, setRuns] = useState({});
   const [photos, setPhotos] = useState([]);
   const [clients, setClients] = useState([]);
+  const [weighbridges, setWeighbridges] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
   const [managers, setManagers] = useState([]);
   const [clientName, setClientName] = useState(profile.clientName || prefill.client || "");
@@ -50,6 +51,10 @@ export default function ReportForm({ profile, prefill = {} }) {
         setSupervisors(d.supervisors || []);
         setManagers(d.managers || []);
       })
+      .catch(() => {});
+    fetch("/api/weighbridges")
+      .then((r) => r.json())
+      .then((d) => setWeighbridges(d.weighbridges || []))
       .catch(() => {});
   }, []);
 
@@ -215,8 +220,27 @@ export default function ReportForm({ profile, prefill = {} }) {
             </div>
           )}
 
-          <div style={{ maxWidth: 420 }}>
-            <Field label="Weighbridge ID" value={values.weighbridgeId} onChange={(v) => setV("weighbridgeId", v)} placeholder="e.g. WB-1 Dispatch Gate" />
+          <div style={{ maxWidth: 460 }}>
+            <WeighbridgePicker
+              list={weighbridges.filter((w) => {
+                const c = (isTech ? profile.clientName : clientName || "").trim().toLowerCase();
+                return !c || (w.client || "").toLowerCase() === c;
+              })}
+              value={values.weighbridgeId}
+              onType={(v) => setV("weighbridgeId", v)}
+              onPick={(w) => {
+                const keys = new Set();
+                (tpl?.sections || []).forEach((sec) => { if (sec.type === "fields") sec.fields.forEach((f) => keys.add(f.k)); });
+                setValues((s) => {
+                  const n = { ...s, weighbridgeId: w.label };
+                  if (keys.has("make") && w.makeModel) n.make = w.makeModel;
+                  if (keys.has("serialNo") && w.serialNo) n.serialNo = w.serialNo;
+                  if (keys.has("capacity") && w.capacity) n.capacity = w.capacity;
+                  if (keys.has("deckLength") && w.deckLength) n.deckLength = w.deckLength;
+                  return n;
+                });
+              }}
+            />
           </div>
 
           {tpl.sections.map((sec, si) => {
@@ -383,6 +407,49 @@ export default function ReportForm({ profile, prefill = {} }) {
         </PaperCard>
       </div>
     </div>
+  );
+}
+
+// Pick a registered weighbridge from a dropdown (auto-fills the service form's
+// make/model/serial/capacity). Falls back to a plain text field when none are
+// registered for the client, or via "Other", so filing is never blocked.
+function WeighbridgePicker({ list, value, onPick, onType }) {
+  const selected = list.find((w) => w.label === value);
+  const [manual, setManual] = useState(!!value && !selected);
+  const showManual = list.length === 0 || manual;
+
+  if (showManual) {
+    return (
+      <label className="field">
+        <span className="label">Weighbridge</span>
+        <input className="input" value={value || ""} placeholder="e.g. WB-1 Dispatch Gate" onChange={(e) => onType(e.target.value)} />
+        {list.length > 0 && (
+          <button type="button" onClick={() => setManual(false)} style={{ background: "none", border: 0, color: WAIT, fontWeight: 700, fontSize: 12, marginTop: 4, textAlign: "left", padding: 0 }}>
+            ← pick from the register
+          </button>
+        )}
+      </label>
+    );
+  }
+  return (
+    <label className="field">
+      <span className="label">Weighbridge</span>
+      <select
+        className="input"
+        value={selected ? selected.id : ""}
+        onChange={(e) => {
+          if (e.target.value === "__other") { setManual(true); onType(""); return; }
+          const w = list.find((x) => x.id === e.target.value);
+          if (w) onPick(w);
+        }}
+      >
+        <option value="">— choose weighbridge —</option>
+        {list.map((w) => (
+          <option key={w.id} value={w.id}>{w.label}{w.site ? ` — ${w.site}` : ""}</option>
+        ))}
+        <option value="__other">Other (type it)…</option>
+      </select>
+    </label>
   );
 }
 

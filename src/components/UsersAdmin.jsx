@@ -5,7 +5,9 @@ import { assignableRoles } from "@/lib/roles";
 
 export default function UsersAdmin({ profile }) {
   const roleOptions = assignableRoles(profile.role);
+  const isAdmin = profile.role === "ADMIN";
   const [users, setUsers] = useState(null);
+  const [allWbs, setAllWbs] = useState([]);
   const [q, setQ] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -22,7 +24,10 @@ export default function UsersAdmin({ profile }) {
 
   useEffect(() => {
     load();
-  }, [load]);
+    if (isAdmin) {
+      fetch("/api/weighbridges?manage=1").then((r) => r.json()).then((d) => setAllWbs(d.weighbridges || [])).catch(() => {});
+    }
+  }, [load, isAdmin]);
 
   const shown = (users || []).filter((u) => {
     const s = q.trim().toLowerCase();
@@ -72,7 +77,7 @@ export default function UsersAdmin({ profile }) {
                 {editing === u.id ? "Cancel" : "Manage"}
               </button>
             </div>
-            {editing === u.id && <EditUser user={u} roleOptions={roleOptions} isSelf={u.id === profile.id} onSaved={() => { setEditing(null); load(); }} />}
+            {editing === u.id && <EditUser user={u} roleOptions={roleOptions} allWbs={allWbs} isSelf={u.id === profile.id} onSaved={() => { setEditing(null); load(); }} />}
           </div>
         ))}
         {users && shown.length === 0 && <div className="muted">No users match.</div>}
@@ -126,14 +131,16 @@ function AddUser({ roleOptions, onCreated }) {
   );
 }
 
-function EditUser({ user, roleOptions, isSelf, onSaved }) {
+function EditUser({ user, roleOptions, allWbs = [], isSelf, onSaved }) {
   const [role, setRole] = useState(user.role);
   const [site, setSite] = useState(user.site || "");
   const [clientName, setClientName] = useState(user.client || "");
+  const [wbs, setWbs] = useState(() => new Set((user.weighbridges || []).map((w) => w.id)));
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
+  const toggleWb = (id) => setWbs((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const patch = async (partial, okMsg) => {
     setBusy(true); setErr(""); setMsg("");
@@ -149,7 +156,9 @@ function EditUser({ user, roleOptions, isSelf, onSaved }) {
   };
 
   const saveDetails = async () => {
-    if (await patch({ role, site, clientName }, "Saved.")) onSaved();
+    const payload = { role, site, clientName };
+    if (allWbs.length > 0) payload.weighbridgeIds = [...wbs];
+    if (await patch(payload, "Saved.")) onSaved();
   };
   const resetPw = async () => {
     if (pw.length < 8) return setErr("New password must be at least 8 characters.");
@@ -170,6 +179,20 @@ function EditUser({ user, roleOptions, isSelf, onSaved }) {
         <L label="Client / plant"><input className="input" value={clientName} onChange={(e) => setClientName(e.target.value)} /></L>
         <L label="Site"><input className="input" value={site} onChange={(e) => setSite(e.target.value)} /></L>
       </div>
+      {allWbs.length > 0 && (
+        <div className="field">
+          <span className="label">Assigned weighbridges ({wbs.size})</span>
+          <div style={{ maxHeight: 160, overflowY: "auto", border: `1px solid ${LINE}`, borderRadius: 4, padding: 8, background: "#fff", display: "grid", gap: 4 }}>
+            {allWbs.filter((w) => w.active).map((w) => (
+              <label key={w.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                <input type="checkbox" checked={wbs.has(w.id)} onChange={() => toggleWb(w.id)} />
+                <span>{w.label} <span style={{ color: MUTE }}>· {w.client}{w.site ? ` — ${w.site}` : ""}</span></span>
+              </label>
+            ))}
+          </div>
+          <span className="muted" style={{ fontSize: 11, marginTop: 4 }}>Supervisors/managers can be responsible for several weighbridges and sites.</span>
+        </div>
+      )}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end", marginTop: 4 }}>
         <L label="Reset password to" style={{ flex: "1 1 220px" }}>
           <input className="input" type="text" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="new password (min 8)" />

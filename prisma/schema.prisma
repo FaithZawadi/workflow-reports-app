@@ -54,6 +54,8 @@ model User {
 
   reports     Report[]      @relation("AuthoredReports")
   trailEvents TrailEvent[]
+  // Weighbridges this user is responsible for (supervisors/managers may have many).
+  weighbridges Weighbridge[] @relation("UserWeighbridges")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -62,13 +64,37 @@ model User {
 }
 
 model Client {
-  id        String     @id @default(cuid())
-  name      String     @unique
-  active    Boolean    @default(true)
-  users     User[]
-  reports   Report[]
-  schedules Schedule[]
-  createdAt DateTime   @default(now())
+  id           String        @id @default(cuid())
+  name         String        @unique
+  active       Boolean       @default(true)
+  users        User[]
+  reports      Report[]
+  schedules    Schedule[]
+  weighbridges Weighbridge[]
+  createdAt    DateTime      @default(now())
+}
+
+// A weighbridge registered by an administrator. Reports and schedules pick one
+// from a dropdown; the make/model/serial/capacity auto-fill the service forms.
+model Weighbridge {
+  id         String  @id @default(cuid())
+  clientId   String
+  client     Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  site       String?
+  label      String // e.g. "WB-1 Dispatch Gate"
+  makeModel  String?
+  serialNo   String?
+  capacity   String? // capacity / division
+  deckLength String?
+  active     Boolean @default(true)
+
+  users User[] @relation("UserWeighbridges")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([active])
 }
 
 // A recurring maintenance obligation for one weighbridge (e.g. WB01 daily on

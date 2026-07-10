@@ -58,6 +58,11 @@ export async function PATCH(req, { params }) {
       return Response.json({ error: "Password must be at least 8 characters." }, { status: 400 });
     data.passwordHash = await hashPassword(String(body.newPassword));
   }
+  // Weighbridge assignment (admin only).
+  if (body.weighbridgeIds !== undefined && admin.role === "ADMIN") {
+    const ids = Array.isArray(body.weighbridgeIds) ? body.weighbridgeIds.map(String) : [];
+    data.weighbridges = { set: ids.map((id) => ({ id })) };
+  }
 
   if (Object.keys(data).length === 0)
     return Response.json({ error: "Nothing to update." }, { status: 400 });

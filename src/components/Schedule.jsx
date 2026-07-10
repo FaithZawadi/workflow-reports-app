@@ -310,12 +310,15 @@ function ScheduleForm({ profile, onCreated }) {
   const [notes, setNotes] = useState("");
   const [clients, setClients] = useState([]);
   const [assignees, setAssignees] = useState([]);
+  const [weighbridges, setWeighbridges] = useState([]);
+  const [wbManual, setWbManual] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     fetch("/api/clients").then((r) => r.json()).then((d) => setClients(d.clients || [])).catch(() => {});
     fetch("/api/users/directory").then((r) => r.json()).then((d) => setAssignees(d.assignees || [])).catch(() => {});
+    fetch("/api/weighbridges").then((r) => r.json()).then((d) => setWeighbridges(d.weighbridges || [])).catch(() => {});
   }, []);
 
   const pickTemplate = (code) => {
@@ -371,8 +374,25 @@ function ScheduleForm({ profile, onCreated }) {
           <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="e.g. Dispatch gate" />
         </label>
         <label className="field">
-          <span className="label">Weighbridge ID</span>
-          <input className="input" value={weighbridgeId} onChange={(e) => setWeighbridgeId(e.target.value)} placeholder="e.g. WB-1" />
+          <span className="label">Weighbridge</span>
+          {(() => {
+            const list = weighbridges.filter((w) => { const c = clientName.trim().toLowerCase(); return !c || (w.client || "").toLowerCase() === c; });
+            if (list.length === 0 || wbManual) {
+              return <input className="input" value={weighbridgeId} onChange={(e) => setWeighbridgeId(e.target.value)} placeholder="e.g. WB-1" />;
+            }
+            const sel = list.find((w) => w.label === weighbridgeId);
+            return (
+              <select className="input" value={sel ? sel.id : ""} onChange={(e) => {
+                if (e.target.value === "__other") { setWbManual(true); setWeighbridgeId(""); return; }
+                const w = list.find((x) => x.id === e.target.value);
+                if (w) setWeighbridgeId(w.label);
+              }}>
+                <option value="">— choose weighbridge —</option>
+                {list.map((w) => <option key={w.id} value={w.id}>{w.label}{w.site ? ` — ${w.site}` : ""}</option>)}
+                <option value="__other">Other (type it)…</option>
+              </select>
+            );
+          })()}
         </label>
         <label className="field">
           <span className="label">First due (optional)</span>

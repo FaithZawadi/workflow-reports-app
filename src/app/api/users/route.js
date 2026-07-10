@@ -15,7 +15,7 @@ export async function GET() {
   const users = await prisma.user.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { client: { select: { name: true } } },
+    include: { client: { select: { name: true } }, weighbridges: { select: { id: true, label: true } } },
   });
   return Response.json({
     users: users.map((u) => ({
@@ -26,6 +26,7 @@ export async function GET() {
       site: u.site,
       client: u.client?.name || null,
       active: u.active,
+      weighbridges: u.weighbridges,
     })),
   });
 }

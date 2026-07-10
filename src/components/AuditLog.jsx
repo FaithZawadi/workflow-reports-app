@@ -15,6 +15,7 @@ const ENTITIES = [
   ["USER", "Users"],
   ["REPORT", "Reports"],
   ["SCHEDULE", "Schedules"],
+  ["WEIGHBRIDGE", "Weighbridges"],
 ];
 
 export default function AuditLog() {
