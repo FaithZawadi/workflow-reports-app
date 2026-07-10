@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Brand, Stripe } from "./ui";
+import PasswordInput from "./PasswordInput";
 import { GOLD, COAL, INK, MUTE } from "@/lib/theme";
 import { COMPANY } from "@/lib/company";
 
@@ -93,9 +94,7 @@ export default function LoginForm() {
             </label>
             <label className="field">
               <span className="label">Password</span>
-              <input
-                className="input"
-                type="password"
+              <PasswordInput
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -104,9 +103,7 @@ export default function LoginForm() {
             {needsCode && (
               <label className="field">
                 <span className="label">Manager access code</span>
-                <input
-                  className="input"
-                  type="password"
+                <PasswordInput
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   placeholder="Required for oversight roles"
