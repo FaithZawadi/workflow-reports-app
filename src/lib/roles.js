@@ -61,6 +61,10 @@ export const canManageUsers = (input) => intersects(input, USER_ADMIN_ROLES);
 export const canFileReports = (input) => intersects(input, FILER_ROLES);
 export const canManageSchedulesRole = (input) => intersects(input, SCHEDULE_MANAGER_ROLES);
 
+// Roles allowed to create/assign tasks and register projects.
+export const TASK_MANAGER_ROLES = SCHEDULE_MANAGER_ROLES;
+export const canManageTasks = (input) => intersects(input, TASK_MANAGER_ROLES);
+
 // Which target roles an actor may assign when creating/editing a user.
 export function assignableRoles(actor) {
   const roles = rolesOf(actor);

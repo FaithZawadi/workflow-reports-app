@@ -7,7 +7,7 @@ import InstallPrompt from "./InstallPrompt";
 import FeedbackPrompt from "./FeedbackPrompt";
 import OfflineBadge from "./OfflineBadge";
 import { ROLE_LABEL, GOLD, COAL } from "@/lib/theme";
-import { canFileReports, canManageUsers, rolesOf } from "@/lib/roles";
+import { canFileReports, canManageUsers, canManageTasks, rolesOf } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
@@ -16,6 +16,7 @@ export default function AppShell({ user, children }) {
   const canFile = canFileReports(user);
   const isAdmin = rolesOf(user).includes("ADMIN");
   const showUsers = canManageUsers(user);
+  const canManageTasksNav = canManageTasks(user);
 
   // Bottom tab bar (mobile) — the primary destinations as a native-style bar.
   const tabs = [
@@ -66,6 +67,14 @@ export default function AppShell({ user, children }) {
         <Link href="/schedule" className="btn" style={{ fontSize: 13 }}>
           Schedule
         </Link>
+        <Link href="/tasks" className="btn" style={{ fontSize: 13 }}>
+          Tasks
+        </Link>
+        {canManageTasksNav && (
+          <Link href="/projects" className="btn" style={{ fontSize: 13 }}>
+            Projects
+          </Link>
+        )}
         {showUsers && (
           <Link href="/users" className="btn" style={{ fontSize: 13 }}>
             Users
