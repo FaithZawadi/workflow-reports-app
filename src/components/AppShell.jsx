@@ -75,6 +75,11 @@ export default function AppShell({ user, children }) {
             Projects
           </Link>
         )}
+        {canManageTasksNav && (
+          <Link href="/contracts" className="btn" style={{ fontSize: 13 }}>
+            Contracts
+          </Link>
+        )}
         {showUsers && (
           <Link href="/users" className="btn" style={{ fontSize: 13 }}>
             Users
