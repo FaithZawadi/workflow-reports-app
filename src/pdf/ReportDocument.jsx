@@ -224,35 +224,42 @@ export function ReportDocument({ report, logoSrc }) {
             { key: "ok", label: sec.yes || "OK" },
             { key: "problem", label: sec.no || "ATTN" },
           ];
-          const stateW = `${(30 / states.length).toFixed(2)}%`; // 30% shared across the states
+          // Result columns are kept narrow; Remarks gets the rest since comments
+          // can be long. Vertical + horizontal grid lines separate every column.
+          const stateW = `${(18 / states.length).toFixed(2)}%`;
+          const itemW = "34%";
+          const remarksW = `${(100 - 34 - 18).toFixed(0)}%`; // 48%
           const tickKeys = new Set(["ok", "pass"]);
+          const vline = { borderRightWidth: 0.5, borderColor: "#AFAFAF" };
           return (
             <View key={idx} wrap={false}>
               <View style={s.sectionBar}>
                 <View style={s.swatch} />
                 <Text style={s.sectionTitle}>{sec.title}</Text>
               </View>
-              <View style={s.row}>
-                <Text style={[s.th, { width: "40%" }]}>ITEM</Text>
-                {states.map((st) => (
-                  <Text key={st.key} style={[s.th, { width: stateW, textAlign: "center" }]}>{st.label}</Text>
-                ))}
-                <Text style={[s.th, { width: "30%" }]}>REMARKS</Text>
+              <View style={{ borderTopWidth: 0.5, borderLeftWidth: 0.5, borderColor: "#AFAFAF" }}>
+                <View style={s.row}>
+                  <Text style={[s.th, vline, { width: itemW }]}>ITEM</Text>
+                  {states.map((st) => (
+                    <Text key={st.key} style={[s.th, vline, { width: stateW, textAlign: "center" }]}>{st.label}</Text>
+                  ))}
+                  <Text style={[s.th, vline, { width: remarksW }]}>REMARKS</Text>
+                </View>
+                {sec.items.map((it, ii) => {
+                  const v = data.checks?.[`${idx}:${ii}`];
+                  return (
+                    <View style={s.row} key={ii}>
+                      <Cell style={[vline, { width: itemW }]}>{it}</Cell>
+                      {states.map((st) => (
+                        <View key={st.key} style={[s.td, vline, { width: stateW, alignItems: "center", justifyContent: "center" }]}>
+                          {v?.state === st.key ? (tickKeys.has(st.key) ? <Tick /> : <Text>X</Text>) : null}
+                        </View>
+                      ))}
+                      <Cell style={[vline, { width: remarksW, color: FAIL }]}>{v?.remark || ""}</Cell>
+                    </View>
+                  );
+                })}
               </View>
-              {sec.items.map((it, ii) => {
-                const v = data.checks?.[`${idx}:${ii}`];
-                return (
-                  <View style={s.row} key={ii}>
-                    <Cell style={{ width: "40%" }}>{it}</Cell>
-                    {states.map((st) => (
-                      <View key={st.key} style={[s.td, { width: stateW, alignItems: "center", justifyContent: "center" }]}>
-                        {v?.state === st.key ? (tickKeys.has(st.key) ? <Tick /> : <Text>X</Text>) : null}
-                      </View>
-                    ))}
-                    <Cell style={{ width: "30%", color: FAIL }}>{v?.remark || ""}</Cell>
-                  </View>
-                );
-              })}
             </View>
           );
         })}

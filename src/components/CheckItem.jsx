@@ -15,8 +15,10 @@ export function colorFor(key) {
   return STATE_COLORS[key] || FAIL;
 }
 
-const gridCols = (n) => `minmax(150px,1fr) ${n >= 3 ? 264 : 190}px minmax(150px,1.1fr)`;
-export const CHECK_TABLE_MINWIDTH = 700;
+// Result column kept as tight as the state pills allow; Remarks gets the most
+// room since comments can be long.
+const gridCols = (n) => `minmax(140px,1fr) ${n >= 3 ? 216 : 148}px minmax(220px,1.9fr)`;
+export const CHECK_TABLE_MINWIDTH = 720;
 
 const cellBase = {
   padding: "8px 10px",

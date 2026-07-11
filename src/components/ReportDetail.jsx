@@ -130,7 +130,7 @@ export default function ReportDetail({ serial, profile }) {
               <SectionBar>{sec.title}</SectionBar>
               <div style={{ overflowX: "auto" }}>
                 <div style={{ minWidth: 480, border: "1px solid #e6e0d2", borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "minmax(160px,1fr) 150px minmax(120px,1fr)", background: COAL, color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(150px,1fr) 92px minmax(240px,2fr)", background: COAL, color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
                     <span style={{ padding: "6px 10px", borderRight: "1px solid #2c2720" }}>Item</span>
                     <span style={{ padding: "6px 10px", borderRight: "1px solid #2c2720", textAlign: "center" }}>Result</span>
                     <span style={{ padding: "6px 10px" }}>Remarks</span>
@@ -141,7 +141,7 @@ export default function ReportDetail({ serial, profile }) {
                     const st = states.find((s) => s.key === v?.state);
                     const isGood = st && st.key === states[0].key;
                     return (
-                      <div key={ii} style={{ display: "grid", gridTemplateColumns: "minmax(160px,1fr) 150px minmax(120px,1fr)", fontSize: 14, borderTop: "1px solid #eae4d6" }}>
+                      <div key={ii} style={{ display: "grid", gridTemplateColumns: "minmax(150px,1fr) 92px minmax(240px,2fr)", fontSize: 14, borderTop: "1px solid #eae4d6" }}>
                         <span style={{ padding: "8px 10px", borderRight: "1px solid #eae4d6", color: INK }}>{it}</span>
                         <span style={{ padding: "8px 10px", borderRight: "1px solid #eae4d6", textAlign: "center", fontWeight: 800, color: st ? colorFor(st.key) : "#b8af9e" }}>
                           {st ? <span>{isGood ? "✓ " : ""}{st.label}</span> : "—"}

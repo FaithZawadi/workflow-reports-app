@@ -36,6 +36,13 @@ enum TaskStatus {
   DONE
 }
 
+enum ServiceType {
+  MONTHLY_SERVICE
+  QUARTERLY_SERVICE
+  ANNUAL_CALIBRATION
+  BREAKDOWN_SERVICE
+}
+
 enum MaintenanceFrequency {
   DAILY
   WEEKLY
@@ -120,6 +127,26 @@ model Feedback {
   comment   String?
   createdAt DateTime @default(now())
 
+  @@index([createdAt])
+}
+
+// Customer feedback / enquiry collected AFTER a service (monthly, quarterly,
+// annual calibration or breakdown). Submitted by the client — usually via a
+// shared link — so no app account is required. Read by managers/admin.
+model ServiceFeedback {
+  id           String      @id @default(cuid())
+  serviceType  ServiceType
+  clientName   String
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  weighbridge  String?
+  serviceDate  DateTime?
+  rating       Int? // 1..5, optional
+  comments     String? // feedback / enquiry text
+  createdAt    DateTime    @default(now())
+
+  @@index([serviceType])
   @@index([createdAt])
 }
 
