@@ -32,5 +32,25 @@ services:
     #  - local/LAN  → docker-compose.override.yml publishes 3000 (auto-loaded)
     #  - production → docker-compose.prod.yml fronts it with Caddy (HTTPS)
 
+  # Daily scheduler: calls the reminders endpoint once a day, which sends
+  # maintenance-schedule reminders, contract service reminders (client + QSL
+  # Technical Manager, several times before due) and escalates stale approvals.
+  # Requires CRON_SECRET to be set in .env — without it the endpoint refuses
+  # unauthenticated calls and nothing is sent.
+  reminders:
+    image: alpine:3
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      CRON_SECRET: ${CRON_SECRET:-}
+    command: >
+      sh -c "apk add --no-cache curl >/dev/null 2>&1;
+      sleep 60;
+      while true; do
+        curl -fsS -H \"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/schedule/reminders || true;
+        sleep 86400;
+      done"
+
 volumes:
   qsl_db:

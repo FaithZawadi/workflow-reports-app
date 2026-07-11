@@ -88,6 +88,7 @@ model Client {
   sites        Site[]
   projects     Project[]
   tasks        Task[]
+  contracts    Contract[]
   createdAt    DateTime      @default(now())
 }
 
@@ -173,6 +174,36 @@ model Task {
   @@index([dueAt])
 }
 
+// A running maintenance/service contract for a client. The system emails a
+// service reminder to the client contact and the QSL Technical Manager several
+// times (see CONTRACT_REMINDER_DAYS) before each service falls due.
+model Contract {
+  id                    String               @id @default(cuid())
+  name                  String
+  clientId              String?
+  client                Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  clientName            String
+  clientEmail           String? // client contact who receives reminders
+  technicalManagerEmail String? // QSL technical manager who receives reminders
+  frequency             MaintenanceFrequency @default(QUARTERLY)
+  intervalDays          Int? // for CUSTOM frequency
+  startDate             DateTime?
+  endDate               DateTime?
+  nextServiceAt         DateTime
+  lastServiceAt         DateTime?
+  // Lead-times (in days before due) already emailed for the current cycle, so a
+  // daily job doesn't send the same reminder twice.
+  remindersSent         Int[]                @default([])
+  active                Boolean              @default(true)
+  notes                 String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  @@index([clientId])
+  @@index([active])
+  @@index([nextServiceAt])
+}
+
 // A weighbridge registered by an administrator. Reports and schedules pick one
 // from a dropdown; the make/model/serial/capacity auto-fill the service forms.
 model Weighbridge {
@@ -256,6 +287,9 @@ model Report {
 
   photos      Photo[]
   trailEvents TrailEvent[]
+
+  // Set when an overdue pending approval was auto-escalated, so we don't re-nag.
+  escalatedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
