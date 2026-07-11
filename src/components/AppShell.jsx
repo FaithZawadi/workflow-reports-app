@@ -76,6 +76,11 @@ export default function AppShell({ user, children }) {
           </Link>
         )}
         {isAdmin && (
+          <Link href="/sites" className="btn" style={{ fontSize: 13 }}>
+            Sites
+          </Link>
+        )}
+        {isAdmin && (
           <Link href="/audit" className="btn" style={{ fontSize: 13 }}>
             Audit log
           </Link>

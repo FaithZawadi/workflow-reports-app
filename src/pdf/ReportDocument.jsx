@@ -50,7 +50,7 @@ const s = StyleSheet.create({
   freeField: { fontSize: 8.5, marginVertical: 1.5 },
   photoWrap: { flexDirection: "row", flexWrap: "wrap", marginTop: 3 },
   photoCell: { width: "31.3%", margin: "1%" },
-  photoImg: { width: "100%", height: 84, objectFit: "cover", borderWidth: 1, borderColor: "#999" },
+  photoImg: { width: "100%", height: 96, objectFit: "contain", backgroundColor: "#f3eee2", borderWidth: 1, borderColor: "#999" },
   photoCap: { fontSize: 6.5, marginTop: 1.5 },
   narrative: { marginTop: 4 },
   narrativeLabel: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: MUTE, textTransform: "uppercase" },

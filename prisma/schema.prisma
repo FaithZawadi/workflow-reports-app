@@ -76,7 +76,24 @@ model Client {
   reports      Report[]
   schedules    Schedule[]
   weighbridges Weighbridge[]
+  sites        Site[]
   createdAt    DateTime      @default(now())
+}
+
+// A site / location registered by an administrator. Reports pick one from a
+// dropdown when filing. Optionally tied to a client (plant); a site with no
+// client is available to everyone.
+model Site {
+  id        String   @id @default(cuid())
+  name      String
+  clientId  String?
+  client    Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([active])
 }
 
 // A weighbridge registered by an administrator. Reports and schedules pick one
