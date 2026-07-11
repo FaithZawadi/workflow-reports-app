@@ -8,6 +8,7 @@ import { COAL, GOLD, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 export default function ReportDetail({ serial, profile }) {
   const [rep, setRep] = useState(null);
   const [actAs, setActAs] = useState(null);
+  const [canEditReport, setCanEditReport] = useState(false);
   const [err, setErr] = useState("");
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -20,6 +21,7 @@ export default function ReportDetail({ serial, profile }) {
     if (!res.ok) return setErr(data.error || "Could not load report.");
     setRep(data.report);
     setActAs(data.permissions?.actAs || null);
+    setCanEditReport(!!data.permissions?.canEdit);
   };
 
   useEffect(() => {
@@ -63,9 +65,16 @@ export default function ReportDetail({ serial, profile }) {
       <PaperCard>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
           <span className="mono" style={{ fontSize: 13, fontWeight: 700, background: COAL, color: GOLD, padding: "4px 8px" }}>{rep.serial}</span>
-          <a className="btn btn-dark" href={`/api/reports/${rep.serial}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, textDecoration: "none" }}>
-            Download PDF
-          </a>
+          <div style={{ display: "flex", gap: 8 }}>
+            {canEditReport && (
+              <a className="btn" href={`/reports/${rep.serial}/edit`} style={{ fontSize: 12, textDecoration: "none" }}>
+                Edit
+              </a>
+            )}
+            <a className="btn btn-dark" href={`/api/reports/${rep.serial}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, textDecoration: "none" }}>
+              Download PDF
+            </a>
+          </div>
         </div>
 
         {/* Title on the left, STATUS on the extreme right — same line to save space */}
