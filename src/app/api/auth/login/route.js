@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { verifyPassword, startSession } from "@/lib/auth";
-import { rolesOf } from "@/lib/roles";
 
 export async function POST(req) {
   let body;
@@ -11,7 +10,6 @@ export async function POST(req) {
   }
   const email = String(body.email || "").trim().toLowerCase();
   const password = String(body.password || "");
-  const code = String(body.code || "");
 
   if (!email || !password) {
     return Response.json({ error: "Enter your email and password." }, { status: 400 });
@@ -27,16 +25,8 @@ export async function POST(req) {
     return Response.json({ error: "Wrong email or password." }, { status: 401 });
   }
 
-  // Oversight roles require the second-factor access code (whether held as a
-  // primary or secondary role).
-  const heldRoles = rolesOf(user);
-  if (heldRoles.includes("PROJECT_MANAGER") && code !== (process.env.PROJECT_MANAGER_CODE || "")) {
-    return Response.json({ error: "Project Manager access code is required." }, { status: 401 });
-  }
-  if (heldRoles.includes("TECHNICAL_MANAGER") && code !== (process.env.TECHNICAL_MANAGER_CODE || "")) {
-    return Response.json({ error: "Technical Manager access code is required." }, { status: 401 });
-  }
-
+  // Every role signs in with just email + password. (The former oversight
+  // access-code gate was removed — access is governed by the user's roles.)
   await startSession(user);
 
   return Response.json({

@@ -45,6 +45,16 @@ export function canView(report, user) {
   return report.authorId === user.sub;
 }
 
+// Who may edit a submitted report to correct an error. Admins may edit any
+// report; the author may edit their own until it is fully approved (so genuine
+// mistakes can be fixed, but a closed/approved record can only be touched by an
+// admin). Every edit is recorded on the trail with who and when.
+export function canEdit(report, user) {
+  const roles = rolesOf(user);
+  if (roles.includes("ADMIN")) return true;
+  return report.authorId === user.sub && report.status !== "APPROVED";
+}
+
 // Who can approve / reject a report at its current stage. Returns the stage the
 // user is acting as ("SUPERVISOR" | "MANAGER") or null.
 //

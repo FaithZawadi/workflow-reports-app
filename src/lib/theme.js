@@ -23,8 +23,8 @@ export const STATUS = {
 export const ROLE_LABEL = {
   TECHNICIAN: "Site Technician",
   ENGINEER: "QSL Engineer",
-  SUPERVISOR: "Supervisor",
-  MANAGER: "Manager",
+  SUPERVISOR: "Equipment User",
+  MANAGER: "Client/Manager",
   PROJECT_MANAGER: "Project Manager",
   TECHNICAL_MANAGER: "Technical Manager",
   ADMIN: "Administrator",

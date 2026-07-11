@@ -90,8 +90,10 @@ export default function CheckItem({ text, states, val, onChange }) {
       <div style={{ ...cellBase, borderRight: 0 }}>
         <input
           className="input"
+          spellCheck
+          autoCapitalize="sentences"
           style={isFlagged ? { borderColor: FAIL, background: "#fdf1ef" } : undefined}
-          placeholder={isFlagged ? "What needs attention — your supervisor will read it" : "Remark (optional)"}
+          placeholder={isFlagged ? "What needs attention — your Equipment User will read it" : "Remark (optional)"}
           value={val?.remark || ""}
           onChange={(e) => onChange({ ...val, remark: e.target.value })}
         />

@@ -70,6 +70,8 @@ export default function Photos({ photos, setPhotos, max = 6 }) {
             <img src={p.src} alt={"photo " + (i + 1)} style={{ width: "100%", height: 130, objectFit: "contain", background: "#f3eee2", borderRadius: 2 }} />
             <input
               className="input"
+              spellCheck
+              autoCapitalize="sentences"
               style={{ fontSize: 12, marginTop: 4, padding: "6px 8px" }}
               placeholder="What does it show?"
               value={p.caption}

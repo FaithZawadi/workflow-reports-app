@@ -391,13 +391,12 @@ export function ReportDocument({ report, logoSrc }) {
           </Text>
         </View>
 
+        {/* Footer carries only the document identity + page number — the company
+            contact block lives in the header and is not repeated here. */}
         <View style={s.footer} fixed>
-          <Text style={s.footText}>
-            {COMPANY.name} · {COMPANY.address} · {COMPANY.website}
-          </Text>
-          <Text style={s.footText}>
-            {COMPANY.email} · {COMPANY.phone} · {report.serial} · {COMPANY.accreditation}
-          </Text>
+          <Text style={s.footText} render={({ pageNumber, totalPages }) => (
+            `${COMPANY.name} · ${report.serial} · Page ${pageNumber} of ${totalPages}`
+          )} />
         </View>
       </Page>
     </Document>

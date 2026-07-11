@@ -4,6 +4,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { Brand } from "./ui";
 import OutboxSync from "./OutboxSync";
 import InstallPrompt from "./InstallPrompt";
+import FeedbackPrompt from "./FeedbackPrompt";
 import OfflineBadge from "./OfflineBadge";
 import { ROLE_LABEL, GOLD, COAL } from "@/lib/theme";
 import { canFileReports, canManageUsers, rolesOf } from "@/lib/roles";
@@ -81,6 +82,11 @@ export default function AppShell({ user, children }) {
           </Link>
         )}
         {isAdmin && (
+          <Link href="/feedback" className="btn" style={{ fontSize: 13 }}>
+            Feedback
+          </Link>
+        )}
+        {isAdmin && (
           <Link href="/audit" className="btn" style={{ fontSize: 13 }}>
             Audit log
           </Link>
@@ -101,6 +107,7 @@ export default function AppShell({ user, children }) {
 
       <OutboxSync />
       <InstallPrompt />
+      <FeedbackPrompt />
 
       {/* Native-style bottom tab bar — shown on phones only (see globals.css) */}
       <nav className="tabbar" aria-label="Primary">

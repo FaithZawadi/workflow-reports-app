@@ -59,6 +59,7 @@ model User {
 
   reports     Report[]      @relation("AuthoredReports")
   trailEvents TrailEvent[]
+  feedback    Feedback[]
   // Weighbridges this user is responsible for (supervisors/managers may have many).
   weighbridges Weighbridge[] @relation("UserWeighbridges")
   createdAt   DateTime      @default(now())
@@ -94,6 +95,21 @@ model Site {
 
   @@index([clientId])
   @@index([active])
+}
+
+// A star rating + optional comment left by a user from the periodic in-app
+// "How's the app working?" prompt. Administrators read these under /feedback.
+model Feedback {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  userName  String
+  userEmail String
+  rating    Int // 1..5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 // A weighbridge registered by an administrator. Reports and schedules pick one

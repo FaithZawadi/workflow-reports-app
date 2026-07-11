@@ -4,38 +4,68 @@ import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar, Field, Textarea } from "./ui";
 import CheckItem, { CheckHeader, CHECK_TABLE_MINWIDTH, defaultStates } from "./CheckItem";
 import Photos from "./Photos";
-import { templatesForRoles } from "@/lib/templates";
+import { templatesForRoles, templateByCode } from "@/lib/templates";
 import { rolesOf } from "@/lib/roles";
 import { enqueueReport } from "@/lib/outbox";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
-export default function ReportForm({ profile, prefill = {} }) {
+export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const router = useRouter();
 
   const isTech = profile.role === "TECHNICIAN";
+  const isEdit = !!edit;
   // The forms this user may file — the union across all of their roles.
   const available = templatesForRoles(rolesOf(profile));
 
-  const prefillTpl = prefill.template ? available.find((t) => t.code === prefill.template) || null : null;
+  const editTpl = edit ? templateByCode(edit.template) : null;
+  const prefillTpl = editTpl || (prefill.template ? available.find((t) => t.code === prefill.template) || null : null);
+
+  // When editing, rebuild the working state from the stored report.
+  const editPhotos =
+    edit && Array.isArray(edit.photos)
+      ? edit.photos.map((p) => ({
+          src: p.dataUrl,
+          caption: p.caption || "",
+          takenAt: p.takenAt,
+          gps: p.gpsLat != null ? { lat: p.gpsLat, lng: p.gpsLng, acc: p.gpsAcc } : null,
+        }))
+      : [];
 
   const [tpl, setTpl] = useState(prefillTpl);
-  const [values, setValues] = useState(prefill.weighbridgeId ? { weighbridgeId: prefill.weighbridgeId } : {});
-  const [checks, setChecks] = useState({});
-  const [grids, setGrids] = useState({});
-  const [runs, setRuns] = useState({});
-  const [photos, setPhotos] = useState([]);
+  const [values, setValues] = useState(
+    edit
+      ? { ...(edit.data?.values || {}), weighbridgeId: edit.weighbridgeId || edit.data?.values?.weighbridgeId || "" }
+      : prefill.weighbridgeId
+      ? { weighbridgeId: prefill.weighbridgeId }
+      : {}
+  );
+  const [checks, setChecks] = useState(edit?.data?.checks || {});
+  const [grids, setGrids] = useState(edit?.data?.grids || {});
+  const [runs, setRuns] = useState(edit?.data?.runs || {});
+  const [photos, setPhotos] = useState(editPhotos);
   const [clients, setClients] = useState([]);
   const [weighbridges, setWeighbridges] = useState([]);
   const [sites, setSites] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
   const [managers, setManagers] = useState([]);
-  const [clientName, setClientName] = useState(profile.clientName || prefill.client || "");
-  const [site, setSite] = useState(profile.site || prefill.site || "");
-  const [supervisorEmail, setSupervisorEmail] = useState("");
-  const [managerEmail, setManagerEmail] = useState("");
+  const [clientName, setClientName] = useState(edit ? edit.clientName || "" : profile.clientName || prefill.client || "");
+  const [site, setSite] = useState(edit ? edit.site || "" : profile.site || prefill.site || "");
+  const [supervisorEmail, setSupervisorEmail] = useState(edit ? edit.supervisorEmail || "" : "");
+  const [managerEmail, setManagerEmail] = useState(edit ? edit.managerEmail || "" : "");
   const [scheduleId] = useState(prefill.scheduleId || null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [confirming, setConfirming] = useState(false);
+
+  // Validate the routing, then open the review dialog so the filer can re-read
+  // everything before it is sent.
+  const review = () => {
+    setMsg("");
+    if (!/\S+@\S+\.\S+/.test(supervisorEmail)) return setMsg("Enter the Equipment User's email.");
+    if (!/\S+@\S+\.\S+/.test(managerEmail)) return setMsg("Enter the Client/Manager's email.");
+    if (!isTech && !clientName.trim()) return setMsg("Choose the client (plant).");
+    setConfirming(true);
+  };
 
   useEffect(() => {
     fetch("/api/clients")
@@ -85,12 +115,9 @@ export default function ReportForm({ profile, prefill = {} }) {
   }, [runs, values.limit]);
 
   const submit = async () => {
-    setMsg("");
-    if (!/\S+@\S+\.\S+/.test(supervisorEmail)) return setMsg("Enter the supervisor's email.");
-    if (!/\S+@\S+\.\S+/.test(managerEmail)) return setMsg("Enter the manager's email.");
-    if (!isTech && !clientName.trim()) return setMsg("Choose the client (plant).");
+    setConfirming(false);
     setBusy(true);
-    setMsg("Submitting…");
+    setMsg(isEdit ? "Saving changes…" : "Submitting…");
 
     const payload = {
       template: tpl.code,
@@ -106,6 +133,29 @@ export default function ReportForm({ profile, prefill = {} }) {
       runs,
       photos,
     };
+
+    // Editing an existing report — save the correction (online only) and return
+    // to the report. The change is stamped on the trail server-side.
+    if (isEdit) {
+      try {
+        const res = await fetch(`/api/reports/${edit.serial}`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setMsg(data.error || "Could not save changes.");
+          setBusy(false);
+          return;
+        }
+        router.push(`/reports/${edit.serial}`);
+      } catch {
+        setMsg("Network problem — changes not saved. Try again when you're online.");
+        setBusy(false);
+      }
+      return;
+    }
 
     // Save-and-forward: keep the report on the device and let the outbox deliver
     // it when the network returns.
@@ -178,38 +228,84 @@ export default function ReportForm({ profile, prefill = {} }) {
   const approvalPanel = (
     <div className="card" style={{ borderColor: GOLD, padding: 16 }}>
       <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK }}>Approval route</div>
-      <div className="muted" style={{ margin: "4px 0 12px" }}>You → Supervisor reviews → Manager approves. Each is emailed automatically.</div>
+      <div className="muted" style={{ margin: "4px 0 12px" }}>You → Equipment User reviews → Client/Manager approves. Each is emailed automatically.</div>
       <div style={{ fontSize: 12, fontWeight: 700, background: "#efe8d6", color: INK, padding: "8px 10px", borderRadius: 2, marginBottom: 12 }}>
         Submitting as {profile.name}
         {(isTech ? profile.clientName : clientName) ? " · " + (isTech ? profile.clientName : clientName) : ""}
         {(isTech ? profile.site : site) ? " - " + (isTech ? profile.site : site) : ""}
       </div>
       <ReviewerPicker
-        label="Supervisor (reviews first)"
+        label="Equipment User (reviews first)"
         people={supervisors}
         value={supervisorEmail}
         onChange={setSupervisorEmail}
-        placeholder="supervisor@company.com"
+        placeholder="equipment.user@company.com"
       />
       <ReviewerPicker
-        label="Manager (approves after supervisor)"
+        label="Client/Manager (approves after review)"
         people={managers}
         value={managerEmail}
         onChange={setManagerEmail}
-        placeholder="manager@company.com"
+        placeholder="client.manager@company.com"
       />
       {msg && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, margin: "8px 0" }}>{msg}</div>}
-      <button className="btn btn-primary" style={{ width: "100%", padding: "13px" }} disabled={busy} onClick={submit}>
-        {busy ? "Working…" : "Submit — send to supervisor"}
+      <button className="btn btn-primary" style={{ width: "100%", padding: "13px" }} disabled={busy} onClick={review}>
+        {busy ? "Working…" : isEdit ? "Review & save changes" : "Review & submit"}
       </button>
     </div>
   );
 
+  const filledCount =
+    Object.values(values).filter((v) => v !== "" && v != null).length +
+    Object.keys(checks).length;
+
   return (
     <div>
-      <button onClick={() => setTpl(null)} style={{ background: "none", border: 0, color: WAIT, fontWeight: 700, fontSize: 13, marginTop: 12 }}>
-        ← Choose a different sheet
-      </button>
+      {confirming && (
+        <div
+          role="dialog"
+          aria-label="Confirm before sending"
+          style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(22,19,16,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => setConfirming(false)}
+        >
+          <div className="card" style={{ maxWidth: 460, width: "100%", padding: 18, background: "#fff", borderColor: GOLD }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 14, color: INK }}>
+              {isEdit ? "Re-read your changes" : "Please re-read before sending"}
+            </div>
+            <p className="muted" style={{ fontSize: 13, margin: "6px 0 12px" }}>
+              {isEdit
+                ? "Your correction will be saved and stamped on the report's trail with your name and the time. Check the details below."
+                : "Once sent, this goes to your Equipment User for review. Check the details below are correct."}
+            </p>
+            <div style={{ fontSize: 13, color: INK, display: "grid", gap: 4 }}>
+              <div><b>Form:</b> {tpl.code} — {tpl.name}</div>
+              <div><b>Client:</b> {(isTech ? profile.clientName : clientName) || "—"}</div>
+              <div><b>Site / location:</b> {(isTech ? profile.site : site) || "—"}</div>
+              <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>
+              <div><b>Equipment User:</b> {supervisorEmail}</div>
+              <div><b>Client/Manager:</b> {managerEmail}</div>
+              <div><b>Entries filled:</b> {filledCount} · <b>Photos:</b> {photos.length}</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button className="btn" style={{ flex: 1 }} disabled={busy} onClick={() => setConfirming(false)}>
+                ← Keep editing
+              </button>
+              <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy} onClick={submit}>
+                {busy ? "Saving…" : isEdit ? "Confirm & save" : "Confirm & send"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {isEdit ? (
+        <button onClick={() => router.push(`/reports/${edit.serial}`)} style={{ background: "none", border: 0, color: WAIT, fontWeight: 700, fontSize: 13, marginTop: 12 }}>
+          ← Cancel edit
+        </button>
+      ) : (
+        <button onClick={() => setTpl(null)} style={{ background: "none", border: 0, color: WAIT, fontWeight: 700, fontSize: 13, marginTop: 12 }}>
+          ← Choose a different sheet
+        </button>
+      )}
       <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr", marginTop: 8 }} className="report-grid">
         <PaperCard>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>

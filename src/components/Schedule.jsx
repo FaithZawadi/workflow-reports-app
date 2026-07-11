@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { COAL, GOLD, INK, MUTE, PAPER, LINE } from "@/lib/theme";
-import { TEMPLATES } from "@/lib/templates";
+import { TEMPLATES, TECH_TEMPLATES, ENGINEER_TEMPLATES } from "@/lib/templates";
 import {
   FREQUENCIES,
   FREQUENCY_KEYS,
@@ -10,7 +10,7 @@ import {
   STATUS_META,
   duePhrase,
 } from "@/lib/schedule";
-import { canManageSchedulesRole, canFileReports } from "@/lib/roles";
+import { canManageSchedulesRole, canFileReports, rolesOf } from "@/lib/roles";
 
 function fmtDate(d) {
   if (!d) return "—";
@@ -159,7 +159,7 @@ export default function Schedule({ profile }) {
       <div className="grid" style={{ gridTemplateColumns: "1fr", gap: 10 }}>
         {shown.map((s) => {
           const freq = FREQUENCIES[s.frequency]?.label || s.frequency;
-          const canFileThis = canFile && (profile.role === "ADMIN" || TEMPLATES.find((t) => t.code === s.template));
+          const canFileThis = canFile && (rolesOf(profile).includes("ADMIN") || TEMPLATES.find((t) => t.code === s.template));
           const fileHref =
             `/reports/new?template=${s.template}` +
             `&weighbridgeId=${encodeURIComponent(s.weighbridgeId || "")}` +
@@ -291,12 +291,17 @@ function EditRow({ schedule, onSaved }) {
 }
 
 function ScheduleForm({ profile, onCreated }) {
+  // Which forms this user may schedule — the union across ALL of their roles
+  // (a user's primary role may be Technician while a secondary role lets them
+  // manage schedules).
   const manageable = useMemo(() => {
-    if (["ADMIN", "SUPERVISOR", "MANAGER"].includes(profile.role)) return TEMPLATES;
-    if (profile.role === "PROJECT_MANAGER") return TEMPLATES.filter((t) => t.who === "Site Technician");
-    if (profile.role === "TECHNICAL_MANAGER") return TEMPLATES.filter((t) => t.who === "QSL Engineer");
-    return [];
-  }, [profile.role]);
+    const roles = rolesOf(profile);
+    if (roles.some((r) => ["ADMIN", "SUPERVISOR", "MANAGER"].includes(r))) return TEMPLATES;
+    const codes = new Set();
+    if (roles.includes("PROJECT_MANAGER")) TECH_TEMPLATES.forEach((c) => codes.add(c));
+    if (roles.includes("TECHNICAL_MANAGER")) ENGINEER_TEMPLATES.forEach((c) => codes.add(c));
+    return TEMPLATES.filter((t) => codes.has(t.code));
+  }, [profile]);
 
   const [template, setTemplate] = useState(manageable[0]?.code || "");
   const [frequency, setFrequency] = useState(DEFAULT_FREQUENCY[manageable[0]?.code] || "MONTHLY");
