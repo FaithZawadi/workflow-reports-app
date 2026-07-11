@@ -48,6 +48,13 @@ async function main() {
     });
   }
 
+  // Sample sites / locations for the demo client so the site dropdown has
+  // something to show. Removed with the demo data in production.
+  for (const name of ["Dispatch Gate", "Plant Gate 1", "Weighbridge Yard"]) {
+    const exists = await prisma.site.findFirst({ where: { name, clientId: client.id } });
+    if (!exists) await prisma.site.create({ data: { name, clientId: client.id } });
+  }
+
   // Sample maintenance schedules for the demo weighbridge so the scheduler has
   // something to show immediately. Removed with the demo data in production.
   const daysFromNow = (n) => {

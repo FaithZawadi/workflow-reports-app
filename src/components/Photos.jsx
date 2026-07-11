@@ -3,7 +3,7 @@ import { useState } from "react";
 import { SectionBar } from "./ui";
 import { FAIL, WAIT } from "@/lib/theme";
 
-export default function Photos({ photos, setPhotos, max = 4 }) {
+export default function Photos({ photos, setPhotos, max = 6 }) {
   const [msg, setMsg] = useState("");
 
   const getGps = () =>
@@ -67,7 +67,7 @@ export default function Photos({ photos, setPhotos, max = 4 }) {
         {photos.map((p, i) => (
           <div key={i} className="card" style={{ padding: 4 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.src} alt={"photo " + (i + 1)} style={{ width: "100%", height: 110, objectFit: "cover", borderRadius: 2 }} />
+            <img src={p.src} alt={"photo " + (i + 1)} style={{ width: "100%", height: 130, objectFit: "contain", background: "#f3eee2", borderRadius: 2 }} />
             <input
               className="input"
               style={{ fontSize: 12, marginTop: 4, padding: "6px 8px" }}

@@ -162,7 +162,7 @@ export default function ReportDetail({ serial, profile }) {
               {rep.photos.map((p, i) => (
                 <figure key={i} style={{ margin: 0 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.dataUrl} alt={p.caption || "photo"} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 2, border: "1px solid var(--line)" }} />
+                  <img src={p.dataUrl} alt={p.caption || "photo"} style={{ width: "100%", height: 200, objectFit: "contain", background: "#f3eee2", borderRadius: 2, border: "1px solid var(--line)" }} />
                   <figcaption className="muted" style={{ fontSize: 11, marginTop: 4 }}>
                     {p.caption || "(no caption)"}
                     {p.gpsLat != null && (

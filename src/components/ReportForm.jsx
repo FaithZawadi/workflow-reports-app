@@ -26,6 +26,7 @@ export default function ReportForm({ profile, prefill = {} }) {
   const [photos, setPhotos] = useState([]);
   const [clients, setClients] = useState([]);
   const [weighbridges, setWeighbridges] = useState([]);
+  const [sites, setSites] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
   const [managers, setManagers] = useState([]);
   const [clientName, setClientName] = useState(profile.clientName || prefill.client || "");
@@ -52,7 +53,19 @@ export default function ReportForm({ profile, prefill = {} }) {
       .then((r) => r.json())
       .then((d) => setWeighbridges(d.weighbridges || []))
       .catch(() => {});
+    fetch("/api/sites")
+      .then((r) => r.json())
+      .then((d) => setSites(d.sites || []))
+      .catch(() => {});
   }, []);
+
+  // Site suggestions for the chosen client (plus any client-less "all" sites).
+  const siteOptions = (() => {
+    const c = (isTech ? profile.clientName : clientName || "").trim().toLowerCase();
+    return sites
+      .filter((s) => !s.client || !c || String(s.client).toLowerCase() === c)
+      .map((s) => s.name);
+  })();
 
   const setV = (k, v) => setValues((s) => ({ ...s, [k]: v }));
 
@@ -212,7 +225,7 @@ export default function ReportForm({ profile, prefill = {} }) {
           ) : (
             <div className="grid md-2">
               <Field label="Client (plant)" value={clientName} onChange={setClientName} suggestions={clients.map((c) => c.name)} listId="clients-dl" placeholder="e.g. TATA Chemicals Magadi" />
-              <Field label="Site / location of this job" value={site} onChange={setSite} placeholder="e.g. Main plant weighbridge" />
+              <Field label="Site / location of this job" value={site} onChange={setSite} suggestions={siteOptions} listId="sites-dl" placeholder={siteOptions.length ? "Pick a site or type one" : "e.g. Main plant weighbridge"} />
             </div>
           )}
 
