@@ -83,7 +83,7 @@ export default function ReportDetail({ serial, profile }) {
         {pending && actAs && (
           <div className="card" style={{ borderColor: GOLD, background: "#fdf6e3", padding: 14, marginTop: 14 }}>
             <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK }}>
-              {actAs === "SUPERVISOR" ? "Supervisor review" : "Manager approval"}
+              {actAs === "SUPERVISOR" ? "Equipment User review" : "Client/Manager approval"}
             </div>
             <div className="muted" style={{ margin: "4px 0 10px" }}>
               Your decision is recorded with your name and the time.
@@ -102,7 +102,7 @@ export default function ReportDetail({ serial, profile }) {
         )}
         {pending && !actAs && (
           <div className="card" style={{ padding: 12, marginTop: 14, background: "#f3eee2", color: MUTE, fontSize: 13 }}>
-            Waiting for {rep.status === "PENDING_SUPERVISOR" ? "supervisor review by " + rep.supervisorEmail : "manager approval by " + rep.managerEmail}.
+            Waiting for {rep.status === "PENDING_SUPERVISOR" ? "Equipment User review by " + rep.supervisorEmail : "Client/Manager approval by " + rep.managerEmail}.
           </div>
         )}
 

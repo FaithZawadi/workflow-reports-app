@@ -89,7 +89,6 @@ async function main() {
   console.log("Seed complete.");
   console.log(`Admin: ${adminEmail} / ${adminPass}`);
   console.log("Demo staff password for all sample accounts: demo1234");
-  console.log("Oversight codes come from PROJECT_MANAGER_CODE / TECHNICAL_MANAGER_CODE in .env");
 }
 
 main()

@@ -95,7 +95,7 @@ export function Textarea({ label, value, onChange, rows = 3 }) {
   return (
     <label className="field">
       <span className="label">{label}</span>
-      <textarea className="input" rows={rows} value={value || ""} onChange={(e) => onChange(e.target.value)} />
+      <textarea className="input" rows={rows} value={value || ""} onChange={(e) => onChange(e.target.value)} spellCheck autoCapitalize="sentences" />
     </label>
   );
 }

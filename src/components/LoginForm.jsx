@@ -11,8 +11,6 @@ export default function LoginForm() {
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
-  const [needsCode, setNeedsCode] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -24,11 +22,10 @@ export default function LoginForm() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email, password, code }),
+        body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
       if (!res.ok) {
-        if (/access code/i.test(data.error || "")) setNeedsCode(true);
         setErr(data.error || "Could not sign in.");
         setBusy(false);
         return;
@@ -100,16 +97,6 @@ export default function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </label>
-            {needsCode && (
-              <label className="field">
-                <span className="label">Manager access code</span>
-                <PasswordInput
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  placeholder="Required for oversight roles"
-                />
-              </label>
-            )}
             {err && (
               <div className="err" style={{ marginBottom: 10 }}>
                 {err}

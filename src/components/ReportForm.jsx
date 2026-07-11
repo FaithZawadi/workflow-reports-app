@@ -36,6 +36,17 @@ export default function ReportForm({ profile, prefill = {} }) {
   const [scheduleId] = useState(prefill.scheduleId || null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [confirming, setConfirming] = useState(false);
+
+  // Validate the routing, then open the review dialog so the filer can re-read
+  // everything before it is sent.
+  const review = () => {
+    setMsg("");
+    if (!/\S+@\S+\.\S+/.test(supervisorEmail)) return setMsg("Enter the Equipment User's email.");
+    if (!/\S+@\S+\.\S+/.test(managerEmail)) return setMsg("Enter the Client/Manager's email.");
+    if (!isTech && !clientName.trim()) return setMsg("Choose the client (plant).");
+    setConfirming(true);
+  };
 
   useEffect(() => {
     fetch("/api/clients")
@@ -85,10 +96,7 @@ export default function ReportForm({ profile, prefill = {} }) {
   }, [runs, values.limit]);
 
   const submit = async () => {
-    setMsg("");
-    if (!/\S+@\S+\.\S+/.test(supervisorEmail)) return setMsg("Enter the supervisor's email.");
-    if (!/\S+@\S+\.\S+/.test(managerEmail)) return setMsg("Enter the manager's email.");
-    if (!isTech && !clientName.trim()) return setMsg("Choose the client (plant).");
+    setConfirming(false);
     setBusy(true);
     setMsg("Submitting…");
 
@@ -178,35 +186,71 @@ export default function ReportForm({ profile, prefill = {} }) {
   const approvalPanel = (
     <div className="card" style={{ borderColor: GOLD, padding: 16 }}>
       <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK }}>Approval route</div>
-      <div className="muted" style={{ margin: "4px 0 12px" }}>You → Supervisor reviews → Manager approves. Each is emailed automatically.</div>
+      <div className="muted" style={{ margin: "4px 0 12px" }}>You → Equipment User reviews → Client/Manager approves. Each is emailed automatically.</div>
       <div style={{ fontSize: 12, fontWeight: 700, background: "#efe8d6", color: INK, padding: "8px 10px", borderRadius: 2, marginBottom: 12 }}>
         Submitting as {profile.name}
         {(isTech ? profile.clientName : clientName) ? " · " + (isTech ? profile.clientName : clientName) : ""}
         {(isTech ? profile.site : site) ? " - " + (isTech ? profile.site : site) : ""}
       </div>
       <ReviewerPicker
-        label="Supervisor (reviews first)"
+        label="Equipment User (reviews first)"
         people={supervisors}
         value={supervisorEmail}
         onChange={setSupervisorEmail}
-        placeholder="supervisor@company.com"
+        placeholder="equipment.user@company.com"
       />
       <ReviewerPicker
-        label="Manager (approves after supervisor)"
+        label="Client/Manager (approves after review)"
         people={managers}
         value={managerEmail}
         onChange={setManagerEmail}
-        placeholder="manager@company.com"
+        placeholder="client.manager@company.com"
       />
       {msg && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, margin: "8px 0" }}>{msg}</div>}
-      <button className="btn btn-primary" style={{ width: "100%", padding: "13px" }} disabled={busy} onClick={submit}>
-        {busy ? "Working…" : "Submit — send to supervisor"}
+      <button className="btn btn-primary" style={{ width: "100%", padding: "13px" }} disabled={busy} onClick={review}>
+        {busy ? "Working…" : "Review & submit"}
       </button>
     </div>
   );
 
+  const filledCount =
+    Object.values(values).filter((v) => v !== "" && v != null).length +
+    Object.keys(checks).length;
+
   return (
     <div>
+      {confirming && (
+        <div
+          role="dialog"
+          aria-label="Confirm before sending"
+          style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(22,19,16,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => setConfirming(false)}
+        >
+          <div className="card" style={{ maxWidth: 460, width: "100%", padding: 18, background: "#fff", borderColor: GOLD }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 14, color: INK }}>Please re-read before sending</div>
+            <p className="muted" style={{ fontSize: 13, margin: "6px 0 12px" }}>
+              Once sent, this goes to your Equipment User for review. Check the details below are correct.
+            </p>
+            <div style={{ fontSize: 13, color: INK, display: "grid", gap: 4 }}>
+              <div><b>Form:</b> {tpl.code} — {tpl.name}</div>
+              <div><b>Client:</b> {(isTech ? profile.clientName : clientName) || "—"}</div>
+              <div><b>Site / location:</b> {(isTech ? profile.site : site) || "—"}</div>
+              <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>
+              <div><b>Equipment User:</b> {supervisorEmail}</div>
+              <div><b>Client/Manager:</b> {managerEmail}</div>
+              <div><b>Entries filled:</b> {filledCount} · <b>Photos:</b> {photos.length}</div>
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button className="btn" style={{ flex: 1 }} disabled={busy} onClick={() => setConfirming(false)}>
+                ← Keep editing
+              </button>
+              <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy} onClick={submit}>
+                {busy ? "Sending…" : "Confirm & send"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <button onClick={() => setTpl(null)} style={{ background: "none", border: 0, color: WAIT, fontWeight: 700, fontSize: 13, marginTop: 12 }}>
         ← Choose a different sheet
       </button>
