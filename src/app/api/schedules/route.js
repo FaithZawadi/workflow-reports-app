@@ -10,6 +10,8 @@ import {
 } from "@/lib/schedule";
 import { recordAudit } from "@/lib/audit";
 import { SCHEDULE_MANAGER_ROLES } from "@/lib/roles";
+import { sendMail, scheduleAssignedEmail } from "@/lib/email";
+import { notifyEmails } from "@/lib/notify";
 
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
 
@@ -144,6 +146,17 @@ export async function POST(req) {
     summary: `Created ${tpl.code} ${FREQUENCIES[frequency]?.label || frequency} schedule for ${clientName} · ${weighbridgeId}` +
       (schedule.assignedName ? ` → ${schedule.assignedName}` : ""),
   });
+
+  // Notify the assignee that they've been scheduled — email + in-app.
+  if (schedule.assignedEmail) {
+    await sendMail(scheduleAssignedEmail(schedule.assignedEmail, schedule));
+    await notifyEmails([schedule.assignedEmail], {
+      type: "SCHEDULE",
+      title: "You've been scheduled",
+      body: `${schedule.templateName} — ${schedule.clientName} · ${schedule.weighbridgeId} (first due ${new Date(schedule.nextDueAt).toLocaleDateString()})`,
+      link: "/schedule",
+    });
+  }
 
   return Response.json({ schedule: withStatus(schedule) });
 }
