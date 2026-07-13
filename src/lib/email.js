@@ -66,6 +66,25 @@ ${appUrl()}/reports/${report.serial}
   };
 }
 
+export function failureAlertEmail(to, report, reasons) {
+  return {
+    to,
+    subject: `ATTENTION: ${report.serial} — ${reasons.join("; ")} (${report.clientName}${report.site ? " - " + report.site : ""})`,
+    text: `A report just filed by ${report.authorName} needs attention:
+
+${reasons.map((r) => "• " + r).join("\n")}
+
+Serial:      ${report.serial}
+Form:        ${report.templateName}
+Weighbridge: ${report.weighbridgeId || "-"}
+
+Open it:
+${appUrl()}/reports/${report.serial}
+
+- QSL Maintenance Management System`,
+  };
+}
+
 export function decisionEmail(report, toEmail, word, byName, comment) {
   return {
     to: toEmail,

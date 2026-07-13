@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { TASK_MANAGER_ROLES, canManageTasks } from "@/lib/roles";
+import { notifyUsers } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -105,5 +106,12 @@ export async function POST(req) {
     entityId: t.id,
     summary: `Created task "${title}"${assignedName ? " for " + assignedName : ""}`,
   });
+  if (assignedToId)
+    await notifyUsers([assignedToId], {
+      type: "TASK",
+      title: "New task assigned to you",
+      body: `${title}${clientName ? " — " + clientName : ""}`,
+      link: "/tasks",
+    });
   return Response.json({ task: shape(t) });
 }
