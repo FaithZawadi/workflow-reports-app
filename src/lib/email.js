@@ -66,6 +66,45 @@ ${appUrl()}/reports/${report.serial}
   };
 }
 
+export function scheduleAssignedEmail(to, schedule) {
+  const due = new Date(schedule.nextDueAt).toDateString();
+  return {
+    to,
+    subject: `SCHEDULED: ${schedule.templateName} — ${schedule.clientName} (${schedule.weighbridgeId})`,
+    text: `You've been assigned a recurring maintenance check.
+
+Form:        ${schedule.templateName} (${schedule.template})
+Client:      ${schedule.clientName}${schedule.site ? " - " + schedule.site : ""}
+Weighbridge: ${schedule.weighbridgeId}
+Frequency:   ${schedule.frequency}
+First due:   ${due}
+
+Open the schedule:
+${appUrl()}/schedule
+
+- QSL Maintenance Management System`,
+  };
+}
+
+export function failureAlertEmail(to, report, reasons) {
+  return {
+    to,
+    subject: `ATTENTION: ${report.serial} — ${reasons.join("; ")} (${report.clientName}${report.site ? " - " + report.site : ""})`,
+    text: `A report just filed by ${report.authorName} needs attention:
+
+${reasons.map((r) => "• " + r).join("\n")}
+
+Serial:      ${report.serial}
+Form:        ${report.templateName}
+Weighbridge: ${report.weighbridgeId || "-"}
+
+Open it:
+${appUrl()}/reports/${report.serial}
+
+- QSL Maintenance Management System`,
+  };
+}
+
 export function decisionEmail(report, toEmail, word, byName, comment) {
   return {
     to: toEmail,

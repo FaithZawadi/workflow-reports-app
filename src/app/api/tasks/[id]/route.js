@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { canManageTasks } from "@/lib/roles";
+import { notifyUsers } from "@/lib/notify";
 
 const VALID_STATUS = ["OPEN", "IN_PROGRESS", "BLOCKED", "DONE"];
 const norm = (v) => (v || "").trim().toLowerCase();
@@ -76,6 +77,14 @@ export async function PATCH(req, { params }) {
     return Response.json({ error: "Nothing to update." }, { status: 400 });
 
   const t = await prisma.task.update({ where: { id: params.id }, data });
+  // Notify a newly-assigned user.
+  if (data.assignedToId && data.assignedToId !== task.assignedToId)
+    await notifyUsers([data.assignedToId], {
+      type: "TASK",
+      title: "A task was assigned to you",
+      body: t.title,
+      link: "/tasks",
+    });
   await recordAudit({
     actor: user,
     action: "UPDATE",

@@ -10,6 +10,7 @@ import {
   contractReminderEmail,
   escalationEmail,
 } from "@/lib/contracts";
+import { notifyUsers } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -48,9 +49,10 @@ async function processEscalations(now, alertList) {
   // Oversight recipients: admins + technical managers.
   const oversight = await prisma.user.findMany({
     where: { active: true, roles: { hasSome: ["ADMIN", "TECHNICAL_MANAGER"] } },
-    select: { email: true },
+    select: { id: true, email: true },
   });
   const oversightEmails = oversight.map((u) => u.email);
+  const oversightIds = oversight.map((u) => u.id);
   const results = [];
   for (const r of stale) {
     const daysPending = daysBetween(r.createdAt, now);
@@ -62,6 +64,12 @@ async function processEscalations(now, alertList) {
       const mail = await sendMail(escalationEmail(to.join(", "), r, daysPending));
       results.push({ serial: r.serial, daysPending, to, sent: mail.sent, reason: mail.reason });
     }
+    await notifyUsers(oversightIds, {
+      type: "SYSTEM",
+      title: `Escalated · ${r.serial}`,
+      body: `Awaiting ${r.status === "PENDING_SUPERVISOR" ? "review" : "approval"} for ${daysPending} day(s)`,
+      link: `/reports/${r.serial}`,
+    });
     await prisma.report.update({ where: { id: r.id }, data: { escalatedAt: now } });
   }
   return results;

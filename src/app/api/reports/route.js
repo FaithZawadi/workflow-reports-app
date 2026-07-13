@@ -3,10 +3,11 @@ import { requireUser } from "@/lib/auth";
 import { reportScope } from "@/lib/rbac";
 import { nextSerial } from "@/lib/serial";
 import { templateByCode, templatesForRoles } from "@/lib/templates";
-import { sendMail, reviewRequestEmail } from "@/lib/email";
+import { sendMail, reviewRequestEmail, failureAlertEmail } from "@/lib/email";
 import { addCycle } from "@/lib/schedule";
 import { recordAudit } from "@/lib/audit";
 import { FILER_ROLES, rolesOf } from "@/lib/roles";
+import { notifyEmails, notifyUsers, oversight } from "@/lib/notify";
 
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
 
@@ -239,8 +240,41 @@ export async function POST(req) {
     // scheduling is best-effort
   }
 
-  // Notify supervisor (best-effort).
+  // Notify the Equipment User (reviewer) — email + in-app.
   const mail = await sendMail(reviewRequestEmail(report));
+  await notifyEmails([report.supervisorEmail], {
+    type: "REVIEW",
+    title: `Review needed · ${report.serial}`,
+    body: `${report.templateName} — ${report.clientName}${report.site ? " - " + report.site : ""}, by ${report.authorName}`,
+    link: `/reports/${report.serial}`,
+  });
+
+  // System / equipment failure alert — flag over-limit weekly tests, any items
+  // marked for attention, and breakdown reports to management + oversight.
+  const reasons = [];
+  if (tpl.code === "WB02" && data.weekly && data.weekly.pass === false) reasons.push("Weekly accuracy test OVER LIMIT");
+  const flagged = Object.values(data.checks || {}).filter((v) => v && v.state && !["ok", "pass", "na"].includes(v.state)).length;
+  if (flagged > 0) reasons.push(`${flagged} item(s) flagged for attention`);
+  if (tpl.code === "WB05") reasons.push("Breakdown / corrective service logged");
+
+  if (reasons.length) {
+    const ov = await oversight();
+    const mgmtEmails = [report.managerEmail].filter(isEmail);
+    const emailTo = [...new Set([...mgmtEmails, ...ov.emails])].filter(isEmail);
+    if (emailTo.length) await sendMail(failureAlertEmail(emailTo.join(", "), report, reasons));
+    await notifyUsers(ov.ids, {
+      type: "FAILURE",
+      title: `Attention needed · ${report.serial}`,
+      body: `${reasons.join("; ")} — ${report.clientName}`,
+      link: `/reports/${report.serial}`,
+    });
+    await notifyEmails(mgmtEmails, {
+      type: "FAILURE",
+      title: `Attention needed · ${report.serial}`,
+      body: reasons.join("; "),
+      link: `/reports/${report.serial}`,
+    });
+  }
 
   return Response.json({
     serial: report.serial,

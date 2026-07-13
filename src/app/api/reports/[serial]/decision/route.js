@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { canAct } from "@/lib/rbac";
 import { sendMail, approvalRequestEmail, decisionEmail } from "@/lib/email";
 import { recordAudit } from "@/lib/audit";
+import { notifyEmails, notifyUsers } from "@/lib/notify";
 
 export async function POST(req, { params }) {
   let user;
@@ -61,13 +62,27 @@ export async function POST(req, { params }) {
     summary: `${action} ${report.serial}${comment ? ` — "${comment}"` : ""}`,
   });
 
-  // Notifications (best-effort).
+  // Notifications (best-effort) — email + in-app.
   let mail = { sent: false, reason: "no notification needed" };
   if (stage === "SUPERVISOR" && decision === "approve") {
+    // Passed to the Client/Manager for final approval.
     mail = await sendMail(approvalRequestEmail(updated, user.name));
+    await notifyEmails([updated.managerEmail], {
+      type: "APPROVAL",
+      title: `Approval needed · ${updated.serial}`,
+      body: `${updated.templateName} — reviewed by ${user.name}`,
+      link: `/reports/${updated.serial}`,
+    });
   } else if (report.author?.email) {
     const word = decision === "approve" ? "APPROVED" : "REJECTED";
     mail = await sendMail(decisionEmail(updated, report.author.email, word, user.name, comment));
+    if (report.authorId)
+      await notifyUsers([report.authorId], {
+        type: "DECISION",
+        title: `${word === "APPROVED" ? "Approved" : "Returned"} · ${updated.serial}`,
+        body: `${word === "APPROVED" ? "Fully approved" : "Rejected"} by ${user.name}${comment ? ` — "${comment}"` : ""}`,
+        link: `/reports/${updated.serial}`,
+      });
   }
 
   return Response.json({ status: nextStatus, emailSent: mail.sent });

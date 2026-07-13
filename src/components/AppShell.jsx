@@ -5,6 +5,7 @@ import { Brand } from "./ui";
 import OutboxSync from "./OutboxSync";
 import InstallPrompt from "./InstallPrompt";
 import FeedbackPrompt from "./FeedbackPrompt";
+import NotificationBell from "./NotificationBell";
 import OfflineBadge from "./OfflineBadge";
 import { ROLE_LABEL, GOLD, COAL } from "@/lib/theme";
 import { canFileReports, canManageUsers, canManageTasks, rolesOf } from "@/lib/roles";
@@ -48,6 +49,7 @@ export default function AppShell({ user, children }) {
             </span>
           </Link>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <NotificationBell />
             <Link href="/account" title="My account" style={{ textAlign: "right", lineHeight: 1.2, textDecoration: "none", color: "#fff" }}>
               <div style={{ fontWeight: 800, fontSize: 13 }}>{user.name}</div>
               <div style={{ fontSize: 11, color: GOLD, fontWeight: 700 }}>{ROLE_LABEL[user.role] || user.role}</div>
