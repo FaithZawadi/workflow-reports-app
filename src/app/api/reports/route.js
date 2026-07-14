@@ -117,15 +117,17 @@ export async function POST(req) {
   if (!isEmail(managerEmail))
     return Response.json({ error: "Enter the manager's email." }, { status: 400 });
 
-  // Resolve client. Technicians use their assigned client; others pass a name.
-  let clientId = user.clientId || null;
-  let clientName = "";
-  if (user.role === "TECHNICIAN" && clientId) {
-    const c = await prisma.client.findUnique({ where: { id: clientId } });
-    clientName = c?.name || String(body.clientName || "");
-  } else {
-    clientName = String(body.clientName || "").trim();
-    if (!clientName) return Response.json({ error: "Choose the client (plant)." }, { status: 400 });
+  // Client/site come from the form for every role (same fields for all). If a
+  // technician leaves them blank, fall back to their assigned plant/site.
+  let clientName = String(body.clientName || "").trim();
+  let clientId = null;
+  if (!clientName && user.clientId) {
+    const c = await prisma.client.findUnique({ where: { id: user.clientId } });
+    clientName = c?.name || "";
+    clientId = user.clientId;
+  }
+  if (!clientName) return Response.json({ error: "Choose the client (plant)." }, { status: 400 });
+  if (!clientId) {
     const client = await prisma.client.upsert({
       where: { name: clientName },
       create: { name: clientName },
@@ -134,8 +136,7 @@ export async function POST(req) {
     clientId = client.id;
   }
 
-  const site =
-    user.role === "TECHNICIAN" ? user.site || "" : String(body.site || "").trim();
+  const site = String(body.site || "").trim() || user.site || "";
   const data = {
     values: body.values || {},
     checks: body.checks || {},
