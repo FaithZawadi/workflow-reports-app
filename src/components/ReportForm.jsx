@@ -12,7 +12,6 @@ import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const router = useRouter();
 
-  const isTech = profile.role === "TECHNICIAN";
   const isEdit = !!edit;
   // The forms this user may file — the union across all of their roles.
   const available = templatesForRoles(rolesOf(profile));
@@ -63,7 +62,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
     setMsg("");
     if (!/\S+@\S+\.\S+/.test(supervisorEmail)) return setMsg("Enter the Equipment User's email.");
     if (!/\S+@\S+\.\S+/.test(managerEmail)) return setMsg("Enter the Client/Manager's email.");
-    if (!isTech && !clientName.trim()) return setMsg("Choose the client (plant).");
+    if (!clientName.trim()) return setMsg("Choose the client (plant).");
     setConfirming(true);
   };
 
@@ -91,7 +90,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
 
   // Site suggestions for the chosen client (plus any client-less "all" sites).
   const siteOptions = (() => {
-    const c = (isTech ? profile.clientName : clientName || "").trim().toLowerCase();
+    const c = (clientName || "").trim().toLowerCase();
     return sites
       .filter((s) => !s.client || !c || String(s.client).toLowerCase() === c)
       .map((s) => s.name);
@@ -123,8 +122,8 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       template: tpl.code,
       scheduleId: scheduleId || undefined,
       weighbridgeId: values.weighbridgeId || "",
-      clientName: isTech ? undefined : clientName.trim(),
-      site: isTech ? undefined : site.trim(),
+      clientName: clientName.trim(),
+      site: site.trim(),
       supervisorEmail: supervisorEmail.trim(),
       managerEmail: managerEmail.trim(),
       values,
@@ -231,8 +230,8 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       <div className="muted" style={{ margin: "4px 0 12px" }}>You → Equipment User reviews → Client/Manager approves. Each is emailed automatically.</div>
       <div style={{ fontSize: 12, fontWeight: 700, background: "#efe8d6", color: INK, padding: "8px 10px", borderRadius: 2, marginBottom: 12 }}>
         Submitting as {profile.name}
-        {(isTech ? profile.clientName : clientName) ? " · " + (isTech ? profile.clientName : clientName) : ""}
-        {(isTech ? profile.site : site) ? " - " + (isTech ? profile.site : site) : ""}
+        {clientName ? " · " + clientName : ""}
+        {site ? " - " + site : ""}
       </div>
       <ReviewerPicker
         label="Equipment User (reviews first)"
@@ -279,8 +278,8 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
             </p>
             <div style={{ fontSize: 13, color: INK, display: "grid", gap: 4 }}>
               <div><b>Form:</b> {tpl.code} — {tpl.name}</div>
-              <div><b>Client:</b> {(isTech ? profile.clientName : clientName) || "—"}</div>
-              <div><b>Site / location:</b> {(isTech ? profile.site : site) || "—"}</div>
+              <div><b>Client:</b> {clientName || "—"}</div>
+              <div><b>Site / location:</b> {site || "—"}</div>
               <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>
               <div><b>Equipment User:</b> {supervisorEmail}</div>
               <div><b>Client/Manager:</b> {managerEmail}</div>
@@ -314,21 +313,17 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
           </div>
           <p className="muted" style={{ fontSize: 12 }}>Serial number is assigned when you submit.</p>
 
-          {isTech ? (
-            <div style={{ fontSize: 12, fontWeight: 700, background: "#efe8d6", color: INK, padding: "8px 10px", borderRadius: 2, margin: "8px 0" }}>
-              Client: {profile.clientName || "—"} · Site: {profile.site || "—"}
-            </div>
-          ) : (
-            <div className="grid md-2">
-              <Field label="Client (plant)" value={clientName} onChange={setClientName} suggestions={clients.map((c) => c.name)} listId="clients-dl" placeholder="e.g. TATA Chemicals Magadi" />
-              <Field label="Site / location of this job" value={site} onChange={setSite} suggestions={siteOptions} listId="sites-dl" placeholder={siteOptions.length ? "Pick a site or type one" : "e.g. Main plant weighbridge"} />
-            </div>
-          )}
+          {/* Same Client/Site fields for every role. Technicians arrive with
+              their assigned plant/site pre-filled. */}
+          <div className="grid md-2">
+            <Field label="Client (plant)" value={clientName} onChange={setClientName} suggestions={clients.map((c) => c.name)} listId="clients-dl" placeholder="e.g. TATA Chemicals Magadi" />
+            <Field label="Site / location of this job" value={site} onChange={setSite} suggestions={siteOptions} listId="sites-dl" placeholder={siteOptions.length ? "Pick a site or type one" : "e.g. Main plant weighbridge"} />
+          </div>
 
           <div style={{ maxWidth: 460 }}>
             <WeighbridgePicker
               list={weighbridges.filter((w) => {
-                const c = (isTech ? profile.clientName : clientName || "").trim().toLowerCase();
+                const c = (clientName || "").trim().toLowerCase();
                 return !c || (w.client || "").toLowerCase() === c;
               })}
               value={values.weighbridgeId}
