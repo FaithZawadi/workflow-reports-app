@@ -5,11 +5,16 @@ let transporter = null;
 function getTransport() {
   if (process.env.EMAIL_ENABLED !== "true") return null;
   if (transporter) return transporter;
+  // No SMTP_USER → don't attempt AUTH (e.g. a Google Workspace SMTP relay that
+  // authorises by the server's IP instead of a username/password).
+  const auth = process.env.SMTP_USER
+    ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    : undefined;
   transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT || 587),
     secure: process.env.SMTP_SECURE === "true",
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    auth,
   });
   return transporter;
 }
