@@ -53,15 +53,6 @@ migration and seeds an admin plus demo accounts.
 
 **Seeded logins** (change these immediately in production):
 
-| Role | Email | Password | Extra |
-|---|---|---|---|
-| Admin | `admin@qalibrated.co.ke` | from `SEED_ADMIN_PASSWORD` | — |
-| Technician | `tech@demo.qsl` | `demo1234` | — |
-| Engineer | `engineer@demo.qsl` | `demo1234` | — |
-| Supervisor | `supervisor@demo.qsl` | `demo1234` | — |
-| Manager | `manager@demo.qsl` | `demo1234` | — |
-| Project Manager | `pm@demo.qsl` | `demo1234` | + code `MAGADI2026` |
-| Technical Manager | `tm@demo.qsl` | `demo1234` | + code `TECH2026` |
 
 Delete the demo accounts once your real staff are onboarded.
 
