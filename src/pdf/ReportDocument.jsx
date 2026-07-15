@@ -62,9 +62,23 @@ const s = StyleSheet.create({
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
 });
 
+// Timestamps are printed in East Africa Time. The PDF is rendered on the server
+// (the container clock is UTC), so an unqualified toLocaleString would show UTC
+// wall-clock time — e.g. a report completed 9:06 AM in Kenya would print 6:06 AM.
+// Forcing Africa/Nairobi converts the stored UTC instant to the correct local time.
 function fmt(d) {
   try {
-    return new Date(d).toLocaleString();
+    return (
+      new Date(d).toLocaleString("en-GB", {
+        timeZone: "Africa/Nairobi",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      }) + " EAT"
+    );
   } catch {
     return String(d || "");
   }
@@ -102,7 +116,7 @@ export function ReportDocument({ report, logoSrc }) {
   const st = STATUS[report.status] || { label: report.status, color: INK };
   const meta = [
     ["Client", report.clientName || "-", "Site", report.site || "-"],
-    ["Weighbridge", report.weighbridgeId || "-", "Report type", report.template],
+    ["Weighbridge", report.weighbridgeId || "-", "Report type", tpl?.cadence ? `${tpl.cadence} (${report.template})` : report.template],
     ["Completed by", report.authorName || "-", "Date", fmt(report.createdAt)],
     ["Supervisor", report.supervisorEmail || "-", "Manager", report.managerEmail || "-"],
   ];
