@@ -224,11 +224,12 @@ export function ReportDocument({ report, logoSrc }) {
             { key: "ok", label: sec.yes || "OK" },
             { key: "problem", label: sec.no || "ATTN" },
           ];
-          // Result columns are kept narrow; Remarks gets the rest since comments
-          // can be long. Vertical + horizontal grid lines separate every column.
-          const stateW = `${(18 / states.length).toFixed(2)}%`;
-          const itemW = "34%";
-          const remarksW = `${(100 - 34 - 18).toFixed(0)}%`; // 48%
+          // The Item column is wide enough to keep each check on a single line;
+          // result columns stay narrow; Remarks takes the rest (it wraps freely).
+          const stateW = `${(13 / states.length).toFixed(2)}%`;
+          const itemW = "54%";
+          const remarksW = `${(100 - 54 - 13).toFixed(0)}%`; // 33%
+          const itemCell = { fontSize: 7.5 };
           const tickKeys = new Set(["ok", "pass"]);
           const vline = { borderRightWidth: 0.5, borderColor: "#AFAFAF" };
           return (
@@ -249,7 +250,7 @@ export function ReportDocument({ report, logoSrc }) {
                   const v = data.checks?.[`${idx}:${ii}`];
                   return (
                     <View style={s.row} key={ii}>
-                      <Cell style={[vline, { width: itemW }]}>{it}</Cell>
+                      <Cell style={[vline, itemCell, { width: itemW }]}>{it}</Cell>
                       {states.map((st) => (
                         <View key={st.key} style={[s.td, vline, { width: stateW, alignItems: "center", justifyContent: "center" }]}>
                           {v?.state === st.key ? (tickKeys.has(st.key) ? <Tick /> : <Text>X</Text>) : null}
