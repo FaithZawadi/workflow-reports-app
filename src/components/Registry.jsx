@@ -49,6 +49,22 @@ export default function Registry({ profile }) {
     return () => clearTimeout(t);
   }, [load]);
 
+  // Keep the registry current without a manual Refresh: poll periodically and
+  // reload whenever the tab regains focus or becomes visible again. New reports
+  // then auto-populate at the top (the API already returns newest-first).
+  useEffect(() => {
+    const iv = setInterval(load, 40000);
+    const onFocus = () => load();
+    const onVisible = () => { if (document.visibilityState === "visible") load(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(iv);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [load]);
+
   useEffect(() => {
     fetch("/api/schedules")
       .then((r) => r.json())
