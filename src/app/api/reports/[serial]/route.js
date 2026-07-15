@@ -24,8 +24,24 @@ export async function GET(req, { params }) {
   if (!report) return Response.json({ error: "Report not found." }, { status: 404 });
   if (!canView(report, user)) return Response.json({ error: "Not allowed." }, { status: 403 });
 
+  // Resolve the two routed reviewers (by email) to names so the detail view can
+  // show WHO must approve — even to viewers who can't act.
+  const emails = [report.supervisorEmail, report.managerEmail]
+    .map((e) => String(e || "").trim().toLowerCase())
+    .filter(Boolean);
+  const reviewerUsers = emails.length
+    ? await prisma.user.findMany({ where: { email: { in: emails } }, select: { name: true, email: true } })
+    : [];
+  const nameFor = (e) => reviewerUsers.find((u) => u.email.toLowerCase() === String(e || "").toLowerCase())?.name || null;
+
   return Response.json({
     report,
+    reviewers: {
+      supervisorEmail: report.supervisorEmail,
+      supervisorName: nameFor(report.supervisorEmail),
+      managerEmail: report.managerEmail,
+      managerName: nameFor(report.managerEmail),
+    },
     permissions: {
       actAs: canAct(report, user), // "SUPERVISOR" | "MANAGER" | null
       canEdit: canEdit(report, user),

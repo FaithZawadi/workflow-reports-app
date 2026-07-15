@@ -67,16 +67,13 @@ export function canAct(report, user) {
   const pendingMgr = report.status === "PENDING_MANAGER";
   if (!pendingSup && !pendingMgr) return null;
 
-  const roles = rolesOf(user);
+  // ONLY the reviewer the report was routed to (by email) may approve/reject —
+  // the assigned Equipment User at the review stage, or the Client/Manager at the
+  // approval stage. Admins and oversight roles can view everything but must not
+  // approve on someone else's behalf.
   const email = norm(user.email);
-
-  if (roles.includes("ADMIN")) return pendingSup ? "SUPERVISOR" : "MANAGER";
-  if (roles.includes("PROJECT_MANAGER") && TECH_TEMPLATES.includes(report.template))
-    return pendingSup ? "SUPERVISOR" : "MANAGER";
-  if (roles.includes("TECHNICAL_MANAGER") && ENGINEER_TEMPLATES.includes(report.template))
-    return pendingSup ? "SUPERVISOR" : "MANAGER";
-
-  if (pendingSup && email && norm(report.supervisorEmail) === email) return "SUPERVISOR";
-  if (pendingMgr && email && norm(report.managerEmail) === email) return "MANAGER";
+  if (!email) return null;
+  if (pendingSup && norm(report.supervisorEmail) === email) return "SUPERVISOR";
+  if (pendingMgr && norm(report.managerEmail) === email) return "MANAGER";
   return null;
 }

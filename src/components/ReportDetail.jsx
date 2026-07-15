@@ -8,6 +8,7 @@ import { COAL, GOLD, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 export default function ReportDetail({ serial, profile }) {
   const [rep, setRep] = useState(null);
   const [actAs, setActAs] = useState(null);
+  const [reviewers, setReviewers] = useState(null);
   const [canEditReport, setCanEditReport] = useState(false);
   const [err, setErr] = useState("");
   const [comment, setComment] = useState("");
@@ -21,6 +22,7 @@ export default function ReportDetail({ serial, profile }) {
     if (!res.ok) return setErr(data.error || "Could not load report.");
     setRep(data.report);
     setActAs(data.permissions?.actAs || null);
+    setReviewers(data.reviewers || null);
     setCanEditReport(!!data.permissions?.canEdit);
   };
 
@@ -88,11 +90,31 @@ export default function ReportDetail({ serial, profile }) {
           {new Date(rep.createdAt).toLocaleString()}
         </div>
 
-        {/* action panel */}
+        {/* Approval route — who must review/approve. Shown to everyone; only the
+            routed reviewer gets the buttons below. */}
+        {pending && (
+          <div className="card" style={{ padding: 14, marginTop: 14, background: "#f3eee2" }}>
+            <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 12, color: INK, letterSpacing: ".04em", marginBottom: 8 }}>Approval route</div>
+            <ReviewerRow
+              label="Equipment User (reviews first)"
+              name={reviewers?.supervisorName}
+              email={reviewers?.supervisorEmail || rep.supervisorEmail}
+              state={rep.status === "PENDING_SUPERVISOR" ? "current" : "done"}
+            />
+            <ReviewerRow
+              label="Client/Manager (final approval)"
+              name={reviewers?.managerName}
+              email={reviewers?.managerEmail || rep.managerEmail}
+              state={rep.status === "PENDING_MANAGER" ? "current" : rep.status === "PENDING_SUPERVISOR" ? "waiting" : "done"}
+            />
+          </div>
+        )}
+
+        {/* action panel — only the routed reviewer for the current stage */}
         {pending && actAs && (
-          <div className="card" style={{ borderColor: GOLD, background: "#fdf6e3", padding: 14, marginTop: 14 }}>
+          <div className="card" style={{ borderColor: GOLD, background: "#fdf6e3", padding: 14, marginTop: 10 }}>
             <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK }}>
-              {actAs === "SUPERVISOR" ? "Equipment User review" : "Client/Manager approval"}
+              {actAs === "SUPERVISOR" ? "Your review" : "Your approval"}
             </div>
             <div className="muted" style={{ margin: "4px 0 10px" }}>
               Your decision is recorded with your name and the time.
@@ -110,8 +132,8 @@ export default function ReportDetail({ serial, profile }) {
           </div>
         )}
         {pending && !actAs && (
-          <div className="card" style={{ padding: 12, marginTop: 14, background: "#f3eee2", color: MUTE, fontSize: 13 }}>
-            Waiting for {rep.status === "PENDING_SUPERVISOR" ? "Equipment User review by " + rep.supervisorEmail : "Client/Manager approval by " + rep.managerEmail}.
+          <div className="muted" style={{ fontSize: 12, marginTop: 8, fontStyle: "italic" }}>
+            Only the routed {rep.status === "PENDING_SUPERVISOR" ? "Equipment User" : "Client/Manager"} above can approve or reject this report.
           </div>
         )}
 
@@ -212,6 +234,25 @@ export default function ReportDetail({ serial, profile }) {
           </div>
         )}
       </PaperCard>
+    </div>
+  );
+}
+
+function ReviewerRow({ label, name, email, state }) {
+  const chip =
+    state === "current" ? { text: "Awaiting them", color: WAIT }
+    : state === "done" ? { text: "Done", color: PASS }
+    : { text: "Waiting", color: MUTE };
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", padding: "6px 0", borderTop: "1px solid #e6e0d2" }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".03em", color: MUTE }}>{label}</div>
+        <div style={{ fontSize: 14, color: INK, fontWeight: 700 }}>{name || "—"}</div>
+        <div className="mono" style={{ fontSize: 12, color: MUTE, wordBreak: "break-all" }}>{email || "not set"}</div>
+      </div>
+      <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".03em", color: "#fff", background: chip.color, padding: "3px 8px", borderRadius: 999 }}>
+        {chip.text}
+      </span>
     </div>
   );
 }
