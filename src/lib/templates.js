@@ -20,6 +20,7 @@ export const TEMPLATES = [
   {
     code: "WB01",
     name: "Daily Site Check",
+    cadence: "Daily report",
     who: "Site Technician",
     desc: "Quick morning walk-around. Mark each line OK or report a problem.",
     sections: [
@@ -45,6 +46,7 @@ export const TEMPLATES = [
   {
     code: "WB02",
     name: "Weekly Accuracy Check",
+    cadence: "Weekly report",
     who: "Site Technician",
     desc: "End-Middle-End test with the same loaded truck.",
     sections: [
@@ -72,6 +74,7 @@ export const TEMPLATES = [
   {
     code: "WB03",
     name: "Monthly Maintenance",
+    cadence: "Monthly report",
     who: "Site Technician",
     desc: "Cleaning and inspection. Never spray water at load cells or the junction box.",
     sections: [
@@ -115,6 +118,7 @@ export const TEMPLATES = [
   {
     code: "WB04",
     name: "Engineer Service Checklist",
+    cadence: "Quarterly / bi-annual service",
     who: "QSL Engineer",
     desc: "Quarterly / bi-annual service inspection (QSL/F/WB-04).",
     sections: [
@@ -161,6 +165,7 @@ export const TEMPLATES = [
   {
     code: "WB05",
     name: "Weighbridge Service Report",
+    cadence: "Breakdown / corrective service",
     who: "QSL Engineer",
     desc: "Corrective / breakdown visit (QSL/F/WB-05): fault, diagnosis, work, parts.",
     sections: [
@@ -206,6 +211,7 @@ export const TEMPLATES = [
   {
     code: "WB06",
     name: "Calibration & Verification Record",
+    cadence: "Annual calibration",
     who: "QSL Engineer",
     desc: "ISO/IEC 17025 calibration with traceable test weights (QSL/F/WB-06).",
     sections: [
@@ -260,6 +266,7 @@ export const TEMPLATES = [
   {
     code: "WB07",
     name: "Photo Evidence Sheet",
+    cadence: "Photo evidence",
     who: "Anyone",
     anyone: true,
     desc: "Attach GPS-stamped photos to any maintenance or service form (QSL/F/WB-07).",
