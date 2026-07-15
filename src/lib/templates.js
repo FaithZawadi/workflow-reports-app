@@ -2,7 +2,7 @@
 // Codes and content mirror the printed QSL/F/WB-01..06 sheets.
 
 export const TECH_TEMPLATES = ["WB01", "WB02", "WB03", "WB07"];
-export const ENGINEER_TEMPLATES = ["WB04", "WB05", "WB06", "WB07"];
+export const ENGINEER_TEMPLATES = ["WB04", "WB05", "WB06", "WB07", "SI01"];
 
 // Result-state sets for engineer checklists.
 const OK_ATTN_NA = [
@@ -281,6 +281,40 @@ export const TEMPLATES = [
         ],
       },
       { type: "textarea", k: "notes", label: "What the photos show (summary)" },
+    ],
+  },
+  {
+    code: "SI01",
+    name: "Site Instruction",
+    cadence: "Site instruction",
+    who: "Consultant / Site Engineer",
+    desc: "Formal construction site instruction: contract details, the instruction itself, cost code and approvals.",
+    sections: [
+      {
+        type: "fields",
+        fields: [
+          { k: "project", label: "Project" },
+          { k: "contractor", label: "Contractor" },
+          { k: "scope", label: "Scope / description" },
+          { k: "instructionDate", label: "Date of instruction", inputType: "date" },
+          { k: "costCode", label: "Cost code" },
+        ],
+      },
+      {
+        type: "textarea",
+        k: "details",
+        label: "Site instruction details (attach a separate schedule if space is insufficient)",
+      },
+      {
+        type: "checklist",
+        title: "Instruction terms",
+        yes: "CONFIRMED",
+        no: "NOT YET",
+        items: [
+          "This instruction is deemed to be included in the contract works",
+          "No further works to proceed until the site instructions are fully executed and approved",
+        ],
+      },
     ],
   },
 ];
