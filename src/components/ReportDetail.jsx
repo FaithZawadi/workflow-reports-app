@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { PaperCard, SectionBar, Pill } from "./ui";
+import Lightbox from "./Lightbox";
 import { templateByCode } from "@/lib/templates";
 import { defaultStates, colorFor } from "./CheckItem";
 import { COAL, GOLD, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
@@ -10,6 +11,7 @@ export default function ReportDetail({ serial, profile }) {
   const [actAs, setActAs] = useState(null);
   const [reviewers, setReviewers] = useState(null);
   const [canEditReport, setCanEditReport] = useState(false);
+  const [lightbox, setLightbox] = useState(null); // index of the open photo, or null
   const [err, setErr] = useState("");
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
@@ -185,15 +187,23 @@ export default function ReportDetail({ serial, profile }) {
           </div>
         )}
 
-        {/* photos */}
+        {/* photos — click any to open the full-screen viewer (zoom / pan / download) */}
         {(rep.photos || []).length > 0 && (
           <div>
-            <SectionBar>Photos</SectionBar>
+            <SectionBar>Photos <span style={{ fontWeight: 400, textTransform: "none", fontSize: 11, color: MUTE }}>· tap a photo to view full screen &amp; zoom</span></SectionBar>
             <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))" }}>
               {rep.photos.map((p, i) => (
                 <figure key={i} style={{ margin: 0 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.dataUrl} alt={p.caption || "photo"} style={{ width: "100%", height: 200, objectFit: "contain", background: "#f3eee2", borderRadius: 2, border: "1px solid var(--line)" }} />
+                  <button
+                    type="button"
+                    onClick={() => setLightbox(i)}
+                    title="View full screen"
+                    style={{ display: "block", width: "100%", padding: 0, border: "1px solid var(--line)", borderRadius: 2, background: "#f3eee2", cursor: "zoom-in", position: "relative", overflow: "hidden" }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.dataUrl} alt={p.caption || "photo"} style={{ width: "100%", height: 200, objectFit: "contain", display: "block" }} />
+                    <span aria-hidden style={{ position: "absolute", right: 6, bottom: 6, background: "rgba(0,0,0,.6)", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 999 }}>⤢ View</span>
+                  </button>
                   <figcaption className="muted" style={{ fontSize: 11, marginTop: 4 }}>
                     {p.caption || "(no caption)"}
                     {p.gpsLat != null && (
@@ -206,6 +216,9 @@ export default function ReportDetail({ serial, profile }) {
               ))}
             </div>
           </div>
+        )}
+        {lightbox != null && (
+          <Lightbox photos={rep.photos} index={lightbox} onClose={() => setLightbox(null)} />
         )}
 
         {/* trail — each action clearly badged (created / approved / rejected) */}
