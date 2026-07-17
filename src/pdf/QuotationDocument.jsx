@@ -176,6 +176,21 @@ export function QuotationDocument({ quotation, logoSrc }) {
           <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · ${q.number} · Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>
+
+      {/* The client's uploaded Local Purchase Order, on its own page. */}
+      {q.lpoImage && /^data:image\//.test(q.lpoImage) ? (
+        <Page size="A4" style={s.page} wrap>
+          <View style={s.titleRow}>
+            <Text style={s.title}>Local Purchase Order</Text>
+            <Text style={[s.statusBadge, { backgroundColor: COAL }]}>{q.number}</Text>
+          </View>
+          {/* eslint-disable-next-line jsx-a11y/alt-text */}
+          <Image src={q.lpoImage} style={{ marginTop: 6, maxWidth: "100%", maxHeight: 720, objectFit: "contain" }} />
+          <View style={s.footer} fixed>
+            <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · ${q.number} · Page ${pageNumber} of ${totalPages}`} />
+          </View>
+        </Page>
+      ) : null}
     </Document>
   );
 }

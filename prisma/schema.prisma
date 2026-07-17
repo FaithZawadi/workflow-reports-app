@@ -493,6 +493,12 @@ model Quotation {
   quotedAt       DateTime?
   decidedAt      DateTime?
 
+  // The client's Local Purchase Order, uploaded as an image (base64 data URL,
+  // capped at ~2 MB). Attached by the client around acceptance.
+  lpoImage      String?   @db.Text
+  lpoName       String?
+  lpoUploadedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
