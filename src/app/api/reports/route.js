@@ -4,6 +4,7 @@ import { reportScope } from "@/lib/rbac";
 import { nextSerial } from "@/lib/serial";
 import { templateByCode, templatesForRoles } from "@/lib/templates";
 import { sendMail, reviewRequestEmail, failureAlertEmail } from "@/lib/email";
+import { createApprovalLinks } from "@/lib/approvalToken";
 import { addCycle } from "@/lib/schedule";
 import { recordAudit } from "@/lib/audit";
 import { FILER_ROLES, rolesOf } from "@/lib/roles";
@@ -241,8 +242,10 @@ export async function POST(req) {
     // scheduling is best-effort
   }
 
-  // Notify the Equipment User (reviewer) — email + in-app.
-  const mail = await sendMail(reviewRequestEmail(report));
+  // Notify the Equipment User (reviewer) — email (with a one-click approve/reject
+  // link) + in-app.
+  const links = await createApprovalLinks(report, "SUPERVISOR");
+  const mail = await sendMail(reviewRequestEmail(report, links));
   await notifyEmails([report.supervisorEmail], {
     type: "REVIEW",
     title: `Review needed · ${report.serial}`,

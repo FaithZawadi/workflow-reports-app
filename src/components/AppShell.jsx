@@ -8,7 +8,7 @@ import FeedbackPrompt from "./FeedbackPrompt";
 import NotificationBell from "./NotificationBell";
 import OfflineBadge from "./OfflineBadge";
 import { ROLE_LABEL, GOLD, COAL } from "@/lib/theme";
-import { canFileReports, canManageUsers, canManageTasks, rolesOf } from "@/lib/roles";
+import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, isClientOnly, rolesOf } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
@@ -18,16 +18,27 @@ export default function AppShell({ user, children }) {
   const isAdmin = rolesOf(user).includes("ADMIN");
   const showUsers = canManageUsers(user);
   const canManageTasksNav = canManageTasks(user);
+  const clientOnly = isClientOnly(user);
+  // PM / TM (and admin) manage quotations + calibration requests; clients see
+  // their own. Everyone else sees neither.
+  const showQuotes = canPrepareQuotes(user) || isAdmin || clientOnly;
+  const homeHref = clientOnly ? "/calibration-requests" : "/dashboard";
 
   // Bottom tab bar (mobile) — the primary destinations as a native-style bar.
-  const tabs = [
-    { href: "/dashboard", label: "Reports", icon: "reports", match: (p) => p.startsWith("/dashboard") || (p.startsWith("/reports") && p !== "/reports/new") },
-    { href: "/schedule", label: "Schedule", icon: "schedule" },
-    canFile && { href: "/reports/new", label: "New", icon: "plus", primary: true },
-    showUsers && { href: "/users", label: "Users", icon: "users" },
-    isAdmin && { href: "/audit", label: "Audit", icon: "audit" },
-    { href: "/account", label: "Account", icon: "account" },
-  ].filter(Boolean);
+  const tabs = clientOnly
+    ? [
+        { href: "/calibration-requests", label: "Calibration", icon: "reports", match: (p) => p.startsWith("/calibration-requests") },
+        { href: "/quotations", label: "Quotes", icon: "schedule", match: (p) => p.startsWith("/quotations") },
+        { href: "/account", label: "Account", icon: "account" },
+      ]
+    : [
+        { href: "/dashboard", label: "Reports", icon: "reports", match: (p) => p.startsWith("/dashboard") || (p.startsWith("/reports") && p !== "/reports/new") },
+        { href: "/schedule", label: "Schedule", icon: "schedule" },
+        canFile && { href: "/reports/new", label: "New", icon: "plus", primary: true },
+        showUsers && { href: "/users", label: "Users", icon: "users" },
+        isAdmin && { href: "/audit", label: "Audit", icon: "audit" },
+        { href: "/account", label: "Account", icon: "account" },
+      ].filter(Boolean);
   const isActive = (t) => (t.match ? t.match(pathname) : pathname === t.href || pathname.startsWith(t.href + "/"));
 
   const logout = async () => {
@@ -43,7 +54,7 @@ export default function AppShell({ user, children }) {
           className="wrap"
           style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", gap: 12 }}
         >
-          <Link href="/dashboard" style={{ textDecoration: "none", color: "#fff" }}>
+          <Link href={homeHref} style={{ textDecoration: "none", color: "#fff" }}>
             <span style={{ color: "#fff" }}>
               <Brand small onDark />
             </span>
@@ -63,6 +74,20 @@ export default function AppShell({ user, children }) {
       </header>
 
       <nav className="wrap topnav" style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "12px 16px 0" }}>
+        {clientOnly ? (
+          <>
+            <Link href="/calibration-requests" className="btn" style={{ fontSize: 13 }}>
+              Calibration requests
+            </Link>
+            <Link href="/quotations" className="btn" style={{ fontSize: 13 }}>
+              Quotations
+            </Link>
+            <Link href="/account" className="btn" style={{ fontSize: 13 }}>
+              Account
+            </Link>
+          </>
+        ) : (
+        <>
         <Link href="/dashboard" className="btn" style={{ fontSize: 13 }}>
           Report registry
         </Link>
@@ -72,6 +97,16 @@ export default function AppShell({ user, children }) {
         <Link href="/tasks" className="btn" style={{ fontSize: 13 }}>
           Tasks
         </Link>
+        {showQuotes && (
+          <Link href="/quotations" className="btn" style={{ fontSize: 13 }}>
+            Quotations
+          </Link>
+        )}
+        {showQuotes && (
+          <Link href="/calibration-requests" className="btn" style={{ fontSize: 13 }}>
+            Calibration requests
+          </Link>
+        )}
         {canManageTasksNav && (
           <Link href="/projects" className="btn" style={{ fontSize: 13 }}>
             Projects
@@ -119,6 +154,8 @@ export default function AppShell({ user, children }) {
           <Link href="/reports/new" className="btn btn-dark" style={{ fontSize: 13 }}>
             + New report
           </Link>
+        )}
+        </>
         )}
       </nav>
 

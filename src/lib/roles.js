@@ -43,7 +43,12 @@ export const ALL_ROLES = [
   "PROJECT_MANAGER",
   "TECHNICAL_MANAGER",
   "ADMIN",
+  "CLIENT",
 ];
+
+// Only the Project Manager and Technical Manager prepare quotations and review
+// calibration requests on the QSL side.
+export const QUOTE_ROLES = ["PROJECT_MANAGER", "TECHNICAL_MANAGER"];
 
 // Normalize whatever we're given (a claims/user object, a single role string, or
 // an array of roles) into a de-duplicated array of role strings.
@@ -60,6 +65,22 @@ const intersects = (input, group) => rolesOf(input).some((r) => group.includes(r
 export const canManageUsers = (input) => intersects(input, USER_ADMIN_ROLES);
 export const canFileReports = (input) => intersects(input, FILER_ROLES);
 export const canManageSchedulesRole = (input) => intersects(input, SCHEDULE_MANAGER_ROLES);
+
+// CLIENT — a restricted portal login. A client contact files calibration
+// requests and requests quotations, and sees only their own records.
+export const isClient = (input) => rolesOf(input).includes("CLIENT");
+// A user who ONLY holds the CLIENT role sees the restricted client portal (no
+// staff tools). Someone who is also staff keeps the full app.
+export const isClientOnly = (input) => {
+  const roles = rolesOf(input);
+  return roles.length > 0 && roles.every((r) => r === "CLIENT");
+};
+
+// Who prepares/reviews quotations and calibration requests on the QSL side.
+export const canPrepareQuotes = (input) => intersects(input, QUOTE_ROLES);
+// Who may open the Quotations / Calibration-requests area at all: the QSL
+// preparers (PM/TM) and the clients (who see only their own). No other role.
+export const canSeeQuotations = (input) => intersects(input, QUOTE_ROLES) || isClient(input);
 
 // Roles allowed to create/assign tasks and register projects.
 export const TASK_MANAGER_ROLES = SCHEDULE_MANAGER_ROLES;
