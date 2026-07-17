@@ -40,7 +40,25 @@ export async function sendMail({ to, subject, text }) {
 
 const appUrl = () => process.env.APP_URL || "http://localhost:3000";
 
-export function reviewRequestEmail(report) {
+// A block of one-click action links for the routed reviewer. `links` comes from
+// createApprovalLinks(report, stage); when tokens are unavailable it falls back
+// to the plain app deep-link, so the email is always actionable.
+function actionBlock(links, report) {
+  if (!links) return `Open the report to review and approve or reject it:\n${appUrl()}/reports/${report.serial}`;
+  if (!links.hasToken)
+    return `Open the report to review and approve or reject it:\n${links.review}`;
+  return `Review the report, then approve or reject it (you can add a comment) — no sign-in needed:
+
+  ✓ APPROVE:  ${links.approve}
+  ✗ REJECT:   ${links.reject}
+
+Or open the full report first:
+  ${links.open}
+
+(These links are private to you and expire in 14 days.)`;
+}
+
+export function reviewRequestEmail(report, links) {
   return {
     to: report.supervisorEmail,
     subject: `REVIEW NEEDED: ${report.serial} - ${report.templateName} (${report.clientName}${report.site ? " - " + report.site : ""})`,
@@ -49,8 +67,7 @@ export function reviewRequestEmail(report) {
 Serial: ${report.serial}
 Weighbridge: ${report.weighbridgeId || "-"}
 
-Open the report to review and approve or reject it:
-${appUrl()}/reports/${report.serial}
+${actionBlock(links, report)}
 
 When you approve, it moves to the manager (${report.managerEmail}) automatically.
 
@@ -58,14 +75,13 @@ When you approve, it moves to the manager (${report.managerEmail}) automatically
   };
 }
 
-export function approvalRequestEmail(report, supervisorName) {
+export function approvalRequestEmail(report, supervisorName, links) {
   return {
     to: report.managerEmail,
     subject: `APPROVAL NEEDED: ${report.serial} - ${report.templateName} (${report.clientName}${report.site ? " - " + report.site : ""})`,
     text: `Supervisor ${supervisorName} reviewed and approved ${report.serial} (${report.templateName}, submitted by ${report.authorName}).
 
-Give final approval here:
-${appUrl()}/reports/${report.serial}
+${actionBlock(links, report)}
 
 - QSL Maintenance Management System`,
   };
@@ -105,6 +121,87 @@ Weighbridge: ${report.weighbridgeId || "-"}
 
 Open it:
 ${appUrl()}/reports/${report.serial}
+
+- QSL Maintenance Management System`,
+  };
+}
+
+// A client raised a calibration request — notify the QSL laboratory (PM / TM).
+export function calibrationRequestEmail(to, request) {
+  const n = Array.isArray(request.equipment) ? request.equipment.length : 0;
+  return {
+    to,
+    subject: `CALIBRATION REQUEST: ${request.serial} — ${request.clientName}`,
+    text: `${request.clientName} raised a calibration request (${request.serial}).
+
+Instruments: ${n}
+Type:        ${request.calibrationType === "IN_SITU" ? "In situ (on site)" : request.calibrationType === "LAB" ? "Lab calibration" : "-"}
+Contact:     ${request.contactPerson || "-"}${request.telephone ? " · " + request.telephone : ""}
+
+Review it and accept or reject:
+${appUrl()}/calibration-requests/${request.id}
+
+- QSL Maintenance Management System`,
+  };
+}
+
+// The laboratory accepted / rejected a client's calibration request.
+export function calibrationDecisionEmail(to, request, decision) {
+  const accepted = decision === "ACCEPTED";
+  return {
+    to,
+    subject: `${accepted ? "ACCEPTED" : "NOT ACCEPTED"}: calibration request ${request.serial}`,
+    text: `Your calibration request ${request.serial} has been ${accepted ? "ACCEPTED" : "declined"} by QSL.${
+      !accepted && request.decisionReason ? `\nReason: ${request.decisionReason}` : ""
+    }
+
+${accepted ? "Our team will be in touch to schedule the calibration and, where needed, send a quotation." : "Please contact us if you'd like to discuss."}
+
+${appUrl()}/calibration-requests/${request.id}
+
+- QSL Maintenance Management System`,
+  };
+}
+
+// A client requested a quotation — notify the QSL preparers (PM / TM).
+export function quoteRequestEmail(to, q) {
+  return {
+    to,
+    subject: `QUOTE REQUEST: ${q.number} — ${q.clientName}`,
+    text: `${q.clientName} requested a quotation (${q.number}).
+${q.requestNote ? `\nNote: ${q.requestNote}\n` : ""}
+Prepare and issue it here:
+${appUrl()}/quotations/${q.id}
+
+- QSL Maintenance Management System`,
+  };
+}
+
+// A prepared quotation was issued to the client.
+export function quoteIssuedEmail(to, q) {
+  const money = `${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}`;
+  return {
+    to,
+    subject: `QUOTATION ${q.number} — ${q.clientName} (${money})`,
+    text: `Please find your quotation ${q.number}.
+
+Total: ${money}${q.amountInWords ? ` (${q.amountInWords})` : ""}
+${q.validUntil ? `Valid until: ${new Date(q.validUntil).toDateString()}\n` : ""}
+View it, download the PDF, and accept or decline:
+${appUrl()}/quotations/${q.id}
+
+- QSL Maintenance Management System`,
+  };
+}
+
+// The client accepted / declined a quotation — notify the preparers.
+export function quoteDecisionEmail(to, q, decision) {
+  return {
+    to,
+    subject: `QUOTATION ${decision}: ${q.number} — ${q.clientName}`,
+    text: `${q.clientName} ${decision.toLowerCase()} quotation ${q.number} (${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}).
+
+${appUrl()}/quotations/${q.id}
 
 - QSL Maintenance Management System`,
   };

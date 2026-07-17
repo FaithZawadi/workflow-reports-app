@@ -2,7 +2,18 @@ import { NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/jwt";
 
 // Protect the authenticated app area and redirect signed-in users away from login.
-const PROTECTED = ["/dashboard", "/reports", "/schedule", "/users", "/weighbridges", "/audit", "/account"];
+const PROTECTED = ["/dashboard", "/reports", "/schedule", "/users", "/weighbridges", "/audit", "/account", "/quotations", "/calibration-requests"];
+
+// Areas a client-only login must NOT reach (staff tools). They are bounced to
+// their own portal home.
+const STAFF_ONLY = ["/dashboard", "/reports", "/schedule", "/users", "/weighbridges", "/audit", "/sites", "/feedback", "/projects", "/contracts", "/tasks", "/customer-feedback"];
+const CLIENT_HOME = "/calibration-requests";
+
+const rolesOf = (claims) => (claims?.roles && claims.roles.length ? claims.roles : claims?.role ? [claims.role] : []);
+const isClientOnly = (claims) => {
+  const r = rolesOf(claims);
+  return r.length > 0 && r.every((x) => x === "CLIENT");
+};
 
 export async function middleware(req) {
   const { pathname } = req.nextUrl;
@@ -18,9 +29,20 @@ export async function middleware(req) {
     return NextResponse.redirect(url);
   }
 
+  // A client-only login is confined to its portal.
+  if (claims && isClientOnly(claims)) {
+    const hitsStaffArea = STAFF_ONLY.some((p) => pathname === p || pathname.startsWith(p + "/"));
+    if (hitsStaffArea) {
+      const url = req.nextUrl.clone();
+      url.pathname = CLIENT_HOME;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
   if ((pathname === "/login" || pathname === "/") && claims) {
     const url = req.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = isClientOnly(claims) ? CLIENT_HOME : "/dashboard";
     url.search = "";
     return NextResponse.redirect(url);
   }
@@ -29,5 +51,23 @@ export async function middleware(req) {
 }
 
 export const config = {
-  matcher: ["/", "/login", "/dashboard/:path*", "/reports/:path*", "/schedule/:path*", "/users/:path*", "/weighbridges/:path*", "/audit/:path*", "/account/:path*"],
+  matcher: [
+    "/",
+    "/login",
+    "/dashboard/:path*",
+    "/reports/:path*",
+    "/schedule/:path*",
+    "/users/:path*",
+    "/weighbridges/:path*",
+    "/audit/:path*",
+    "/account/:path*",
+    "/quotations/:path*",
+    "/calibration-requests/:path*",
+    "/sites/:path*",
+    "/feedback/:path*",
+    "/projects/:path*",
+    "/contracts/:path*",
+    "/tasks/:path*",
+    "/customer-feedback/:path*",
+  ],
 };

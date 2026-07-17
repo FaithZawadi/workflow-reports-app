@@ -20,6 +20,27 @@ enum Role {
   PROJECT_MANAGER
   TECHNICAL_MANAGER
   ADMIN
+  // A client contact. Restricted login: files calibration requests and requests
+  // quotations, and sees only their own — nothing else in the system.
+  CLIENT
+}
+
+enum CalibrationType {
+  IN_SITU
+  LAB
+}
+
+enum CalibrationRequestStatus {
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+}
+
+enum QuotationStatus {
+  REQUESTED // client asked for a quote
+  QUOTED // PM/TM issued the quote
+  ACCEPTED // client accepted the quote
+  DECLINED // client declined the quote
 }
 
 enum ReportStatus {
@@ -115,6 +136,8 @@ model Client {
   projects     Project[]
   tasks        Task[]
   contracts    Contract[]
+  calibrationRequests CalibrationRequest[]
+  quotations   Quotation[]
   createdAt    DateTime      @default(now())
 }
 
@@ -381,6 +404,117 @@ model TrailEvent {
 model Counter {
   scope String @id // e.g. "WB01-2026"
   value Int    @default(0)
+}
+
+// A calibration request raised by a CLIENT (CRF-NAWI). Lists the instruments to
+// be calibrated and the client's declaration; the QSL laboratory (PM / TM) then
+// completes the review checklist and accepts or rejects it.
+model CalibrationRequest {
+  id            String   @id @default(cuid())
+  serial        String   @unique // QSL-CRF-2026-00001
+
+  clientId   String?
+  client     Client? @relation(fields: [clientId], references: [id])
+  clientName String
+
+  contactPerson String?
+  address       String?
+  telephone     String?
+  email         String?
+
+  // Equipment rows: [{ name, makeModel, serialNo, capacity, division, location, remarks }]
+  equipment          Json
+  calibrationType    CalibrationType?
+  preferredDate      DateTime?
+  additionalRequests String?
+
+  // Customer declaration
+  declarationName        String?
+  declarationDesignation String?
+  declarationDate        DateTime?
+
+  status         CalibrationRequestStatus @default(SUBMITTED)
+  // For laboratory use — review checklist:
+  // { withinScope, standardsAvailable, uncertaintyAchievable, personnelAvailable,
+  //   impartialityRisk, methodAvailable } each { yn: "YES"|"NO", remark }
+  reviewChecklist Json?
+  decisionReason  String?
+  reviewedByName  String?
+  approvedByName  String?
+  reviewedAt      DateTime?
+
+  requestedById   String?
+  requestedByName String?
+
+  quotations Quotation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// A quotation. Requested by a CLIENT and prepared by a Project / Technical
+// Manager. Visible only to the client who owns it and to PM / TM.
+model Quotation {
+  id         String          @id @default(cuid())
+  number     String          @unique // QSL-Q-2026-00001
+  clientId   String?
+  client     Client?         @relation(fields: [clientId], references: [id])
+  clientName String
+  contactPerson String?
+  contactEmail  String?
+
+  status QuotationStatus @default(REQUESTED)
+
+  // What the client asked to be quoted.
+  requestNote     String?
+  requestedById   String?
+  requestedByName String?
+
+  calibrationRequestId String?
+  calibrationRequest   CalibrationRequest? @relation(fields: [calibrationRequestId], references: [id], onDelete: SetNull)
+
+  // Line items: [{ description, qty, unit, unitPrice }]
+  items         Json?
+  currency      String  @default("KES")
+  vatRate       Float   @default(16)
+  freight       Float   @default(0)
+  subtotal      Float   @default(0)
+  vatAmount     Float   @default(0)
+  grandTotal    Float   @default(0)
+  amountInWords String?
+  notes         String?
+  validUntil    DateTime?
+
+  preparedByName String?
+  quotedAt       DateTime?
+  decidedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// A single-use, expiring token that lets a routed reviewer approve or reject a
+// report straight from an email link, without signing in. Only the SHA-256 hash
+// is stored; the raw token lives only in the emailed URL.
+model ApprovalToken {
+  id           String    @id @default(cuid())
+  tokenHash    String    @unique
+  reportSerial String
+  stage        String // SUPERVISOR | MANAGER
+  email        String
+  expiresAt    DateTime
+  usedAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([reportSerial])
 }
 
 // System-wide audit trail of create/update/delete actions across users,
