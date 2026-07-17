@@ -78,6 +78,53 @@ export default function QuotationDetail({ id, profile }) {
     setBusy(false);
   };
 
+  const [lpoBusy, setLpoBusy] = useState(false);
+  const [lpoMsg, setLpoMsg] = useState("");
+
+  const uploadLpo = async (file) => {
+    setLpoMsg("");
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return setLpoMsg("Please choose an image file (JPG or PNG).");
+    if (file.size > 2 * 1024 * 1024) return setLpoMsg("The LPO image must be 2 MB or smaller.");
+    setLpoBusy(true);
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+      const res = await fetch(`/api/quotations/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ lpoImage: dataUrl, lpoName: file.name }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        setLpoMsg(d.error || "Could not upload the LPO.");
+        setLpoBusy(false);
+        return;
+      }
+      await load();
+      setLpoMsg("LPO uploaded.");
+    } catch {
+      setLpoMsg("Network problem — try again.");
+    }
+    setLpoBusy(false);
+  };
+
+  const removeLpo = async () => {
+    setLpoBusy(true);
+    setLpoMsg("");
+    try {
+      await fetch(`/api/quotations/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ lpoImage: null }) });
+      await load();
+    } catch {
+      setLpoMsg("Network problem — try again.");
+    }
+    setLpoBusy(false);
+  };
+
   const decide = async (clientDecision) => {
     setBusy(true);
     setNote("");
@@ -241,6 +288,43 @@ export default function QuotationDetail({ id, profile }) {
               </div>
             )}
           </>
+        )}
+
+        {/* Local Purchase Order — client uploads their LPO image; both sides view it. */}
+        {q.status !== "REQUESTED" && (
+          <div style={{ marginTop: 16 }}>
+            <SectionBar>Local Purchase Order (LPO)</SectionBar>
+            {q.lpoImage ? (
+              <div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={q.lpoImage} alt="LPO" style={{ maxWidth: "100%", maxHeight: 460, border: "1px solid #d9d2c4", borderRadius: 4 }} />
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+                  <span className="muted" style={{ fontSize: 12 }}>{q.lpoName || "LPO"}{q.lpoUploadedAt ? ` · ${new Date(q.lpoUploadedAt).toLocaleDateString()}` : ""}</span>
+                  <a className="btn" href={q.lpoImage} download={q.lpoName || "LPO.jpg"} style={{ fontSize: 12, textDecoration: "none" }}>Download</a>
+                  {perm.canUploadLpo && (
+                    <>
+                      <label className="btn" style={{ fontSize: 12, cursor: "pointer" }}>
+                        Replace
+                        <input type="file" accept="image/*" hidden onChange={(e) => uploadLpo(e.target.files?.[0])} disabled={lpoBusy} />
+                      </label>
+                      <button className="btn" onClick={removeLpo} disabled={lpoBusy} style={{ fontSize: 12, color: FAIL }}>Remove</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : perm.canUploadLpo ? (
+              <div className="card" style={{ padding: 16, borderStyle: "dashed", textAlign: "center" }}>
+                <p className="muted" style={{ fontSize: 13, margin: "0 0 10px" }}>Upload your Local Purchase Order as an image (JPG or PNG, up to 2 MB).</p>
+                <label className="btn btn-primary" style={{ fontSize: 13, cursor: "pointer", display: "inline-block" }}>
+                  {lpoBusy ? "Uploading…" : "Choose LPO image"}
+                  <input type="file" accept="image/*" hidden onChange={(e) => uploadLpo(e.target.files?.[0])} disabled={lpoBusy} />
+                </label>
+              </div>
+            ) : (
+              <div className="muted" style={{ fontSize: 13 }}>No LPO uploaded yet.</div>
+            )}
+            {lpoMsg && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, marginTop: 8 }}>{lpoMsg}</div>}
+          </div>
         )}
       </PaperCard>
     </div>

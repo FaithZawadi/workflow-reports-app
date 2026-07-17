@@ -4,7 +4,7 @@ import { recordAudit } from "@/lib/audit";
 import { rolesOf, canPrepareQuotes, isClient } from "@/lib/roles";
 import { amountInWords, quoteTotals } from "@/lib/money";
 import { sendMail, quoteIssuedEmail, quoteDecisionEmail } from "@/lib/email";
-import { notifyEmails } from "@/lib/notify";
+import { notifyEmails, notifyUsers } from "@/lib/notify";
 
 function ownedByClient(user, q) {
   return isClient(user) && (q.requestedById === user.sub || (user.clientId && q.clientId === user.clientId));
@@ -29,6 +29,8 @@ export async function GET(_req, { params }) {
     permissions: {
       canPrepare: canPrepareQuotes(user) || rolesOf(user).includes("ADMIN"),
       canDecide: ownedByClient(user, q) && q.status === "QUOTED",
+      // The owning client may attach/replace their LPO once the quote is issued.
+      canUploadLpo: ownedByClient(user, q) && q.status !== "REQUESTED",
     },
   });
 }
@@ -46,6 +48,38 @@ export async function PATCH(req, { params }) {
 
   const body = await req.json().catch(() => ({}));
   const staff = canPrepareQuotes(user) || rolesOf(user).includes("ADMIN");
+
+  // --- LPO image upload / removal (client owner or staff) ---
+  if (body.lpoImage !== undefined) {
+    if (!(ownedByClient(user, q) || staff)) return Response.json({ error: "Not allowed." }, { status: 403 });
+    const img = body.lpoImage;
+    if (!img) {
+      const updated = await prisma.quotation.update({ where: { id: q.id }, data: { lpoImage: null, lpoName: null, lpoUploadedAt: null } });
+      await recordAudit({ actor: user, action: "UPDATE", entity: "QUOTATION", entityId: q.number, summary: `LPO removed from quotation ${q.number}` });
+      return Response.json({ ok: true, lpo: false });
+    }
+    if (typeof img !== "string" || !/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(img))
+      return Response.json({ error: "The LPO must be an image file." }, { status: 400 });
+    // Enforce a 2 MB cap on the decoded image.
+    const b64 = img.slice(img.indexOf(",") + 1);
+    const bytes = Math.floor((b64.length * 3) / 4) - (b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0);
+    if (bytes > 2 * 1024 * 1024) return Response.json({ error: "The LPO image must be 2 MB or smaller." }, { status: 413 });
+    const updated = await prisma.quotation.update({
+      where: { id: q.id },
+      data: { lpoImage: img, lpoName: String(body.lpoName || "").trim().slice(0, 200) || "LPO", lpoUploadedAt: new Date() },
+    });
+    await recordAudit({ actor: user, action: "UPDATE", entity: "QUOTATION", entityId: q.number, summary: `LPO uploaded to quotation ${q.number}` });
+    // Let the QSL preparers know an LPO arrived.
+    if (ownedByClient(user, q)) {
+      try {
+        const preparers = await prisma.user.findMany({ where: { active: true, roles: { hasSome: ["PROJECT_MANAGER", "TECHNICAL_MANAGER"] } }, select: { id: true } });
+        await notifyUsers(preparers.map((u) => u.id), { type: "SYSTEM", title: `LPO received · ${q.number}`, body: `${q.clientName} uploaded an LPO`, link: `/quotations/${q.id}` });
+      } catch {
+        /* best-effort */
+      }
+    }
+    return Response.json({ ok: true, lpo: true });
+  }
 
   // --- Client accept / decline ---
   if (body.clientDecision) {
