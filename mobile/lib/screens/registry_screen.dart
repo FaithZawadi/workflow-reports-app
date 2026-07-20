@@ -115,9 +115,9 @@ class _RegistryScreenState extends State<RegistryScreen> {
                 final rows = snap.data ?? [];
                 if (rows.isEmpty) return _message('Nothing here yet.');
                 return ListView.separated(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 90),
                   itemCount: rows.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, i) => _card(context, rows[i]),
                 );
               },
@@ -128,31 +128,41 @@ class _RegistryScreenState extends State<RegistryScreen> {
     );
   }
 
-  Widget _message(String t) => ListView(children: [Padding(padding: const EdgeInsets.only(top: 80), child: Center(child: Text(t, style: const TextStyle(color: kMute))))]);
+  Widget _message(String t) => ListView(children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 90),
+          child: Column(children: [
+            Icon(Icons.inbox_outlined, size: 46, color: kMute.withOpacity(0.5)),
+            const SizedBox(height: 10),
+            Center(child: Text(t, style: const TextStyle(color: kMute))),
+          ]),
+        )
+      ]);
 
   Widget _card(BuildContext context, ReportSummary r) {
     final date = r.createdAt != null ? DateFormat('d MMM y').format(DateTime.tryParse(r.createdAt!)?.toLocal() ?? DateTime.now()) : '';
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () async {
-          final changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => ReportDetailScreen(serial: r.serial)));
-          if (changed == true) _reload();
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Serial(r.serial), StatusPill(r.status)]),
-            const SizedBox(height: 8),
-            Text(r.templateName.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: kInk)),
-            const SizedBox(height: 4),
-            Text('${r.clientName}${r.site != null && r.site!.isNotEmpty ? " - ${r.site}" : ""} · ${r.weighbridgeId ?? "weighbridge not stated"}',
-                style: const TextStyle(color: kMute, fontSize: 12)),
-            const SizedBox(height: 2),
-            Text('by ${r.authorName ?? "-"} · $date', style: const TextStyle(color: kMute, fontSize: 12)),
-          ]),
-        ),
-      ),
+    return AppCard(
+      onTap: () async {
+        final changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => ReportDetailScreen(serial: r.serial)));
+        if (changed == true) _reload();
+      },
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Serial(r.serial), StatusPill(r.status)]),
+        const SizedBox(height: 12),
+        Text(r.templateName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kInk)),
+        const SizedBox(height: 8),
+        _metaRow(Icons.location_on_outlined, '${r.clientName}${r.site != null && r.site!.isNotEmpty ? " · ${r.site}" : ""}'),
+        const SizedBox(height: 3),
+        _metaRow(Icons.scale_outlined, r.weighbridgeId ?? 'weighbridge not stated'),
+        const SizedBox(height: 3),
+        _metaRow(Icons.person_outline, '${r.authorName ?? "-"} · $date'),
+      ]),
     );
   }
+
+  Widget _metaRow(IconData icon, String text) => Row(children: [
+        Icon(icon, size: 15, color: kMute),
+        const SizedBox(width: 6),
+        Expanded(child: Text(text, style: const TextStyle(color: kMute, fontSize: 12.5), maxLines: 1, overflow: TextOverflow.ellipsis)),
+      ]);
 }
