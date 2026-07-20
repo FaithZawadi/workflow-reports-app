@@ -92,6 +92,103 @@ img { max-width: 100%; }
   * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
 
+/* ================= Sidebar app shell ===================================== */
+/* Mobile-first: the sidebar is an off-canvas drawer; >=768px it pins open as a
+   static column and the main area flows to its right. */
+.sidebar {
+  position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
+  width: 264px; max-width: 84vw;
+  background: var(--coal); color: #fff;
+  display: flex; flex-direction: column;
+  transform: translateX(-100%); transition: transform .25s ease;
+  overflow-y: auto;
+}
+.sidebar.open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,.45); }
+.sidebar .stripe { flex-shrink: 0; }
+.sidebar-brand { padding: 16px 18px 10px; }
+.sidebar-nav { display: flex; flex-direction: column; gap: 3px; padding: 8px 12px; flex: 1; }
+.side-link {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 10px;
+  color: #d7cdb8; text-decoration: none; font-size: 13.5px; font-weight: 700;
+  transition: background .15s, color .15s;
+}
+.side-link:hover { background: rgba(255,255,255,.06); color: #fff; }
+.side-link.active { background: var(--gold); color: var(--coal); }
+.side-ic { display: flex; width: 20px; height: 20px; flex-shrink: 0; }
+.side-label { min-width: 0; }
+.sidebar-cta { padding: 4px 14px 12px; }
+.sidebar-foot { padding: 12px 18px calc(16px + env(safe-area-inset-bottom, 0px)); color: #b8b1a4; border-top: 1px solid #2c2720; }
+.sidebar-backdrop { position: fixed; inset: 0; z-index: 55; background: rgba(0,0,0,.45); }
+
+.app-main { display: flex; flex-direction: column; min-height: 100dvh; min-width: 0; flex: 1; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; padding-top: calc(10px + env(safe-area-inset-top, 0px));
+  background: #fff; border-bottom: 1px solid var(--line);
+}
+.icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px; border-radius: 10px;
+  background: transparent; border: 1px solid var(--line); color: var(--ink);
+}
+.icon-btn:hover { background: #f3f0e8; }
+.topbar-brand { display: flex; }
+
+.profile-menu { position: relative; }
+.profile-trigger {
+  display: flex; align-items: center; gap: 9px;
+  padding: 5px 8px 5px 6px; border-radius: 999px;
+  background: #f3f0e8; border: 1px solid var(--line);
+}
+.profile-trigger:hover { background: #ece7db; }
+.avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--coal); color: var(--gold); font-weight: 900; font-size: 12.5px; flex-shrink: 0;
+}
+.avatar.lg { width: 42px; height: 42px; font-size: 16px; }
+.profile-text { display: flex; flex-direction: column; line-height: 1.15; text-align: left; }
+.profile-name { font-weight: 800; font-size: 13px; color: var(--ink); }
+.profile-role { font-size: 11px; color: #8a6d00; font-weight: 700; }
+.caret { color: var(--mute); flex-shrink: 0; }
+
+.profile-pop {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 50;
+  width: 268px; max-width: 84vw;
+  background: #fff; border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(22,19,16,.18); overflow: hidden; padding: 6px;
+}
+.profile-pop-head { display: flex; align-items: center; gap: 12px; padding: 10px 10px 12px; }
+.profile-pop-roles { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+.role-chip { background: #f3f0e8; color: var(--ink); font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; }
+.profile-pop-item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 10px; border-radius: 10px; border: none; background: transparent;
+  font-size: 13.5px; font-weight: 700; color: var(--ink); text-decoration: none; text-align: left;
+}
+.profile-pop-item svg { width: 18px; height: 18px; color: var(--mute); }
+.profile-pop-item:hover { background: #f3f0e8; }
+.profile-pop-item.danger { color: var(--fail); }
+.profile-pop-item.danger svg { color: var(--fail); }
+
+.app-content { flex: 1; width: 100%; max-width: 1120px; margin: 0 auto; padding: 12px 16px 40px; }
+
+@media (min-width: 768px) {
+  .app-body { display: flex; align-items: stretch; }
+  .sidebar { position: sticky; top: 0; height: 100dvh; transform: none; flex-shrink: 0; box-shadow: none; }
+  .sidebar-backdrop { display: none; }
+  .hamburger { display: none; }
+  .topbar-brand { display: none; }
+}
+@media (max-width: 600px) {
+  .signout-btn { display: none; }   /* sign out lives in the profile menu on phones */
+  .profile-text { display: none; }  /* avatar only */
+  .profile-trigger { padding: 4px; }
+}
+
 /* ---- Mobile app chrome: safe-area insets + bottom tab bar ---------------- */
 /* Push the sticky header below the notch/status bar when installed. */
 .app-header { padding-top: env(safe-area-inset-top, 0px); }
