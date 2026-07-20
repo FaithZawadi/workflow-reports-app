@@ -53,10 +53,10 @@ export default function Dashboard({ profile }) {
   const s = d.reportsByStatus;
   const pending = (s.PENDING_SUPERVISOR || 0) + (s.PENDING_MANAGER || 0);
   const statusSegments = [
-    { label: "Supervisor review", value: s.PENDING_SUPERVISOR || 0, color: "#C79A2E" },
-    { label: "Manager approval", value: s.PENDING_MANAGER || 0, color: GOLD },
-    { label: "Approved", value: s.APPROVED || 0, color: PASS },
-    { label: "Rejected", value: s.REJECTED || 0, color: FAIL },
+    { label: "Supervisor review", value: s.PENDING_SUPERVISOR || 0, color: "#C79A2E", href: "/dashboard?status=PENDING_SUPERVISOR" },
+    { label: "Manager approval", value: s.PENDING_MANAGER || 0, color: GOLD, href: "/dashboard?status=PENDING_MANAGER" },
+    { label: "Approved", value: s.APPROVED || 0, color: PASS, href: "/dashboard?status=APPROVED" },
+    { label: "Rejected", value: s.REJECTED || 0, color: FAIL, href: "/dashboard?status=REJECTED" },
   ];
 
   return (
@@ -68,9 +68,9 @@ export default function Dashboard({ profile }) {
       {/* KPI row */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, marginTop: 14 }}>
         {d.awaitingMe > 0 && <StatTile label="Awaiting you" value={d.awaitingMe} tone="wait" icon="⏳" sub="to review / approve" />}
-        {!d.isClient && <StatTile label="Total reports" value={d.totalReports} icon="📄" />}
-        {!d.isClient && <StatTile label="Approved" value={s.APPROVED || 0} tone="pass" icon="✓" />}
-        {!d.isClient && <StatTile label="Pending" value={pending} tone="wait" icon="•" />}
+        {!d.isClient && <StatTile label="Total reports" value={d.totalReports} icon="📄" href="/dashboard" />}
+        {!d.isClient && <StatTile label="Approved" value={s.APPROVED || 0} tone="pass" icon="✓" href="/dashboard?status=APPROVED" />}
+        {!d.isClient && <StatTile label="Pending" value={pending} tone="wait" icon="•" href="/dashboard?status=PENDING_SUPERVISOR" />}
         {d.satisfaction && <StatTile label="Satisfaction" value={d.satisfaction.average ? `${d.satisfaction.average}/5` : "—"} tone="gold" icon="★" sub={`${d.satisfaction.count} surveys`} />}
         {d.schedulesDue != null && <StatTile label="Due in 7 days" value={d.schedulesDue} tone={d.schedulesDue > 0 ? "wait" : "ink"} icon="🗓" sub="maintenance" />}
         {d.quotations && <StatTile label="Quotes accepted" value={d.quotations.ACCEPTED || 0} tone="pass" icon="💷" />}
@@ -89,31 +89,31 @@ export default function Dashboard({ profile }) {
           </Card>
         )}
         {!d.isClient && d.reportsByTemplate.length > 0 && (
-          <Card title="By form type">
-            <BarList items={d.reportsByTemplate.map((t) => ({ label: t.name, value: t.count }))} />
+          <Card title="By form type" action={<span style={{ fontSize: 11, color: MUTE }}>tap to filter</span>}>
+            <BarList items={d.reportsByTemplate.map((t) => ({ label: t.name, value: t.count, href: `/dashboard?template=${t.code}` }))} />
           </Card>
         )}
 
         {d.quotations && (
-          <Card title="Quotations">
+          <Card title="Quotations" action={<Link href="/quotations" style={{ fontSize: 11, color: GOLD, fontWeight: 700, textDecoration: "none" }}>Open →</Link>}>
             <Donut
               centerLabel="quotes"
               segments={[
-                { label: "Requested", value: d.quotations.REQUESTED || 0, color: WAIT },
-                { label: "Quoted", value: d.quotations.QUOTED || 0, color: COAL },
-                { label: "Accepted", value: d.quotations.ACCEPTED || 0, color: PASS },
-                { label: "Declined", value: d.quotations.DECLINED || 0, color: FAIL },
+                { label: "Requested", value: d.quotations.REQUESTED || 0, color: WAIT, href: "/quotations" },
+                { label: "Quoted", value: d.quotations.QUOTED || 0, color: COAL, href: "/quotations" },
+                { label: "Accepted", value: d.quotations.ACCEPTED || 0, color: PASS, href: "/quotations" },
+                { label: "Declined", value: d.quotations.DECLINED || 0, color: FAIL, href: "/quotations" },
               ]}
             />
           </Card>
         )}
         {d.calibrationRequests && (
-          <Card title="Calibration requests">
+          <Card title="Calibration requests" action={<Link href="/calibration-requests" style={{ fontSize: 11, color: GOLD, fontWeight: 700, textDecoration: "none" }}>Open →</Link>}>
             <BarList
               items={[
-                { label: "Submitted", value: d.calibrationRequests.SUBMITTED || 0, color: WAIT },
-                { label: "Accepted", value: d.calibrationRequests.ACCEPTED || 0, color: PASS },
-                { label: "Not accepted", value: d.calibrationRequests.REJECTED || 0, color: FAIL },
+                { label: "Submitted", value: d.calibrationRequests.SUBMITTED || 0, color: WAIT, href: "/calibration-requests" },
+                { label: "Accepted", value: d.calibrationRequests.ACCEPTED || 0, color: PASS, href: "/calibration-requests" },
+                { label: "Not accepted", value: d.calibrationRequests.REJECTED || 0, color: FAIL, href: "/calibration-requests" },
               ]}
             />
           </Card>

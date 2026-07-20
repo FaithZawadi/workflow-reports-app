@@ -5,11 +5,15 @@ import '../session.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/charts.dart';
+import '../widgets/app_drawer.dart';
+import 'report_detail_screen.dart';
 
 const _oversight = {'ADMIN', 'PROJECT_MANAGER', 'TECHNICAL_MANAGER'};
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final void Function({String status, String query}) onOpenReports;
+  final void Function(int index) onNavigate;
+  const DashboardScreen({super.key, required this.onOpenReports, required this.onNavigate});
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
@@ -59,8 +63,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Brand(onDark: true),
-        actions: [IconButton(icon: const Icon(Icons.logout), tooltip: 'Sign out', onPressed: () => s.logout())],
+        actions: [IconButton(icon: const Icon(Icons.description_outlined), tooltip: 'All reports', onPressed: () => widget.onOpenReports())],
       ),
+      drawer: AppDrawer(current: 0, onNavigate: widget.onNavigate),
       body: _err != null
           ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_err!, style: const TextStyle(color: kFail))))
           : _d == null
@@ -83,10 +88,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isClient = d['isClient'] == true;
 
     final kpis = <Widget>[
-      if ((d['awaitingMe'] ?? 0) > 0) StatTile(label: 'Awaiting you', value: '${d['awaitingMe']}', tone: kWait, icon: '⏳', sub: 'to review / approve'),
-      if (!isClient) StatTile(label: 'Total reports', value: '${d['totalReports'] ?? 0}', icon: '📄'),
-      if (!isClient) StatTile(label: 'Approved', value: '${st('APPROVED')}', tone: kPass, icon: '✓'),
-      if (!isClient) StatTile(label: 'Pending', value: '$pending', tone: kWait, icon: '•'),
+      if ((d['awaitingMe'] ?? 0) > 0) StatTile(label: 'Awaiting you', value: '${d['awaitingMe']}', tone: kWait, icon: '⏳', sub: 'to review / approve', onTap: () => widget.onOpenReports(status: 'PENDING_SUPERVISOR')),
+      if (!isClient) StatTile(label: 'Total reports', value: '${d['totalReports'] ?? 0}', icon: '📄', onTap: () => widget.onOpenReports()),
+      if (!isClient) StatTile(label: 'Approved', value: '${st('APPROVED')}', tone: kPass, icon: '✓', onTap: () => widget.onOpenReports(status: 'APPROVED')),
+      if (!isClient) StatTile(label: 'Pending', value: '$pending', tone: kWait, icon: '•', onTap: () => widget.onOpenReports(status: 'PENDING_SUPERVISOR')),
       if (satisfaction != null) StatTile(label: 'Satisfaction', value: (satisfaction['average'] ?? 0) > 0 ? '${satisfaction['average']}/5' : '—', tone: const Color(0xFF8A6D00), icon: '★', sub: '${satisfaction['count']} surveys'),
       if (d['schedulesDue'] != null) StatTile(label: 'Due in 7 days', value: '${d['schedulesDue']}', tone: (d['schedulesDue'] ?? 0) > 0 ? kWait : kInk, icon: '🗓'),
       if (quotations != null) StatTile(label: 'Quotes accepted', value: '${quotations['ACCEPTED'] ?? 0}', tone: kPass, icon: '💷'),
@@ -123,10 +128,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (_show('status') && !isClient) ...[
           const SizedBox(height: 12),
           ChartCard(title: 'Report status', child: Donut(centerLabel: 'reports', segments: [
-            Segment('Supervisor review', st('PENDING_SUPERVISOR'), const Color(0xFFC79A2E)),
-            Segment('Manager approval', st('PENDING_MANAGER'), kGold),
-            Segment('Approved', st('APPROVED'), kPass),
-            Segment('Rejected', st('REJECTED'), kFail),
+            Segment('Supervisor review', st('PENDING_SUPERVISOR'), const Color(0xFFC79A2E), onTap: () => widget.onOpenReports(status: 'PENDING_SUPERVISOR')),
+            Segment('Manager approval', st('PENDING_MANAGER'), kGold, onTap: () => widget.onOpenReports(status: 'PENDING_MANAGER')),
+            Segment('Approved', st('APPROVED'), kPass, onTap: () => widget.onOpenReports(status: 'APPROVED')),
+            Segment('Rejected', st('REJECTED'), kFail, onTap: () => widget.onOpenReports(status: 'REJECTED')),
           ])),
         ],
         if (_show('templates') && !isClient && templates.isNotEmpty) ...[
@@ -161,17 +166,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 12),
           ChartCard(title: 'Recent activity', child: Column(children: [
             for (final r in recent)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(children: [
-                  Serial('${r['serial']}'),
-                  const SizedBox(width: 10),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('${r['title']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kInk)),
-                    Text('${r['subtitle']}', style: const TextStyle(fontSize: 12, color: kMute)),
-                  ])),
-                  StatusPill('${r['status']}'),
-                ]),
+              InkWell(
+                onTap: _isReport('${r['link'] ?? ''}')
+                    ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReportDetailScreen(serial: '${r['serial']}')))
+                    : null,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+                  child: Row(children: [
+                    Serial('${r['serial']}'),
+                    const SizedBox(width: 10),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('${r['title']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kInk)),
+                      Text('${r['subtitle']}', style: const TextStyle(fontSize: 12, color: kMute)),
+                    ])),
+                    StatusPill('${r['status']}'),
+                  ]),
+                ),
               ),
           ])),
         ],
@@ -205,6 +216,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ]),
     );
   }
+
+  // Only report links open a report detail; quotation/calibration links have no
+  // mobile detail screen yet, so those rows stay non-tappable.
+  static bool _isReport(String link) => link.startsWith('/reports/');
 
   static String _greeting() {
     final h = DateTime.now().hour;

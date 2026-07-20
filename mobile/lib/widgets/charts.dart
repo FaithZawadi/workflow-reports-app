@@ -6,7 +6,8 @@ class Segment {
   final String label;
   final num value;
   final Color color;
-  const Segment(this.label, this.value, this.color);
+  final VoidCallback? onTap;
+  const Segment(this.label, this.value, this.color, {this.onTap});
 }
 
 // KPI tile.
@@ -16,10 +17,11 @@ class StatTile extends StatelessWidget {
   final String? sub;
   final Color tone;
   final String? icon;
-  const StatTile({super.key, required this.label, required this.value, this.sub, this.tone = kInk, this.icon});
+  final VoidCallback? onTap;
+  const StatTile({super.key, required this.label, required this.value, this.sub, this.tone = kInk, this.icon, this.onTap});
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(kRadius), boxShadow: kSoftShadow),
       padding: const EdgeInsets.all(14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
@@ -31,6 +33,11 @@ class StatTile extends StatelessWidget {
         Text(value, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: tone, height: 1.05)),
         if (sub != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(sub!, style: const TextStyle(fontSize: 11.5, color: kMute))),
       ]),
+    );
+    if (onTap == null) return card;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(borderRadius: BorderRadius.circular(kRadius), onTap: onTap, child: card),
     );
   }
 }
@@ -81,14 +88,19 @@ class Donut extends StatelessWidget {
       Expanded(
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
           for (final s in segments)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(children: [
-                Container(width: 11, height: 11, decoration: BoxDecoration(color: s.color, borderRadius: BorderRadius.circular(3))),
-                const SizedBox(width: 8),
-                Expanded(child: Text(s.label, style: const TextStyle(fontSize: 12.5, color: kInk))),
-                Text('${s.value}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: kInk)),
-              ]),
+            InkWell(
+              onTap: s.onTap,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+                child: Row(children: [
+                  Container(width: 11, height: 11, decoration: BoxDecoration(color: s.color, borderRadius: BorderRadius.circular(3))),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(s.label, style: const TextStyle(fontSize: 12.5, color: kInk))),
+                  Text('${s.value}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: kInk)),
+                  if (s.onTap != null) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.chevron_right, size: 15, color: kMute)),
+                ]),
+              ),
             ),
         ]),
       ),
@@ -130,24 +142,28 @@ class BarList extends StatelessWidget {
     final max = items.fold<num>(1, (a, s) => math.max(a, s.value));
     return Column(mainAxisSize: MainAxisSize.min, children: [
       for (final it in items)
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 5),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Expanded(child: Text(it.label, style: const TextStyle(fontSize: 12.5, color: kInk))),
-              Text('${it.value}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: kInk)),
-            ]),
-            const SizedBox(height: 4),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: (it.value / max).clamp(0, 1).toDouble(),
-                minHeight: 8,
-                backgroundColor: const Color(0xFFEFEADD),
-                valueColor: AlwaysStoppedAnimation(it.color),
+        InkWell(
+          onTap: it.onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Expanded(child: Text(it.label, style: const TextStyle(fontSize: 12.5, color: kInk))),
+                Text('${it.value}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: kInk)),
+              ]),
+              const SizedBox(height: 4),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: (it.value / max).clamp(0, 1).toDouble(),
+                  minHeight: 8,
+                  backgroundColor: const Color(0xFFEFEADD),
+                  valueColor: AlwaysStoppedAnimation(it.color),
+                ),
               ),
-            ),
-          ]),
+            ]),
+          ),
         ),
     ]);
   }
