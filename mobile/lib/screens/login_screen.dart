@@ -11,26 +11,20 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _url = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _busy = false;
   bool _obscure = true;
   String? _err;
 
-  @override
-  void initState() {
-    super.initState();
-    _url.text = context.read<Session>().baseUrl;
-  }
-
   Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
     setState(() {
       _err = null;
       _busy = true;
     });
     try {
-      await context.read<Session>().login(_url.text, _email.text, _password.text);
+      await context.read<Session>().login(_email.text.trim(), _password.text);
     } catch (e) {
       setState(() => _err = e.toString());
     } finally {
@@ -40,67 +34,107 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final topH = MediaQuery.of(context).size.height * 0.36;
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(22),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-                    const Align(alignment: Alignment.centerLeft, child: Brand()),
-                    const SizedBox(height: 18),
-                    const Text('Sign in', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: kInk)),
-                    const SizedBox(height: 4),
-                    const Text('Maintenance Management System — weighbridge reports, approvals and calibration records.',
-                        style: TextStyle(color: kMute, fontSize: 13)),
-                    const SizedBox(height: 18),
-                    _label('Server'),
-                    TextField(controller: _url, keyboardType: TextInputType.url, autocorrect: false,
-                        decoration: const InputDecoration(hintText: 'https://reports.qalibrated.com')),
-                    const SizedBox(height: 12),
-                    _label('Email'),
-                    TextField(controller: _email, keyboardType: TextInputType.emailAddress, autocorrect: false,
-                        decoration: const InputDecoration(hintText: 'you@company.com')),
-                    const SizedBox(height: 12),
-                    _label('Password'),
-                    TextField(
-                      controller: _password,
-                      obscureText: _obscure,
-                      onSubmitted: (_) => _busy ? null : _submit(),
-                      decoration: InputDecoration(
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: kMute),
-                          onPressed: () => setState(() => _obscure = !_obscure),
+      backgroundColor: kBg,
+      resizeToAvoidBottomInset: true,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Branded header
+            Container(
+              height: topH,
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF2A241C), kCoal]),
+                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(34), bottomRight: Radius.circular(34)),
+              ),
+              child: SafeArea(
+                bottom: false,
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [BoxShadow(color: kGold.withOpacity(0.25), blurRadius: 34, spreadRadius: 2)],
                         ),
+                        child: const LogoMark(size: 62),
                       ),
-                    ),
-                    if (_err != null) ...[
-                      const SizedBox(height: 12),
-                      Text(_err!, style: const TextStyle(color: kFail, fontWeight: FontWeight.w700, fontSize: 13)),
+                      const SizedBox(height: 16),
+                      const Text.rich(
+                        TextSpan(children: [
+                          TextSpan(text: 'QALIBRATED ', style: TextStyle(color: Colors.white)),
+                          TextSpan(text: 'SYSTEMS', style: TextStyle(color: kGold)),
+                        ]),
+                        style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                      ),
                     ],
-                    const SizedBox(height: 18),
-                    ElevatedButton(
-                      onPressed: _busy ? null : _submit,
-                      child: _busy
-                          ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: kCoal))
-                          : const Text('Sign in'),
-                    ),
-                  ]),
+                  ),
                 ),
               ),
             ),
-          ),
+
+            // Form
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Welcome back', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: kInk)),
+                  const SizedBox(height: 4),
+                  const Text('Sign in to continue', style: TextStyle(color: kMute, fontSize: 14)),
+                  const SizedBox(height: 22),
+                  TextField(
+                    controller: _email,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(hintText: 'Email', prefixIcon: Icon(Icons.mail_outline, color: kMute)),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _password,
+                    obscureText: _obscure,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _busy ? null : _submit(),
+                    decoration: InputDecoration(
+                      hintText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline, color: kMute),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: kMute),
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
+                    ),
+                  ),
+                  if (_err != null) ...[
+                    const SizedBox(height: 14),
+                    Row(children: [
+                      const Icon(Icons.error_outline, color: kFail, size: 18),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(_err!, style: const TextStyle(color: kFail, fontWeight: FontWeight.w600, fontSize: 13))),
+                    ]),
+                  ],
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: _busy ? null : _submit,
+                    child: _busy
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: kCoal))
+                        : const Text('Sign in'),
+                  ),
+                  const SizedBox(height: 24),
+                  const Center(
+                    child: Text('Qalibrated Systems Ltd · KENAS ISO/IEC 17025', style: TextStyle(color: kMute, fontSize: 11)),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-
-  Widget _label(String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: Text(t, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMute)),
-      );
 }

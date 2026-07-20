@@ -35,8 +35,9 @@ class Session extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> login(String url, String email, String password) async {
-    baseUrl = url.trim().replaceAll(RegExp(r'/+$'), '');
+  // The backend URL is a build-time constant (kDefaultBaseUrl) — hidden from the
+  // user. Override only via --dart-define=QSL_BASE_URL for staging builds.
+  Future<void> login(String email, String password) async {
     api = ApiClient(baseUrl);
     final u = await api.login(email, password);
     user = u;

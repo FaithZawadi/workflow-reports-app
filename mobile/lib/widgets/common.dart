@@ -1,27 +1,30 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 
-// The wordmark, mirroring the web brand lockup.
+// The real QSL logo lockup. On dark surfaces it sits on a white pill so the
+// colour artwork reads.
 class Brand extends StatelessWidget {
   final bool onDark;
-  const Brand({super.key, this.onDark = false});
+  final double height;
+  const Brand({super.key, this.onDark = false, this.height = 26});
   @override
   Widget build(BuildContext context) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: kLine)),
-        alignment: Alignment.center,
-        child: const Text('Q', style: TextStyle(fontWeight: FontWeight.w900, color: kCoal, fontSize: 18)),
-      ),
-      const SizedBox(width: 8),
-      Text.rich(TextSpan(children: [
-        TextSpan(text: 'QALIBRATED ', style: TextStyle(fontWeight: FontWeight.w900, color: onDark ? Colors.white : kCoal, letterSpacing: -0.2)),
-        const TextSpan(text: 'SYSTEMS', style: TextStyle(fontWeight: FontWeight.w900, color: kGold, letterSpacing: 1.2)),
-      ]), style: const TextStyle(fontSize: 15)),
-    ]);
+    final img = Image.asset('assets/brand/logo.png', height: height, filterQuality: FilterQuality.high);
+    if (!onDark) return img;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+      child: img,
+    );
   }
+}
+
+// Just the circular QSL mark (for the splash / avatars).
+class LogoMark extends StatelessWidget {
+  final double size;
+  const LogoMark({super.key, this.size = 96});
+  @override
+  Widget build(BuildContext context) => Image.asset('assets/brand/mark.png', width: size, height: size, filterQuality: FilterQuality.high);
 }
 
 class StatusPill extends StatelessWidget {
