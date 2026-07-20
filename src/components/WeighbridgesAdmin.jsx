@@ -7,6 +7,7 @@ const BLANK = { label: "", clientName: "", site: "", makeModel: "", serialNo: ""
 export default function WeighbridgesAdmin() {
   const [rows, setRows] = useState(null);
   const [clients, setClients] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [q, setQ] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -21,6 +22,7 @@ export default function WeighbridgesAdmin() {
   useEffect(() => {
     load();
     fetch("/api/clients").then((r) => r.json()).then((d) => setClients(d.clients || [])).catch(() => {});
+    fetch("/api/users/directory").then((r) => r.json()).then((d) => setManagers(d.managers || [])).catch(() => {});
   }, [load]);
 
   const shown = (rows || []).filter((w) => {
@@ -46,7 +48,7 @@ export default function WeighbridgesAdmin() {
       </div>
 
       {err && <div className="err" style={{ margin: "10px 0" }}>{err}</div>}
-      {showAdd && <WBForm clients={clients} onSaved={() => { setShowAdd(false); load(); }} />}
+      {showAdd && <WBForm clients={clients} managers={managers} onSaved={() => { setShowAdd(false); load(); }} />}
 
       <input className="input" placeholder="Search name, client, site, make or serial…" value={q} onChange={(e) => setQ(e.target.value)} style={{ margin: "10px 0 12px" }} />
 
@@ -74,13 +76,16 @@ export default function WeighbridgesAdmin() {
                     .filter(Boolean).join(" · ") || "no equipment details"}
                   {w.users > 0 ? ` · ${w.users} assignee${w.users > 1 ? "s" : ""}` : ""}
                 </div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                  Client manager: {w.managerName ? <b style={{ color: INK }}>{w.managerName}</b> : <span style={{ color: MUTE }}>not set</span>}
+                </div>
               </div>
               <button className="btn" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => setEditing(editing === w.id ? null : w.id)}>
                 {editing === w.id ? "Cancel" : "Edit"}
               </button>
             </div>
             {editing === w.id && (
-              <WBForm clients={clients} wb={w} onSaved={() => { setEditing(null); load(); }} onDeleted={() => { setEditing(null); load(); }} />
+              <WBForm clients={clients} managers={managers} wb={w} onSaved={() => { setEditing(null); load(); }} onDeleted={() => { setEditing(null); load(); }} />
             )}
           </div>
         ))}
@@ -89,11 +94,11 @@ export default function WeighbridgesAdmin() {
   );
 }
 
-function WBForm({ clients, wb, onSaved, onDeleted }) {
+function WBForm({ clients, managers = [], wb, onSaved, onDeleted }) {
   const [f, setF] = useState(
     wb
-      ? { label: wb.label || "", clientName: wb.client || "", site: wb.site || "", makeModel: wb.makeModel || "", serialNo: wb.serialNo || "", capacity: wb.capacity || "", deckLength: wb.deckLength || "", active: wb.active }
-      : { ...BLANK, active: true }
+      ? { label: wb.label || "", clientName: wb.client || "", site: wb.site || "", makeModel: wb.makeModel || "", serialNo: wb.serialNo || "", capacity: wb.capacity || "", deckLength: wb.deckLength || "", clientManagerId: wb.clientManagerId || "", active: wb.active }
+      : { ...BLANK, clientManagerId: "", active: true }
   );
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -140,6 +145,12 @@ function WBForm({ clients, wb, onSaved, onDeleted }) {
         <L label="Serial no."><input className="input" value={f.serialNo} onChange={(e) => set("serialNo", e.target.value)} /></L>
         <L label="Capacity / division"><input className="input" value={f.capacity} onChange={(e) => set("capacity", e.target.value)} placeholder="e.g. 60 t / 20 kg" /></L>
         <L label="Deck length"><input className="input" value={f.deckLength} onChange={(e) => set("deckLength", e.target.value)} placeholder="e.g. 18 m" /></L>
+        <L label="Client manager (approves reports)">
+          <select className="input" value={f.clientManagerId} onChange={(e) => set("clientManagerId", e.target.value)}>
+            <option value="">— none —</option>
+            {managers.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.email})</option>)}
+          </select>
+        </L>
       </div>
       {wb && (
         <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, margin: "4px 0 10px" }}>

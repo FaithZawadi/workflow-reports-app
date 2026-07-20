@@ -47,7 +47,7 @@ export async function POST(req) {
   const complaintHandling = COMPLAINT_KEYS.includes(b.complaintHandling) ? b.complaintHandling : null;
   const hadProblem = typeof b.hadProblem === "boolean" ? b.hadProblem : null;
 
-  await prisma.serviceFeedback.create({
+  const created = await prisma.serviceFeedback.create({
     data: {
       serviceTypes,
       clientName,
@@ -70,7 +70,7 @@ export async function POST(req) {
       recommend,
     },
   });
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, id: created.id });
 }
 
 // GET /api/service-feedback?manage=1 — managers/admin read submissions.

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { resolveManagerId } from "@/lib/weighbridge";
 
 // PATCH /api/weighbridges/[id] — administrators edit a weighbridge.
 export async function PATCH(req, { params }) {
@@ -30,6 +31,7 @@ export async function PATCH(req, { params }) {
   for (const k of ["site", "makeModel", "serialNo", "capacity", "deckLength"]) {
     if (b[k] !== undefined) data[k] = String(b[k]).trim() || null;
   }
+  if (b.clientManagerId !== undefined) data.clientManagerId = await resolveManagerId(b.clientManagerId);
   if (b.active !== undefined) data.active = !!b.active;
 
   const w = await prisma.weighbridge.update({ where: { id: params.id }, data });

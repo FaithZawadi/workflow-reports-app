@@ -117,6 +117,8 @@ model User {
   notifications Notification[]
   // Weighbridges this user is responsible for (supervisors/managers may have many).
   weighbridges Weighbridge[] @relation("UserWeighbridges")
+  // Weighbridges for which this user is the Client/Manager (approval routing).
+  managedWeighbridges Weighbridge[] @relation("WeighbridgeManager")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -306,6 +308,11 @@ model Weighbridge {
   deckLength String?
   active     Boolean @default(true)
 
+  // The Client/Manager responsible for this weighbridge — used to route the
+  // final approval of reports filed against it.
+  clientManagerId String?
+  clientManager   User?   @relation("WeighbridgeManager", fields: [clientManagerId], references: [id], onDelete: SetNull)
+
   users User[] @relation("UserWeighbridges")
 
   createdAt DateTime @default(now())
@@ -313,6 +320,7 @@ model Weighbridge {
 
   @@index([clientId])
   @@index([active])
+  @@index([clientManagerId])
 }
 
 // A recurring maintenance obligation for one weighbridge (e.g. WB01 daily on
