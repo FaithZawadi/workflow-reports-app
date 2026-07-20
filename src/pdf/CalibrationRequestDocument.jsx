@@ -79,7 +79,7 @@ const CHECK_ROWS = [
   ["methodAvailable", "Calibration method available"],
 ];
 
-export function CalibrationRequestDocument({ request, logoSrc }) {
+export function CalibrationRequestDocument({ request, logoSrc, qrSrc }) {
   const st = STATUS[request.status] || { label: request.status, color: INK };
   const equipment = Array.isArray(request.equipment) ? request.equipment : [];
   const checklist = request.reviewChecklist || {};
@@ -106,6 +106,13 @@ export function CalibrationRequestDocument({ request, logoSrc }) {
             <Text style={s.sys}>QSL/QP/013/CRF-NAWI</Text>
             <Text style={s.mono}>REQUEST NO: {request.serial}</Text>
             <Text style={s.mono}>RAISED: {fmt(request.createdAt, true)} EAT</Text>
+            {qrSrc ? (
+              <View style={{ alignItems: "center", marginTop: 3 }}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                <Image src={qrSrc} style={{ width: 52, height: 52 }} />
+                <Text style={{ fontSize: 6, color: MUTE, fontFamily: "Courier", marginTop: 1 }}>Scan to verify</Text>
+              </View>
+            ) : null}
           </View>
         </View>
         <View style={s.rule} />

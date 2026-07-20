@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar } from "./ui";
 import { StatusBadge } from "./CalibrationRequests";
 import { QUOTE_STATUS } from "./Quotations";
+import ShareButtons from "./ShareButtons";
 import { quoteTotals, amountInWords } from "@/lib/money";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
@@ -178,6 +179,17 @@ export default function QuotationDetail({ id, profile }) {
           <div className="card" style={{ padding: 12, marginTop: 10, background: "#f3eee2" }}>
             <b style={{ fontSize: 12, textTransform: "uppercase", color: MUTE }}>Request</b>
             <div style={{ fontSize: 14, color: INK, marginTop: 2 }}>{q.requestNote}</div>
+          </div>
+        )}
+
+        {q.status !== "REQUESTED" && (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: MUTE, marginBottom: 6 }}>Share quotation</div>
+            <ShareButtons
+              subject={`Quotation ${q.number} — Qalibrated Systems`}
+              message={`Quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}${q.validUntil ? `, valid until ${new Date(q.validUntil).toLocaleDateString()}` : ""}.`}
+              url={typeof window !== "undefined" ? `${window.location.origin}/quotations/${q.id}` : ""}
+            />
           </div>
         )}
 

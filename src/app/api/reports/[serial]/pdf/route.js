@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { canView } from "@/lib/rbac";
 import { ReportDocument } from "@/pdf/ReportDocument";
 import { logoDataUrl } from "@/lib/logo";
+import { qrDataUrl, verifyUrl } from "@/lib/qr";
 
 // Force Node.js runtime — @react-pdf/renderer cannot run on the edge.
 export const runtime = "nodejs";
@@ -28,8 +29,9 @@ export async function GET(req, { params }) {
   if (!report) return Response.json({ error: "Report not found." }, { status: 404 });
   if (!canView(report, user)) return Response.json({ error: "Not allowed." }, { status: 403 });
 
+  const qrSrc = await qrDataUrl(verifyUrl(`/reports/${report.serial}`));
   const buffer = await renderToBuffer(
-    React.createElement(ReportDocument, { report, logoSrc: logoDataUrl() })
+    React.createElement(ReportDocument, { report, logoSrc: logoDataUrl(), qrSrc })
   );
 
   return new Response(buffer, {

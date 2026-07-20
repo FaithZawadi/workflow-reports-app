@@ -11,7 +11,7 @@ const FAIL = "#B03A2E";
 
 const STATUS = {
   REQUESTED: { label: "REQUESTED", color: "#946B00" },
-  QUOTED: { label: "QUOTATION", color: COAL },
+  QUOTED: { label: "QUOTED", color: COAL },
   ACCEPTED: { label: "ACCEPTED", color: PASS },
   DECLINED: { label: "DECLINED", color: FAIL },
 };
@@ -61,7 +61,7 @@ function fmt(d, withTime) {
 }
 const money = (n) => Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export function QuotationDocument({ quotation, logoSrc }) {
+export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
   const q = quotation;
   const st = STATUS[q.status] || { label: q.status, color: INK };
   const items = Array.isArray(q.items) ? q.items : [];
@@ -85,10 +85,16 @@ export function QuotationDocument({ quotation, logoSrc }) {
             </View>
           </View>
           <View style={s.metaRight}>
-            <Text style={s.sys}>QSL QUOTATION</Text>
             <Text style={s.mono}>NO: {q.number}</Text>
             <Text style={s.mono}>DATE: {fmt(q.quotedAt || q.createdAt)}</Text>
             {q.validUntil ? <Text style={s.mono}>VALID TO: {fmt(q.validUntil)}</Text> : null}
+            {qrSrc ? (
+              <View style={{ alignItems: "center", marginTop: 3 }}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                <Image src={qrSrc} style={{ width: 52, height: 52 }} />
+                <Text style={{ fontSize: 6, color: MUTE, fontFamily: "Courier", marginTop: 1 }}>Scan to verify</Text>
+              </View>
+            ) : null}
           </View>
         </View>
         <View style={s.rule} />
