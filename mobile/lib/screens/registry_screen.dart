@@ -31,14 +31,17 @@ class _RegistryScreenState extends State<RegistryScreen> {
   @override
   void initState() {
     super.initState();
-    _reload();
+    _load();
+  }
+
+  void _load() {
+    final api = context.read<Session>().api;
+    _future = api.getReports(status: _filter, q: _q);
   }
 
   void _reload() {
-    final api = context.read<Session>().api;
-    setState(() => _future = api.getReports(status: _filter, q: _q));
+    setState(_load);
   }
-
   @override
   Widget build(BuildContext context) {
     final s = context.watch<Session>();
