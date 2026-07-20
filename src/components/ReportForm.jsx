@@ -339,6 +339,9 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
                   if (keys.has("deckLength") && w.deckLength) n.deckLength = w.deckLength;
                   return n;
                 });
+                // The weighbridge carries its Client/Manager — pre-fill the final
+                // approver so reports route to the right person automatically.
+                if (w.managerEmail && !managerEmail) setManagerEmail(w.managerEmail);
               }}
             />
           </div>

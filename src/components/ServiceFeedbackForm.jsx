@@ -35,6 +35,7 @@ export default function ServiceFeedbackForm({ prefill = {} }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState(false);
+  const [savedId, setSavedId] = useState(null);
 
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const toggleService = (k) => setServiceTypes((s) => (s.includes(k) ? s.filter((x) => x !== k) : [...s, k]));
@@ -65,6 +66,7 @@ export default function ServiceFeedbackForm({ prefill = {} }) {
         setBusy(false);
         return;
       }
+      setSavedId(data.id || null);
       setDone(true);
     } catch {
       setErr("Network problem. Please try again.");
@@ -92,6 +94,11 @@ export default function ServiceFeedbackForm({ prefill = {} }) {
             <div className="card" style={{ marginTop: 18, padding: 18, borderColor: GOLD, background: "#fdf6e3" }}>
               <div style={{ fontWeight: 900, fontSize: 16, color: INK }}>Thank you for your valuable feedback 🙏</div>
               <p className="muted" style={{ marginTop: 6 }}>Your survey has been received. The QSL team will review it and follow up if needed.</p>
+              {savedId && (
+                <a className="btn btn-dark" href={`/api/service-feedback/${savedId}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 13, textDecoration: "none", marginTop: 12, display: "inline-block" }}>
+                  Download a copy (PDF)
+                </a>
+              )}
             </div>
           ) : (
             <form onSubmit={submit} style={{ marginTop: 8 }}>

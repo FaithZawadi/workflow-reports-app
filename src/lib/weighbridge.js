@@ -1,4 +1,16 @@
 import { rolesOf } from "./roles";
+import { prisma } from "./db";
+
+// Validate a chosen Client/Manager for a weighbridge: must be an active user
+// holding the MANAGER role. Returns the id, or null (to clear / when invalid).
+export async function resolveManagerId(value) {
+  const id = String(value || "").trim();
+  if (!id) return null;
+  const u = await prisma.user.findUnique({ where: { id }, select: { id: true, active: true, role: true, roles: true } });
+  if (!u || !u.active) return null;
+  const roles = u.roles && u.roles.length ? u.roles : [u.role];
+  return roles.includes("MANAGER") ? u.id : null;
+}
 
 // Which weighbridges a user may select when filing/scheduling.
 // Admin, engineers and oversight managers see all; technicians see their plant's

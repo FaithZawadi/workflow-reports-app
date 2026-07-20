@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
-import { weighbridgeScope } from "@/lib/weighbridge";
+import { weighbridgeScope, resolveManagerId } from "@/lib/weighbridge";
 import { rolesOf } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,13 @@ const shape = (w) => ({
   capacity: w.capacity,
   deckLength: w.deckLength,
   active: w.active,
+  // The correlated Client/Manager (approval routing).
+  clientManagerId: w.clientManagerId || null,
+  managerName: w.clientManager?.name || null,
+  managerEmail: w.clientManager?.email || null,
 });
+
+const withManager = { client: { select: { name: true } }, clientManager: { select: { id: true, name: true, email: true } } };
 
 // GET /api/weighbridges          -> weighbridges the current user may select
 // GET /api/weighbridges?manage=1 -> full registry (admin) with usage counts
@@ -35,7 +41,7 @@ export async function GET(req) {
       return Response.json({ error: "Not allowed." }, { status: 403 });
     const list = await prisma.weighbridge.findMany({
       orderBy: [{ active: "desc" }, { label: "asc" }],
-      include: { client: { select: { name: true } }, _count: { select: { users: true } } },
+      include: { ...withManager, _count: { select: { users: true } } },
     });
     return Response.json({ weighbridges: list.map((w) => ({ ...shape(w), users: w._count.users })) });
   }
@@ -44,7 +50,7 @@ export async function GET(req) {
   let list = await prisma.weighbridge.findMany({
     where: weighbridgeScope(user),
     orderBy: { label: "asc" },
-    include: { client: { select: { name: true } } },
+    include: withManager,
   });
   // A supervisor/manager with no assignments yet shouldn't be blocked from filing.
   if (list.length === 0 && rolesOf(user).some((r) => ["SUPERVISOR", "MANAGER"].includes(r))) {
@@ -73,6 +79,7 @@ export async function POST(req) {
   if (!clientName) return Response.json({ error: "Choose the client (plant)." }, { status: 400 });
 
   const client = await prisma.client.upsert({ where: { name: clientName }, create: { name: clientName }, update: {} });
+  const clientManagerId = await resolveManagerId(b.clientManagerId);
   const w = await prisma.weighbridge.create({
     data: {
       clientId: client.id,
@@ -82,6 +89,7 @@ export async function POST(req) {
       serialNo: String(b.serialNo || "").trim() || null,
       capacity: String(b.capacity || "").trim() || null,
       deckLength: String(b.deckLength || "").trim() || null,
+      clientManagerId,
     },
   });
   await recordAudit({

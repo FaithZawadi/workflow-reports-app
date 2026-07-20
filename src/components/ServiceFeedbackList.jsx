@@ -128,9 +128,12 @@ export default function ServiceFeedbackList() {
                 </div>
               )}
 
-              <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-                {[f.contactName, f.contactEmail, f.contactPhone].filter(Boolean).join(" · ") || "no contact details"}
-                {" · "}{new Date(f.createdAt).toLocaleString()}
+              <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 8 }}>
+                <div className="muted" style={{ fontSize: 12 }}>
+                  {[f.contactName, f.contactEmail, f.contactPhone].filter(Boolean).join(" · ") || "no contact details"}
+                  {" · "}{new Date(f.createdAt).toLocaleString()}
+                </div>
+                <a className="btn" href={`/api/service-feedback/${f.id}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, textDecoration: "none" }}>PDF</a>
               </div>
             </div>
           );
