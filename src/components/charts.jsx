@@ -1,20 +1,30 @@
 "use client";
+import Link from "next/link";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT, LINE } from "@/lib/theme";
 
-// Small, dependency-free SVG charts styled to the QSL brand.
+// Small, dependency-free SVG charts styled to the QSL brand. Many elements accept
+// an `href` so clicking them drills into a filtered list (interactive search).
 
-export function StatTile({ label, value, sub, tone = "ink", icon }) {
+// Wrap children in a Link when href is given, else a plain span.
+function Maybe({ href, children, style }) {
+  if (href) return <Link href={href} style={{ textDecoration: "none", color: "inherit", ...style }}>{children}</Link>;
+  return <div style={style}>{children}</div>;
+}
+
+export function StatTile({ label, value, sub, tone = "ink", icon, href }) {
   const color = { ink: INK, pass: PASS, fail: FAIL, wait: WAIT, gold: "#8a6d00" }[tone] || INK;
   const bg = { ink: "#fff", pass: "#eef6f0", fail: "#fdf1ef", wait: "#fbf5e6", gold: "#fdf6e3" }[tone] || "#fff";
   return (
-    <div className="card" style={{ padding: 14, background: bg, minWidth: 0 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".03em", color: MUTE }}>{label}</div>
-        {icon ? <span style={{ fontSize: 16 }} aria-hidden>{icon}</span> : null}
+    <Maybe href={href}>
+      <div className="card" style={{ padding: 14, background: bg, minWidth: 0, cursor: href ? "pointer" : "default" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".03em", color: MUTE }}>{label}</div>
+          {icon ? <span style={{ fontSize: 16 }} aria-hidden>{icon}</span> : null}
+        </div>
+        <div style={{ fontSize: 30, fontWeight: 900, color, lineHeight: 1.1, marginTop: 6 }}>{value}</div>
+        {sub ? <div style={{ fontSize: 12, color: MUTE, marginTop: 2 }}>{sub}</div> : null}
       </div>
-      <div style={{ fontSize: 30, fontWeight: 900, color, lineHeight: 1.1, marginTop: 6 }}>{value}</div>
-      {sub ? <div style={{ fontSize: 12, color: MUTE, marginTop: 2 }}>{sub}</div> : null}
-    </div>
+    </Maybe>
   );
 }
 
@@ -56,13 +66,13 @@ export function Donut({ segments, size = 150, thickness = 22, centerLabel, cente
         <text x={cx} y={cx - 4} textAnchor="middle" style={{ fontSize: 26, fontWeight: 900, fill: INK }}>{centerValue ?? total}</text>
         <text x={cx} y={cx + 14} textAnchor="middle" style={{ fontSize: 10, fill: MUTE, textTransform: "uppercase" }}>{centerLabel || "total"}</text>
       </svg>
-      <div style={{ display: "grid", gap: 6, minWidth: 120 }}>
+      <div style={{ display: "grid", gap: 4, minWidth: 120 }}>
         {segments.map((s, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+          <Maybe key={i} href={s.href} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, padding: "3px 4px", borderRadius: 5, cursor: s.href ? "pointer" : "default" }}>
             <span style={{ width: 11, height: 11, borderRadius: 3, background: s.color, flexShrink: 0 }} />
             <span style={{ color: INK, flex: 1 }}>{s.label}</span>
             <b style={{ color: INK }}>{s.value}</b>
-          </div>
+          </Maybe>
         ))}
       </div>
     </div>
@@ -76,7 +86,7 @@ export function BarList({ items, color = COAL }) {
     <div style={{ display: "grid", gap: 10 }}>
       {items.length === 0 && <div style={{ color: MUTE, fontSize: 13 }}>No data yet.</div>}
       {items.map((it, i) => (
-        <div key={i}>
+        <Maybe key={i} href={it.href} style={{ display: "block", cursor: it.href ? "pointer" : "default" }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
             <span style={{ color: INK }}>{it.label}</span>
             <b style={{ color: INK }}>{it.value}</b>
@@ -84,7 +94,7 @@ export function BarList({ items, color = COAL }) {
           <div style={{ height: 8, background: "#efeadd", borderRadius: 6, overflow: "hidden" }}>
             <div style={{ width: `${((it.value || 0) / max) * 100}%`, height: "100%", background: it.color || color, borderRadius: 6, transition: "width .5s ease" }} />
           </div>
-        </div>
+        </Maybe>
       ))}
     </div>
   );

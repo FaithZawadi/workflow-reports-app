@@ -5,6 +5,7 @@ import '../session.dart';
 import '../api.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import '../widgets/app_drawer.dart';
 import 'report_detail_screen.dart';
 import 'new_report_screen.dart';
 
@@ -18,14 +19,21 @@ const _filters = [
 ];
 
 class RegistryScreen extends StatefulWidget {
-  const RegistryScreen({super.key});
+  // Filter driven from the dashboard (chart drill-down). filterNonce bumps every
+  // time the parent requests a filter, so the same status can be re-applied.
+  final String status;
+  final String query;
+  final int filterNonce;
+  final void Function(int index)? onNavigate;
+  const RegistryScreen({super.key, this.status = 'all', this.query = '', this.filterNonce = 0, this.onNavigate});
   @override
   State<RegistryScreen> createState() => _RegistryScreenState();
 }
 
 class _RegistryScreenState extends State<RegistryScreen> {
-  String _filter = 'all';
-  String _q = '';
+  late String _filter = widget.status;
+  late String _q = widget.query;
+  late final TextEditingController _search = TextEditingController(text: widget.query);
   Future<List<ReportSummary>>? _future;
 
   @override
@@ -34,19 +42,39 @@ class _RegistryScreenState extends State<RegistryScreen> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant RegistryScreen old) {
+    super.didUpdateWidget(old);
+    // The dashboard asked us to jump to a filtered view.
+    if (widget.filterNonce != old.filterNonce) {
+      setState(() {
+        _filter = widget.status;
+        _q = widget.query;
+        _search.text = widget.query;
+        _load();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
   void _load() {
     final api = context.read<Session>().api;
     _future = api.getReports(status: _filter, q: _q);
   }
 
-  void _reload() {
-    setState(_load);
-  }
+  void _reload() => setState(_load);
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<Session>();
     final user = s.user!;
     final canFile = user.roles.any(_filers.contains);
+    final active = _filter != 'all' || _q.isNotEmpty;
 
     return Scaffold(
       appBar: AppBar(
@@ -59,9 +87,9 @@ class _RegistryScreenState extends State<RegistryScreen> {
               Text(kRoleLabel[user.role] ?? user.role, style: const TextStyle(color: kGold, fontSize: 10, fontWeight: FontWeight.w700)),
             ]),
           ),
-          IconButton(icon: const Icon(Icons.logout), tooltip: 'Sign out', onPressed: () => s.logout()),
         ],
       ),
+      drawer: AppDrawer(current: 1, onNavigate: widget.onNavigate ?? (_) {}),
       floatingActionButton: canFile
           ? FloatingActionButton.extended(
               backgroundColor: kGold,
@@ -78,7 +106,21 @@ class _RegistryScreenState extends State<RegistryScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           child: TextField(
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.search, color: kMute), hintText: 'Search serial, author, site…'),
+            controller: _search,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search, color: kMute),
+              hintText: 'Search serial, author, site…',
+              suffixIcon: _q.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close, color: kMute),
+                      onPressed: () {
+                        _search.clear();
+                        _q = '';
+                        _reload();
+                      },
+                    )
+                  : null,
+            ),
             onChanged: (v) => _q = v,
             onSubmitted: (_) => _reload(),
           ),
@@ -113,7 +155,7 @@ class _RegistryScreenState extends State<RegistryScreen> {
                 if (snap.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: kCoal));
                 if (snap.hasError) return _message('Could not load: ${snap.error}');
                 final rows = snap.data ?? [];
-                if (rows.isEmpty) return _message('Nothing here yet.');
+                if (rows.isEmpty) return _message(active ? 'No reports match this filter.' : 'Nothing here yet.');
                 return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(14, 14, 14, 90),
                   itemCount: rows.length,

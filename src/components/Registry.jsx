@@ -19,9 +19,23 @@ export default function Registry({ profile }) {
   const [name, setName] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [template, setTemplate] = useState("");
 
   const [due, setDue] = useState(null);
   const [queuedNotice, setQueuedNotice] = useState(false);
+
+  // Land pre-filtered when arriving from a dashboard chart (e.g. /dashboard?status=APPROVED
+  // or ?template=WB01 or ?q=...). Read once on mount.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search);
+    const st = p.get("status");
+    if (st) setFilter(st);
+    const tq = p.get("q");
+    if (tq) setQ(tq);
+    const tpl = p.get("template");
+    if (tpl) setTemplate(tpl);
+  }, []);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -30,10 +44,11 @@ export default function Registry({ profile }) {
     if (name.trim()) params.set("name", name.trim());
     if (from) params.set("from", from);
     if (to) params.set("to", to);
+    if (template) params.set("template", template);
     const res = await fetch("/api/reports?" + params.toString());
     const data = await res.json();
     setReports(data.reports || []);
-  }, [filter, q, name, from, to]);
+  }, [filter, q, name, from, to, template]);
 
   const clearFilters = () => {
     setFilter("all");
@@ -41,8 +56,9 @@ export default function Registry({ profile }) {
     setName("");
     setFrom("");
     setTo("");
+    setTemplate("");
   };
-  const anyFilter = filter !== "all" || q || name || from || to;
+  const anyFilter = filter !== "all" || q || name || from || to || template;
 
   useEffect(() => {
     const t = setTimeout(load, 200);
@@ -171,6 +187,14 @@ export default function Registry({ profile }) {
           </button>
         ))}
       </div>
+
+      {template && (
+        <div style={{ margin: "0 0 8px" }}>
+          <button onClick={() => setTemplate("")} className="btn" style={{ fontSize: 12, background: COAL, color: GOLD, borderColor: COAL }}>
+            Form: {template} ✕
+          </button>
+        </div>
+      )}
 
       <input className="input" placeholder="Search serial, author, site or weighbridge…" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 8 }} />
 
