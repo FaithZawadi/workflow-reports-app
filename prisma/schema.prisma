@@ -175,18 +175,37 @@ model Feedback {
 // Customer feedback / enquiry collected AFTER a service (monthly, quarterly,
 // annual calibration or breakdown). Submitted by the client — usually via a
 // shared link — so no app account is required. Read by managers/admin.
+// Customer Satisfaction Survey Form (QSL/QP/004/CSSF). Filled by customers on a
+// PUBLIC page (no login); read by managers/admin under Customer feedback.
 model ServiceFeedback {
-  id           String      @id @default(cuid())
-  serviceType  ServiceType
-  clientName   String
+  id           String       @id @default(cuid())
+  serviceType  ServiceType? // legacy single type — optional now
+  serviceTypes String[]     @default([]) // CSSF §1: WEIGHBRIDGE | BALANCE | MASS_STANDARDS
+  clientName   String // Organization name
   contactName  String?
   contactEmail String?
   contactPhone String?
   weighbridge  String?
   serviceDate  DateTime?
-  rating       Int? // 1..5, optional
-  comments     String? // feedback / enquiry text
-  createdAt    DateTime    @default(now())
+  rating       Int? // mirrors `overall`, kept for the list average
+  comments     String?
+
+  // §2 evaluation criteria: { "2.1": 1..5, … "2.10": 1..5 }
+  criteria           Json?
+  // §4 complaints
+  hadProblem         Boolean?
+  problemDetail      String?
+  complaintHandling  String? // NA | VERY_UNSATISFACTORY | … | VERY_SATISFACTORY
+  // §5 improvement
+  didWell            String?
+  improve            String?
+  additionalServices String?
+  // §6 overall assessment
+  overall   Int? // 1..5
+  useAgain  String? // YES | NO | NOT_SURE
+  recommend String? // YES | NO | NOT_SURE
+
+  createdAt DateTime @default(now())
 
   @@index([serviceType])
   @@index([createdAt])

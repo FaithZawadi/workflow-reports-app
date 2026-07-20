@@ -1,14 +1,12 @@
 import ServiceFeedbackForm from "@/components/ServiceFeedbackForm";
-import { SERVICE_TYPE_KEYS } from "@/lib/serviceTypes";
 
-export const metadata = { title: "Service feedback · Qalibrated Systems" };
+export const metadata = { title: "Customer Satisfaction Survey · Qalibrated Systems" };
 
-// Public page (no login) — customers leave feedback / an enquiry after a
-// service. Staff can share a tailored link, e.g.
-//   /service-feedback?service=QUARTERLY_SERVICE&client=TATA%20Chemicals%20Magadi
+// Public page (no login) — customers complete the Customer Satisfaction Survey
+// (CSSF) after a calibration. Staff can share a link with the client pre-filled,
+// e.g. /service-feedback?client=Kapa%20Oil%20Refineries
 export default function ServiceFeedbackPage({ searchParams }) {
   const sp = searchParams || {};
-  const svc = typeof sp.service === "string" && SERVICE_TYPE_KEYS.includes(sp.service) ? sp.service : "";
-  const prefill = { serviceType: svc, clientName: typeof sp.client === "string" ? sp.client : "" };
+  const prefill = { clientName: typeof sp.client === "string" ? sp.client : "" };
   return <ServiceFeedbackForm prefill={prefill} />;
 }
