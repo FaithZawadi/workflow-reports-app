@@ -136,4 +136,10 @@ class ApiClient {
     final d = _decode(await http.post(_u('/api/reports'), headers: _headers, body: jsonEncode(payload)));
     return d['serial']?.toString() ?? '';
   }
+
+  // Role-scoped dashboard metrics.
+  Future<Map<String, dynamic>> getStats() async {
+    final d = _decode(await http.get(_u('/api/stats'), headers: _headers));
+    return Map<String, dynamic>.from(d);
+  }
 }

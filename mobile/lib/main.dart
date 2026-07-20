@@ -4,7 +4,7 @@ import 'theme.dart';
 import 'session.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/registry_screen.dart';
+import 'screens/home_shell.dart';
 
 void main() => runApp(const QslApp());
 
@@ -50,7 +50,7 @@ class _RootState extends State<_Root> {
       duration: const Duration(milliseconds: 350),
       child: !ready
           ? const SplashScreen()
-          : (s.signedIn ? const RegistryScreen() : const LoginScreen()),
+          : (s.signedIn ? const HomeShell() : const LoginScreen()),
     );
   }
 }
