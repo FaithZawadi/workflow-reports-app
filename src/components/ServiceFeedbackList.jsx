@@ -6,6 +6,7 @@ import {
   SURVEY_CRITERIA,
   COMPLAINT_HANDLING_LABEL,
 } from "@/lib/survey";
+import ShareButtons from "./ShareButtons";
 
 const Stars = ({ n }) =>
   n ? (
@@ -62,6 +63,15 @@ export default function ServiceFeedbackList() {
           <button className="btn" onClick={copyLink} style={{ fontSize: 12 }}>Copy link</button>
           <a className="btn btn-dark" href={shareUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, textDecoration: "none" }}>Open public form ↗</a>
         </div>
+      </div>
+
+      <div style={{ margin: "0 0 14px" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: MUTE, marginBottom: 6 }}>Share the survey with a customer</div>
+        <ShareButtons
+          subject="We'd value your feedback — Qalibrated Systems"
+          message="Please take a moment to complete our short Customer Satisfaction Survey about our calibration service. It only takes a couple of minutes."
+          url={shareUrl}
+        />
       </div>
 
       {err && <div className="err" style={{ marginBottom: 10 }}>{err}</div>}

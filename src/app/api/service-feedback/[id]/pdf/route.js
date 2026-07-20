@@ -3,6 +3,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/db";
 import { SurveyDocument } from "@/pdf/SurveyDocument";
 import { logoDataUrl } from "@/lib/logo";
+import { qrDataUrl, verifyUrl } from "@/lib/qr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,8 @@ export async function GET(_req, { params }) {
   const feedback = await prisma.serviceFeedback.findUnique({ where: { id: params.id } });
   if (!feedback) return Response.json({ error: "Not found." }, { status: 404 });
 
-  const buffer = await renderToBuffer(React.createElement(SurveyDocument, { feedback, logoSrc: logoDataUrl() }));
+  const qrSrc = await qrDataUrl(verifyUrl(`/api/service-feedback/${feedback.id}/pdf`));
+  const buffer = await renderToBuffer(React.createElement(SurveyDocument, { feedback, logoSrc: logoDataUrl(), qrSrc }));
 
   return new Response(buffer, {
     status: 200,

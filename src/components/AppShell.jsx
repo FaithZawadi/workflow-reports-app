@@ -76,6 +76,9 @@ export default function AppShell({ user, children }) {
       <nav className="wrap topnav" style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "12px 16px 0" }}>
         {clientOnly ? (
           <>
+            <Link href="/overview" className="btn" style={{ fontSize: 13 }}>
+              Dashboard
+            </Link>
             <Link href="/calibration-requests" className="btn" style={{ fontSize: 13 }}>
               Calibration requests
             </Link>
@@ -88,6 +91,9 @@ export default function AppShell({ user, children }) {
           </>
         ) : (
         <>
+        <Link href="/overview" className="btn" style={{ fontSize: 13 }}>
+          Dashboard
+        </Link>
         <Link href="/dashboard" className="btn" style={{ fontSize: 13 }}>
           Report registry
         </Link>

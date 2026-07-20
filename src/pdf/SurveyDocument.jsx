@@ -59,7 +59,7 @@ function fmt(d, withTime) {
   }
 }
 
-export function SurveyDocument({ feedback, logoSrc }) {
+export function SurveyDocument({ feedback, logoSrc, qrSrc }) {
   const f = feedback;
   const types = Array.isArray(f.serviceTypes) ? f.serviceTypes : [];
   const criteria = f.criteria || {};
@@ -84,6 +84,13 @@ export function SurveyDocument({ feedback, logoSrc }) {
           <View style={s.metaRight}>
             <Text style={s.sys}>QSL/QP/004/CSSF</Text>
             <Text style={s.mono}>SUBMITTED: {fmt(f.createdAt, true)} EAT</Text>
+            {qrSrc ? (
+              <View style={{ alignItems: "center", marginTop: 3 }}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                <Image src={qrSrc} style={{ width: 52, height: 52 }} />
+                <Text style={{ fontSize: 6, color: MUTE, fontFamily: "Courier", marginTop: 1 }}>Scan to verify</Text>
+              </View>
+            ) : null}
           </View>
         </View>
         <View style={s.rule} />

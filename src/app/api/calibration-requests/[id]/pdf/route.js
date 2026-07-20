@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { rolesOf, canPrepareQuotes, isClient } from "@/lib/roles";
 import { CalibrationRequestDocument } from "@/pdf/CalibrationRequestDocument";
 import { logoDataUrl } from "@/lib/logo";
+import { qrDataUrl, verifyUrl } from "@/lib/qr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,8 +28,9 @@ export async function GET(_req, { params }) {
     (isClient(user) && (request.requestedById === user.sub || (user.clientId && request.clientId === user.clientId)));
   if (!allowed) return Response.json({ error: "Not allowed." }, { status: 403 });
 
+  const qrSrc = await qrDataUrl(verifyUrl(`/calibration-requests/${request.id}`));
   const buffer = await renderToBuffer(
-    React.createElement(CalibrationRequestDocument, { request, logoSrc: logoDataUrl() })
+    React.createElement(CalibrationRequestDocument, { request, logoSrc: logoDataUrl(), qrSrc })
   );
 
   return new Response(buffer, {

@@ -109,7 +109,7 @@ function Tick() {
   );
 }
 
-export function ReportDocument({ report, logoSrc }) {
+export function ReportDocument({ report, logoSrc, qrSrc }) {
   const tpl = templateByCode(report.template);
   const data = report.data || {};
   const grids = data.grids || {};
@@ -183,6 +183,13 @@ export function ReportDocument({ report, logoSrc }) {
             <Text style={s.sys}>QSL MAINTENANCE MANAGEMENT SYSTEM v2.4</Text>
             <Text style={s.mono}>SERIAL NO: {report.serial}</Text>
             <Text style={s.mono}>GENERATED: {fmt(new Date())}</Text>
+            {qrSrc ? (
+              <View style={{ alignItems: "center", marginTop: 3 }}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                <Image src={qrSrc} style={{ width: 52, height: 52 }} />
+                <Text style={{ fontSize: 6, color: MUTE, fontFamily: "Courier", marginTop: 1 }}>Scan to verify</Text>
+              </View>
+            ) : null}
           </View>
         </View>
         <View style={s.rule} />

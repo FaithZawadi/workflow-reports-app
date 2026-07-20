@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/jwt";
 
 // Protect the authenticated app area and redirect signed-in users away from login.
-const PROTECTED = ["/dashboard", "/reports", "/schedule", "/users", "/weighbridges", "/audit", "/account", "/quotations", "/calibration-requests"];
+const PROTECTED = ["/overview", "/dashboard", "/reports", "/schedule", "/users", "/weighbridges", "/audit", "/account", "/quotations", "/calibration-requests"];
 
 // Areas a client-only login must NOT reach (staff tools). They are bounced to
 // their own portal home.
@@ -54,6 +54,7 @@ export const config = {
   matcher: [
     "/",
     "/login",
+    "/overview/:path*",
     "/dashboard/:path*",
     "/reports/:path*",
     "/schedule/:path*",
