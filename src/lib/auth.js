@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { SESSION_COOKIE, signSession, verifySession, sessionMaxAgeSeconds } from "./jwt";
 
 export async function hashPassword(plain) {
@@ -51,9 +51,15 @@ export function endSession() {
   cookies().set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
 }
 
-// Returns the session claims for the current request, or null.
+// Returns the session claims for the current request, or null. Accepts either
+// the browser session cookie or a `Authorization: Bearer <jwt>` header (used by
+// the mobile app), so the same routes serve web and native clients.
 export async function getCurrentUser() {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+  let token = cookies().get(SESSION_COOKIE)?.value;
+  if (!token) {
+    const auth = headers().get("authorization") || "";
+    if (auth.toLowerCase().startsWith("bearer ")) token = auth.slice(7).trim();
+  }
   if (!token) return null;
   const claims = await verifySession(token);
   if (!claims) return null;
