@@ -1,0 +1,23 @@
+name: qsl_mobile
+description: QSL Maintenance Management — field app (Qalibrated Systems).
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  provider: ^6.1.2
+  flutter_secure_storage: ^9.2.2
+  image_picker: ^1.1.2
+  geolocator: ^12.0.0
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
