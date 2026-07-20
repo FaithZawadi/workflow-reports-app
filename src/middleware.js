@@ -42,7 +42,9 @@ export async function middleware(req) {
 
   if ((pathname === "/login" || pathname === "/") && claims) {
     const url = req.nextUrl.clone();
-    url.pathname = isClientOnly(claims) ? CLIENT_HOME : "/dashboard";
+    // The dashboard (charts) is the landing page after sign-in, for staff and
+    // clients alike (the dashboard scopes itself to the viewer's role).
+    url.pathname = "/overview";
     url.search = "";
     return NextResponse.redirect(url);
   }

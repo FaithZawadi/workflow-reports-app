@@ -30,7 +30,7 @@ export default function LoginForm() {
         setBusy(false);
         return;
       }
-      const next = params.get("next") || "/dashboard";
+      const next = params.get("next") || "/overview";
       router.replace(next);
     } catch {
       setErr("Network problem. Check your connection and try again.");
