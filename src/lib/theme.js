@@ -29,4 +29,5 @@ export const ROLE_LABEL = {
   TECHNICAL_MANAGER: "Technical Manager",
   ADMIN: "Administrator",
   CLIENT: "Client",
+  HR: "HR / Training",
 };

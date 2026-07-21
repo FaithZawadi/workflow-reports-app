@@ -44,7 +44,11 @@ export const ALL_ROLES = [
   "TECHNICAL_MANAGER",
   "ADMIN",
   "CLIENT",
+  "HR",
 ];
+
+// Human Resources (and admins) record and review training feedback.
+export const TRAINING_ROLES = ["HR", "ADMIN"];
 
 // Only the Project Manager and Technical Manager prepare quotations and review
 // calibration requests on the QSL side.
@@ -85,6 +89,9 @@ export const canSeeQuotations = (input) => intersects(input, QUOTE_ROLES) || isC
 // Roles allowed to create/assign tasks and register projects.
 export const TASK_MANAGER_ROLES = SCHEDULE_MANAGER_ROLES;
 export const canManageTasks = (input) => intersects(input, TASK_MANAGER_ROLES);
+
+// HR (and admins) record and review training feedback.
+export const canManageTraining = (input) => intersects(input, TRAINING_ROLES);
 
 // Which target roles an actor may assign when creating/editing a user.
 export function assignableRoles(actor) {

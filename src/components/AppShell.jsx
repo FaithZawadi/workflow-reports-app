@@ -9,7 +9,7 @@ import FeedbackPrompt from "./FeedbackPrompt";
 import NotificationBell from "./NotificationBell";
 import OfflineBadge from "./OfflineBadge";
 import { ROLE_LABEL } from "@/lib/theme";
-import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, isClientOnly, rolesOf } from "@/lib/roles";
+import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, isClientOnly, rolesOf } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
@@ -21,6 +21,7 @@ export default function AppShell({ user, children }) {
   const showUsers = canManageUsers(user);
   const canManageTasksNav = canManageTasks(user);
   const clientOnly = isClientOnly(user);
+  const showTraining = canManageTraining(user);
   // PM / TM (and admin) manage quotations + calibration requests; clients see
   // their own. Everyone else sees neither.
   const showQuotes = canPrepareQuotes(user) || isAdmin || clientOnly;
@@ -74,6 +75,7 @@ export default function AppShell({ user, children }) {
         canManageTasksNav && { href: "/projects", label: "Projects", icon: "projects" },
         canManageTasksNav && { href: "/contracts", label: "Contracts", icon: "contract" },
         canManageTasksNav && { href: "/customer-feedback", label: "Customer feedback", icon: "chat" },
+        showTraining && { href: "/training-feedback", label: "Training feedback", icon: "training" },
         showUsers && { href: "/users", label: "Users", icon: "users" },
         isAdmin && { href: "/weighbridges", label: "Weighbridges", icon: "scale" },
         isAdmin && { href: "/sites", label: "Sites", icon: "pin" },
@@ -258,6 +260,8 @@ function NavIcon({ name }) {
       return (<svg {...p}><path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" /><path d="M14 3v4h4" /><path d="M9 13l1.5 1.5L14 11" /></svg>);
     case "chat":
       return (<svg {...p}><path d="M4 5h16v11H9l-4 3v-3H4z" /><path d="M8 9h8M8 12h5" /></svg>);
+    case "training":
+      return (<svg {...p}><path d="M12 4l9 4-9 4-9-4 9-4z" /><path d="M6 10v4c0 1.5 3 2.5 6 2.5s6-1 6-2.5v-4" /><path d="M21 8v5" /></svg>);
     case "users":
       return (<svg {...p}><circle cx="9" cy="9" r="3" /><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" /><path d="M16 6.2a3 3 0 0 1 0 5.6M20.5 19c0-2.2-1.2-4-3-4.6" /></svg>);
     case "scale":
