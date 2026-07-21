@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import 'dashboard_screen.dart';
 import 'registry_screen.dart';
+import 'tasks_screen.dart';
 import 'account_screen.dart';
 
 // Bottom-nav shell holding the three primary tabs. It owns the report filter
@@ -40,6 +41,7 @@ class _HomeShellState extends State<HomeShell> {
     final tabs = [
       DashboardScreen(onOpenReports: openReports, onNavigate: go),
       RegistryScreen(status: _status, query: _query, filterNonce: _nonce, onNavigate: go),
+      TasksScreen(onNavigate: go),
       AccountScreen(onNavigate: go),
     ];
     return Scaffold(
@@ -64,6 +66,7 @@ class _HomeShellState extends State<HomeShell> {
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.insights_outlined), activeIcon: Icon(Icons.insights), label: 'Dashboard'),
               BottomNavigationBarItem(icon: Icon(Icons.description_outlined), activeIcon: Icon(Icons.description), label: 'Reports'),
+              BottomNavigationBarItem(icon: Icon(Icons.task_alt_outlined), activeIcon: Icon(Icons.task_alt), label: 'Tasks'),
               BottomNavigationBarItem(icon: Icon(Icons.account_circle_outlined), activeIcon: Icon(Icons.account_circle), label: 'Account'),
             ],
           ),

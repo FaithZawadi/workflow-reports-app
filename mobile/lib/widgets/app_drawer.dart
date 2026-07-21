@@ -50,7 +50,8 @@ class AppDrawer extends StatelessWidget {
           const SizedBox(height: 8),
           _item(context, 0, Icons.insights_outlined, Icons.insights, 'Dashboard'),
           _item(context, 1, Icons.description_outlined, Icons.description, 'Reports'),
-          _item(context, 2, Icons.account_circle_outlined, Icons.account_circle, 'Account'),
+          _item(context, 2, Icons.task_alt_outlined, Icons.task_alt, 'Tasks'),
+          _item(context, 3, Icons.account_circle_outlined, Icons.account_circle, 'Account'),
           const Spacer(),
           const Divider(height: 1, color: kLine),
           ListTile(

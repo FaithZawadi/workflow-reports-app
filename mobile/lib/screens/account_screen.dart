@@ -19,7 +19,7 @@ class AccountScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Brand(onDark: true)),
-      drawer: AppDrawer(current: 2, onNavigate: onNavigate),
+      drawer: AppDrawer(current: 3, onNavigate: onNavigate),
       body: user == null
           ? const SizedBox()
           : ListView(
