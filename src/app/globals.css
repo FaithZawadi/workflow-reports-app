@@ -105,7 +105,14 @@ img { max-width: 100%; }
 }
 .sidebar.open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,.45); }
 .sidebar .stripe { flex-shrink: 0; }
-.sidebar-brand { padding: 16px 18px 10px; }
+.sidebar-brand { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 14px 10px; }
+.brand-link { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-mark { width: 34px; height: 34px; border-radius: 6px; background: #fff; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.brand-text { font-weight: 900; font-size: 15px; letter-spacing: -.01em; color: #fff; white-space: nowrap; }
+.collapse-btn { display: none; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.08); border: none; color: #d7cdb8; flex-shrink: 0; }
+.collapse-btn:hover { background: rgba(255,255,255,.16); color: #fff; }
+.collapse-btn svg { transition: transform .2s ease; }
+.cta-mini { display: none; }
 .sidebar-nav { display: flex; flex-direction: column; gap: 3px; padding: 8px 12px; flex: 1; }
 .side-link {
   display: flex; align-items: center; gap: 12px;
@@ -178,10 +185,22 @@ img { max-width: 100%; }
 
 @media (min-width: 768px) {
   .app-body { display: flex; align-items: stretch; }
-  .sidebar { position: sticky; top: 0; height: 100dvh; transform: none; flex-shrink: 0; box-shadow: none; }
+  .sidebar { position: sticky; top: 0; height: 100dvh; transform: none; flex-shrink: 0; box-shadow: none; transition: width .2s ease; }
   .sidebar-backdrop { display: none; }
   .hamburger { display: none; }
   .topbar-brand { display: none; }
+  .collapse-btn { display: inline-flex; }
+
+  /* Collapsed icon rail */
+  .sidebar.collapsed { width: 74px; }
+  .sidebar.collapsed .brand-text,
+  .sidebar.collapsed .side-label,
+  .sidebar.collapsed .sidebar-foot,
+  .sidebar.collapsed .cta-full { display: none; }
+  .sidebar.collapsed .cta-mini { display: inline; font-size: 20px; font-weight: 900; }
+  .sidebar.collapsed .sidebar-brand { flex-direction: column; gap: 10px; padding: 14px 0 10px; }
+  .sidebar.collapsed .side-link { justify-content: center; padding: 11px 0; }
+  .sidebar.collapsed .collapse-btn svg { transform: rotate(180deg); }
 }
 @media (max-width: 600px) {
   .signout-btn { display: none; }   /* sign out lives in the profile menu on phones */
