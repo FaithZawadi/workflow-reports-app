@@ -22,11 +22,15 @@ It covers:
   backend so the forms always match the web app), fill the checklists / fields /
   weekly test / choices, attach up to 6 **photos with GPS**, choose the reviewers,
   and submit.
+- **Tasks** — a bold status board mirroring the web app: **Open · In progress ·
+  Blocked · Done**, plus derived **Unassigned** and **Overdue** tiles, each with a
+  live count from the database. Tap a tile to filter; change a task's status
+  inline (managers, or the task's assignee).
 - **Account** — profile (name, email, roles, organisation) and sign out.
 
 ### Navigation
 
-- **Bottom navigation** — three primary tabs: **Dashboard · Reports · Account**.
+- **Bottom navigation** — four primary tabs: **Dashboard · Reports · Tasks · Account**.
 - **Sidebar drawer** — swipe from the left / tap the menu icon for the same
   destinations plus a prominent sign-out, headed by who is signed in.
 
@@ -41,6 +45,8 @@ This app relies on two small backend additions (already in this repo):
   only the browser cookie). See `src/lib/auth.js`.
 - `GET /api/templates` → the report-form catalogue, so the app renders the exact
   same forms as the web app.
+- `GET /api/tasks` + `PATCH /api/tasks/[id]` → the task board and inline status
+  changes (both already used by the web app).
 
 No other backend change is needed — the app reuses `/api/reports`,
 `/api/reports/[serial]`, `/api/reports/[serial]/decision`, `/api/users/directory`,
@@ -137,6 +143,7 @@ lib/
     registry_screen.dart    report list; reacts to chart drill-down filters
     report_detail_screen.dart
     new_report_screen.dart  dynamic form from /api/templates
+    tasks_screen.dart       status-tile board + inline status changes
     account_screen.dart     profile + sign out
   widgets/
     common.dart             Brand, LogoMark, StatusPill, Serial, SectionBar

@@ -42,6 +42,38 @@ class ReportSummary {
         createdAt = j['createdAt'];
 }
 
+class TaskItem {
+  final String id, title, status;
+  final String? description, priority, clientName, weighbridgeId, assignedName, assignedToId, project, dueAt;
+  TaskItem.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        title = j['title'] ?? '',
+        status = j['status'] ?? 'OPEN',
+        description = j['description'],
+        priority = j['priority'],
+        clientName = j['clientName'],
+        weighbridgeId = j['weighbridgeId'],
+        assignedName = j['assignedName'],
+        assignedToId = j['assignedToId'],
+        project = j['project'],
+        dueAt = j['dueAt'];
+
+  bool get unassigned => (assignedName == null || assignedName!.isEmpty) && (assignedToId == null || assignedToId!.isEmpty);
+  bool get overdue {
+    if (dueAt == null || status == 'DONE') return false;
+    final d = DateTime.tryParse(dueAt!);
+    if (d == null) return false;
+    final today = DateTime.now();
+    return d.isBefore(DateTime(today.year, today.month, today.day));
+  }
+}
+
+class TasksResult {
+  final List<TaskItem> tasks;
+  final bool canManage;
+  TasksResult(this.tasks, this.canManage);
+}
+
 class ReviewerInfo {
   final String? supervisorEmail, supervisorName, managerEmail, managerName;
   ReviewerInfo.fromJson(Map<String, dynamic> j)
@@ -141,5 +173,17 @@ class ApiClient {
   Future<Map<String, dynamic>> getStats() async {
     final d = _decode(await http.get(_u('/api/stats'), headers: _headers));
     return Map<String, dynamic>.from(d);
+  }
+
+  // Tasks assigned to the user (or all, for managers/admin).
+  Future<TasksResult> getTasks() async {
+    final d = _decode(await http.get(_u('/api/tasks'), headers: _headers));
+    final list = ((d['tasks'] as List?) ?? []).map((e) => TaskItem.fromJson(Map<String, dynamic>.from(e))).toList();
+    return TasksResult(list, d['canManage'] == true);
+  }
+
+  // Update a task's status (managers, or the task's assignee).
+  Future<void> updateTaskStatus(String id, String status) async {
+    _decode(await http.patch(_u('/api/tasks/$id'), headers: _headers, body: jsonEncode({'status': status})));
   }
 }
