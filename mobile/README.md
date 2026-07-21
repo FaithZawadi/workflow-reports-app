@@ -60,8 +60,14 @@ Flutter isn't checked in with platform folders, so generate them once:
 cd mobile
 flutter create --platforms=android,ios .   # generates android/ and ios/ (keeps lib/ and pubspec.yaml)
 flutter pub get
+dart run flutter_launcher_icons            # stamps the QSL emblem as the app/launcher icon
 flutter run                                 # on a connected device/emulator
 ```
+
+The launcher icon is the QSL emblem (`assets/brand/icon.png`, with
+`assets/brand/icon_foreground.png` for the Android 8+ adaptive icon). Re-run
+`dart run flutter_launcher_icons` any time you change that art, or after a fresh
+`flutter create` (which resets the platform icons to Flutter's default).
 
 By default the app points at `https://reports.qalibrated.com`. The server URL is
 **not** shown to the user; override it at build time for staging:
@@ -123,7 +129,7 @@ flutter build ipa --release --dart-define=QSL_BASE_URL=https://reports.qalibrate
 - [ ] `flutter pub get` then a full restart (not hot reload) after pulling changes.
 - [ ] `flutter analyze` is clean.
 - [ ] Android manifest permissions + iOS Info.plist keys added (above).
-- [ ] App icons generated (`assets/brand/` art → launcher icons).
+- [ ] Launcher icon stamped: `dart run flutter_launcher_icons` (QSL emblem).
 - [ ] Backend reachable over **HTTPS** at the baked `QSL_BASE_URL`
       (`/api/auth/mobile-login` returns `{ token, user }`).
 
