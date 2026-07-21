@@ -29,7 +29,20 @@ export default function AppShell({ user, children }) {
 
   const [navOpen, setNavOpen] = useState(false); // mobile drawer
   const [menuOpen, setMenuOpen] = useState(false); // profile dropdown
+  const [collapsed, setCollapsed] = useState(false); // desktop icon-rail
   const menuRef = useRef(null);
+
+  // Restore the collapsed preference (desktop icon rail) after mount.
+  useEffect(() => {
+    try { setCollapsed(localStorage.getItem("qsl:navCollapsed") === "1"); } catch {}
+  }, []);
+  const toggleCollapsed = () => {
+    setCollapsed((v) => {
+      const nv = !v;
+      try { localStorage.setItem("qsl:navCollapsed", nv ? "1" : "0"); } catch {}
+      return nv;
+    });
+  };
 
   // Close the profile menu on outside-click / Escape.
   useEffect(() => {
@@ -94,12 +107,19 @@ export default function AppShell({ user, children }) {
   return (
     <div className="has-tabbar app-body" style={{ minHeight: "100dvh" }}>
       {/* ---- Sidebar ---- */}
-      <aside className={`sidebar${navOpen ? " open" : ""}`} aria-label="Primary navigation">
+      <aside className={`sidebar${navOpen ? " open" : ""}${collapsed ? " collapsed" : ""}`} aria-label="Primary navigation">
         <div className="stripe" />
         <div className="sidebar-brand">
-          <Link href={homeHref} onClick={() => setNavOpen(false)} style={{ textDecoration: "none", color: "#fff", display: "inline-block" }}>
-            <Brand small onDark />
+          <Link href={homeHref} onClick={() => setNavOpen(false)} className="brand-link" style={{ textDecoration: "none", color: "#fff" }} title={COMPANY.name}>
+            <span className="brand-mark" aria-hidden>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/mark.svg" alt="" width={22} height={22} style={{ display: "block" }} />
+            </span>
+            <span className="brand-text">QALIBRATED <b style={{ color: "var(--gold)", letterSpacing: ".08em" }}>SYSTEMS</b></span>
           </Link>
+          <button className="collapse-btn" onClick={toggleCollapsed} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} title={collapsed ? "Expand" : "Collapse"}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
+          </button>
         </div>
 
         <nav className="sidebar-nav">
@@ -109,6 +129,7 @@ export default function AppShell({ user, children }) {
               href={item.href}
               className={`side-link${isActive(item.href) ? " active" : ""}`}
               aria-current={isActive(item.href) ? "page" : undefined}
+              title={item.label}
             >
               <span className="side-ic" aria-hidden><NavIcon name={item.icon} /></span>
               <span className="side-label">{item.label}</span>
@@ -118,8 +139,9 @@ export default function AppShell({ user, children }) {
 
         {canFile && (
           <div className="sidebar-cta">
-            <Link href="/reports/new" className="btn btn-primary" style={{ width: "100%", justifyContent: "center", display: "flex", fontSize: 13 }}>
-              + New report
+            <Link href="/reports/new" className="btn btn-primary" title="New report" style={{ width: "100%", justifyContent: "center", display: "flex", fontSize: 13 }}>
+              <span className="cta-full">+ New report</span>
+              <span className="cta-mini" aria-hidden>+</span>
             </Link>
           </div>
         )}

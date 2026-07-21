@@ -11,6 +11,18 @@ const STATUS_META = {
 const STATUS_ORDER = ["OPEN", "IN_PROGRESS", "BLOCKED", "DONE"];
 const PRIORITY_COLOR = { HIGH: FAIL, MEDIUM: WAIT, LOW: MUTE };
 
+// Bold status tiles (like a field-service board) — coloured to sit alongside the
+// QSL gold/coal brand. Each tile fetches its count from the tasks in the
+// database and filters the list when tapped. The last two are derived buckets.
+const TILES = [
+  { key: "OPEN", label: "Open", color: "#B07A16", icon: "hourglass" },
+  { key: "IN_PROGRESS", label: "In progress", color: "#2E6DA4", icon: "gear" },
+  { key: "BLOCKED", label: "Blocked", color: "#B03A2E", icon: "pause" },
+  { key: "DONE", label: "Done", color: "#2E7D46", icon: "check" },
+  { key: "UNASSIGNED", label: "Unassigned", color: "#5A4B8A", icon: "user" },
+  { key: "OVERDUE", label: "Overdue", color: "#8A2D2D", icon: "alert" },
+];
+
 function fmtDate(d) {
   if (!d) return null;
   try { return new Date(d).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }); } catch { return null; }
@@ -68,9 +80,14 @@ export default function Tasks({ profile }) {
     try { await fetch(`/api/tasks/${t.id}`, { method: "DELETE" }); await load(); } finally { setBusyId(null); }
   };
 
+  const isOverdue = (t) => t.dueAt && t.status !== "DONE" && new Date(t.dueAt) < new Date(new Date().toDateString());
+  const isUnassigned = (t) => !t.assignedName && !t.assignedToId;
+
   const shown = useMemo(() => {
     let list = tasks || [];
-    if (statusFilter !== "all") list = list.filter((t) => t.status === statusFilter);
+    if (statusFilter === "UNASSIGNED") list = list.filter(isUnassigned);
+    else if (statusFilter === "OVERDUE") list = list.filter(isOverdue);
+    else if (statusFilter !== "all") list = list.filter((t) => t.status === statusFilter);
     const s = q.trim().toLowerCase();
     if (s) list = list.filter((t) => [t.title, t.description, t.project, t.clientName, t.assignedName, t.weighbridgeId].some((v) => String(v || "").toLowerCase().includes(s)));
     return list;
@@ -89,8 +106,13 @@ export default function Tasks({ profile }) {
   }, [shown, groupBy]);
 
   const counts = useMemo(() => {
-    const c = { OPEN: 0, IN_PROGRESS: 0, BLOCKED: 0, DONE: 0 };
-    (tasks || []).forEach((t) => { c[t.status] = (c[t.status] || 0) + 1; });
+    const c = { OPEN: 0, IN_PROGRESS: 0, BLOCKED: 0, DONE: 0, UNASSIGNED: 0, OVERDUE: 0 };
+    const today = new Date(new Date().toDateString());
+    (tasks || []).forEach((t) => {
+      c[t.status] = (c[t.status] || 0) + 1;
+      if (!t.assignedName && !t.assignedToId) c.UNASSIGNED += 1;
+      if (t.dueAt && t.status !== "DONE" && new Date(t.dueAt) < today) c.OVERDUE += 1;
+    });
     return c;
   }, [tasks]);
 
@@ -111,14 +133,50 @@ export default function Tasks({ profile }) {
         </div>
       </div>
 
-      {/* status summary / filter */}
-      <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 10, margin: "14px 0" }}>
-        {STATUS_ORDER.map((k) => {
-          const active = statusFilter === k;
+      {/* status board — bold tiles, each fetching its count from the tasks in the
+          database and filtering the list when tapped */}
+      <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12, margin: "14px 0" }}>
+        {TILES.map((tile) => {
+          const active = statusFilter === tile.key;
           return (
-            <button key={k} onClick={() => setStatusFilter(active ? "all" : k)} className="card" style={{ textAlign: "left", padding: 12, borderColor: active ? STATUS_META[k].color : LINE, borderWidth: active ? 2 : 1 }}>
-              <div style={{ fontSize: 26, fontWeight: 900, color: STATUS_META[k].color, lineHeight: 1 }}>{counts[k] || 0}</div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: INK, marginTop: 4, textTransform: "uppercase" }}>{STATUS_META[k].label}</div>
+            <button
+              key={tile.key}
+              onClick={() => setStatusFilter(active ? "all" : tile.key)}
+              aria-pressed={active}
+              className="task-tile"
+              style={{
+                position: "relative",
+                textAlign: "left",
+                border: "none",
+                borderRadius: 12,
+                padding: 16,
+                minHeight: 116,
+                color: "#fff",
+                background: tile.color,
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "flex-end",
+                overflow: "hidden",
+                boxShadow: active ? `0 0 0 3px #fff, 0 0 0 5px ${tile.color}` : "0 6px 16px rgba(22,19,16,.14)",
+                transform: active ? "translateY(-2px)" : "none",
+                transition: "transform .15s ease, box-shadow .15s ease",
+              }}
+            >
+              <span
+                style={{
+                  position: "absolute", top: 10, right: 10,
+                  minWidth: 26, height: 26, padding: "0 8px",
+                  borderRadius: 999, background: "rgba(255,255,255,.92)", color: tile.color,
+                  fontSize: 13, fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                {counts[tile.key] || 0}
+              </span>
+              <span style={{ position: "absolute", top: 12, left: 14, opacity: 0.9 }} aria-hidden>
+                <TileIcon name={tile.icon} />
+              </span>
+              <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: ".01em" }}>{tile.label}</span>
             </button>
           );
         })}
@@ -171,6 +229,27 @@ export default function Tasks({ profile }) {
       ))}
     </div>
   );
+}
+
+// White line icons for the status tiles (colour = currentColor = white).
+function TileIcon({ name }) {
+  const p = { width: 34, height: 34, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
+  switch (name) {
+    case "hourglass":
+      return (<svg {...p}><path d="M7 3h10M7 21h10" /><path d="M8 3c0 4 8 5 8 9s-8 5-8 9M16 3c0 4-8 5-8 9s8 5 8 9" /></svg>);
+    case "gear":
+      return (<svg {...p}><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" /></svg>);
+    case "pause":
+      return (<svg {...p}><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>);
+    case "check":
+      return (<svg {...p}><path d="M4 12.5l5 5L20 6.5" /></svg>);
+    case "user":
+      return (<svg {...p}><circle cx="12" cy="8" r="3.5" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>);
+    case "alert":
+      return (<svg {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>);
+    default:
+      return null;
+  }
 }
 
 function ClusterGroup({ name, count, children }) {
