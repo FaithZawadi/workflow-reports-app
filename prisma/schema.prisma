@@ -221,22 +221,26 @@ model ServiceFeedback {
 // PDF. Criteria are rated 1..5 (see src/lib/training.js).
 model TrainingFeedback {
   id            String    @id @default(cuid())
-  trainingTitle String    @default("QSL Maintenance App Training")
+  trainingTitle String    @default("Qalibrated Systems MMS Training")
   trainingDate  DateTime?
   trainer       String? // facilitator
+  organization  String? // organization / site
+  mode          String? // IN_PERSON | VIRTUAL
   traineeName   String
-  traineeRole   String? // job title / role
+  traineeRole   String? // role / designation
   department    String?
 
-  // Section rated 1..5: { "t1": 1..5, … }
+  // Section rated 1..5: { "t1": 1..5, … "t11": 1..5 }
   criteria Json?
   overall  Int? // 1..5
 
-  didWell   String?
-  improve   String?
-  recommend String? // YES | NO | NOT_SURE
+  didWell           String? // most useful part
+  improve           String? // what could be improved
+  additionalSupport String? // support / follow-up needed
+  recommend         String? // YES | NO | MAYBE
 
-  // Who recorded it (the HR user).
+  // Who recorded it (the HR user, if entered from the admin side; null for a
+  // public submission).
   recordedById   String?
   recordedByName String?
 

@@ -1,7 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { COMPANY } from "@/lib/company";
-import { TRAINING_CRITERIA, TRAINING_SCALE, RECOMMEND_LABEL } from "@/lib/training";
+import { TRAINING_CRITERIA, TRAINING_SCALE, RECOMMEND_LABEL, TRAINING_MODE_LABEL } from "@/lib/training";
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -86,23 +86,23 @@ export function TrainingFeedbackSheet({ feedback, logoSrc, qrSrc }) {
       <View style={s.rule} />
 
       <Text style={s.title}>Training Feedback Form</Text>
-      <Text style={s.lab}>Staff / client training evaluation · recorded by Human Resources</Text>
+      <Text style={s.lab}>Training on the Qalibrated Systems Maintenance Management System (MMS)</Text>
 
-      {/* Training details */}
-      <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>1. Training details</Text></View>
+      {/* Participant details */}
+      <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Participant details</Text></View>
       {[
-        ["Training", f.trainingTitle],
-        ["Date", f.trainingDate ? fmt(f.trainingDate) : null],
-        ["Facilitator", f.trainer],
-        ["Attendee", f.traineeName],
-        ["Role / title", f.traineeRole],
-        ["Department", f.department],
+        ["Name", f.traineeName],
+        ["Organization / Site", f.organization],
+        ["Role / Designation", f.traineeRole],
+        ["Date of training", f.trainingDate ? fmt(f.trainingDate) : null],
+        ["Trainer", f.trainer],
+        ["Mode", TRAINING_MODE_LABEL[f.mode]],
       ].map(([k, v]) => (
         <View style={s.row} key={k}><Text style={s.key}>{k}</Text><Text style={s.val}>{v || "-"}</Text></View>
       ))}
 
       {/* Evaluation */}
-      <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>2. Evaluation (1 = Poor … 5 = Excellent)</Text></View>
+      <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Training content, delivery &amp; system understanding (1 = Poor … 5 = Excellent)</Text></View>
       <View style={s.row}>
         <Text style={[s.th, { width: "10%" }]}>No.</Text>
         <Text style={[s.th, { width: "62%" }]}>Criteria</Text>
@@ -120,19 +120,22 @@ export function TrainingFeedbackSheet({ feedback, logoSrc, qrSrc }) {
         <Text style={[s.td, { width: "28%", textAlign: "center", fontFamily: "Helvetica-Bold" }]}>{f.overall ? scaleWord(f.overall) : "-"}</Text>
       </View>
 
-      {/* Comments */}
-      <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>3. Comments</Text></View>
-      <Text style={s.paraLabel}>What was most useful</Text>
+      <View style={s.row} wrap={false}>
+        <Text style={[s.key, { width: "50%" }]}>Would you recommend this training to a colleague?</Text>
+        <Text style={[s.val, { width: "50%" }]}>{RECOMMEND_LABEL[f.recommend] || "-"}</Text>
+      </View>
+
+      {/* Open feedback */}
+      <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Open feedback</Text></View>
+      <Text style={s.paraLabel}>Most useful part of this training</Text>
       <Text style={s.para}>{f.didWell || "-"}</Text>
       <Text style={s.paraLabel}>What could be improved</Text>
       <Text style={s.para}>{f.improve || "-"}</Text>
-      <View style={s.row} wrap={false}>
-        <Text style={[s.key, { width: "40%" }]}>Would recommend this training?</Text>
-        <Text style={[s.val, { width: "60%" }]}>{RECOMMEND_LABEL[f.recommend] || "-"}</Text>
-      </View>
+      <Text style={s.paraLabel}>Additional support / follow-up needed</Text>
+      <Text style={s.para}>{f.additionalSupport || "-"}</Text>
 
       <Text style={{ fontSize: 7.5, color: MUTE, marginTop: 8 }}>
-        Recorded by {f.recordedByName || "HR"} · Qalibrated Systems Limited
+        Submitted: {fmt(f.createdAt, true)} EAT{f.recordedByName ? ` · recorded by ${f.recordedByName}` : ""} · Qalibrated Systems Limited
       </Text>
 
       <View style={s.footer} fixed>
