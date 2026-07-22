@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Pill } from "./ui";
-import { COAL, GOLD, INK, MUTE, WAIT, FAIL } from "@/lib/theme";
+import { COAL, GOLD, INK, MUTE, WAIT } from "@/lib/theme";
 
 const FILTERS = [
   ["all", "All"],
@@ -49,18 +49,6 @@ export default function Registry({ profile }) {
     const data = await res.json();
     setReports(data.reports || []);
   }, [filter, q, name, from, to, template]);
-
-  // Admin-only: permanently remove a report (for clearing test records).
-  const deleteReport = async (r) => {
-    if (!confirm(`Delete report ${r.serial}? This can't be undone.`)) return;
-    const res = await fetch(`/api/reports/${r.serial}`, { method: "DELETE" });
-    if (!res.ok) {
-      const d = await res.json().catch(() => ({}));
-      alert(d.error || "Could not delete the report.");
-      return;
-    }
-    setReports((prev) => (prev || []).filter((x) => x.serial !== r.serial));
-  };
 
   const clearFilters = () => {
     setFilter("all");
@@ -259,20 +247,8 @@ export default function Registry({ profile }) {
                 {r.clientName}
                 {r.site ? " - " + r.site : ""} · {r.weighbridgeId || "weighbridge not stated"}
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 2 }}>
-                <span className="muted" style={{ fontSize: 12 }}>
-                  by {r.authorName} · {new Date(r.createdAt).toLocaleDateString()}
-                </span>
-                {profile.role === "ADMIN" && (
-                  <button
-                    className="btn"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); deleteReport(r); }}
-                    title="Delete report"
-                    style={{ fontSize: 11, padding: "3px 8px", color: FAIL, borderColor: "#e6cfca" }}
-                  >
-                    Delete
-                  </button>
-                )}
+              <div className="muted" style={{ marginTop: 2, fontSize: 12 }}>
+                by {r.authorName} · {new Date(r.createdAt).toLocaleDateString()}
               </div>
             </div>
           </Link>
