@@ -181,15 +181,46 @@ class _RegistryScreenState extends State<RegistryScreen> {
         )
       ]);
 
+  // A report filed within the last 24 hours is tagged "NEW" for every role.
+  bool _isRecent(ReportSummary r) {
+    final d = r.createdAt != null ? DateTime.tryParse(r.createdAt!) : null;
+    return d != null && DateTime.now().difference(d.toLocal()).inHours < 24;
+  }
+
+  String _relTime(String? iso) {
+    final d = iso != null ? DateTime.tryParse(iso)?.toLocal() : null;
+    if (d == null) return '';
+    final diff = DateTime.now().difference(d);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays == 1) return 'yesterday';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return DateFormat('d MMM y').format(d);
+  }
+
   Widget _card(BuildContext context, ReportSummary r) {
-    final date = r.createdAt != null ? DateFormat('d MMM y').format(DateTime.tryParse(r.createdAt!)?.toLocal() ?? DateTime.now()) : '';
+    final recent = _isRecent(r);
     return AppCard(
       onTap: () async {
         final changed = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => ReportDetailScreen(serial: r.serial)));
         if (changed == true) _reload();
       },
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Serial(r.serial), StatusPill(r.status)]),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Row(children: [
+            Serial(r.serial),
+            if (recent) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: kGold, borderRadius: BorderRadius.circular(3)),
+                child: const Text('NEW', style: TextStyle(color: kCoal, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.4)),
+              ),
+            ],
+          ]),
+          StatusPill(r.status),
+        ]),
         const SizedBox(height: 12),
         Text(r.templateName, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: kInk)),
         const SizedBox(height: 8),
@@ -197,7 +228,7 @@ class _RegistryScreenState extends State<RegistryScreen> {
         const SizedBox(height: 3),
         _metaRow(Icons.scale_outlined, r.weighbridgeId ?? 'weighbridge not stated'),
         const SizedBox(height: 3),
-        _metaRow(Icons.person_outline, '${r.authorName ?? "-"} · $date'),
+        _metaRow(Icons.person_outline, '${r.authorName ?? "-"} · ${_relTime(r.createdAt)}'),
       ]),
     );
   }

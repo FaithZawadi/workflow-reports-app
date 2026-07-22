@@ -12,6 +12,30 @@ const FILTERS = [
   ["REJECTED", "Rejected"],
 ];
 
+// A report is "recent" if filed within the last 24 hours. Shown to every role,
+// scoped to the reports they can see.
+const RECENT_MS = 24 * 60 * 60 * 1000;
+const isRecent = (r) => {
+  const t = new Date(r.createdAt).getTime();
+  return !isNaN(t) && Date.now() - t < RECENT_MS;
+};
+
+// Compact relative time so the newest work reads at a glance.
+function relTime(d) {
+  const dt = new Date(d);
+  const diff = Date.now() - dt.getTime();
+  if (isNaN(diff)) return "";
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days}d ago`;
+  return dt.toLocaleDateString();
+}
+
 export default function Registry({ profile }) {
   const [reports, setReports] = useState(null);
   const [filter, setFilter] = useState("all");
@@ -113,6 +137,12 @@ export default function Registry({ profile }) {
     a.download = "qsl_report_register.csv";
     a.click();
   };
+
+  // Split the (already newest-first) list into a "Recent" group and the rest,
+  // so every role sees the latest work tagged and grouped at the top.
+  const recentReports = (reports || []).filter(isRecent);
+  const earlierReports = (reports || []).filter((r) => !isRecent(r));
+  const recentCount = recentReports.length;
 
   return (
     <div>
@@ -220,9 +250,13 @@ export default function Registry({ profile }) {
 
       {reports === null && <div className="muted">Loading registry…</div>}
       {reports && (
-        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
-          {reports.length} report{reports.length === 1 ? "" : "s"}
-          {anyFilter ? " match your filters" : ""}
+        <div className="muted" style={{ fontSize: 12, marginBottom: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span>{reports.length} report{reports.length === 1 ? "" : "s"}{anyFilter ? " match your filters" : ""}</span>
+          {recentCount > 0 && (
+            <span style={{ background: GOLD, color: COAL, fontWeight: 800, fontSize: 11, padding: "2px 8px", borderRadius: 999 }}>
+              {recentCount} new · last 24h
+            </span>
+          )}
         </div>
       )}
       {reports && reports.length === 0 && (
@@ -233,27 +267,65 @@ export default function Registry({ profile }) {
         </div>
       )}
 
-      <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))" }}>
-        {(reports || []).map((r) => (
-          <Link key={r.serial} href={`/reports/${r.serial}`} className="card" style={{ textDecoration: "none", display: "block", padding: 0, overflow: "hidden" }}>
-            <div className="stripe" style={{ height: 4 }} />
-            <div style={{ padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <span className="mono" style={{ fontSize: 12, fontWeight: 700, background: COAL, color: GOLD, padding: "2px 6px" }}>{r.serial}</span>
-                <Pill status={r.status} />
-              </div>
-              <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 14, marginTop: 8, color: INK }}>{r.templateName}</div>
-              <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
-                {r.clientName}
-                {r.site ? " - " + r.site : ""} · {r.weighbridgeId || "weighbridge not stated"}
-              </div>
-              <div className="muted" style={{ marginTop: 2, fontSize: 12 }}>
-                by {r.authorName} · {new Date(r.createdAt).toLocaleDateString()}
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+      {recentReports.length > 0 && (
+        <>
+          <SectionHeading label="Recent" note="last 24 hours" count={recentReports.length} />
+          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", marginBottom: 18 }}>
+            {recentReports.map((r) => (
+              <ReportCard key={r.serial} r={r} recent />
+            ))}
+          </div>
+        </>
+      )}
+
+      {earlierReports.length > 0 && (
+        <>
+          {recentReports.length > 0 && <SectionHeading label="Earlier" count={earlierReports.length} />}
+          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))" }}>
+            {earlierReports.map((r) => (
+              <ReportCard key={r.serial} r={r} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
+  );
+}
+
+// A small, orderly section divider.
+function SectionHeading({ label, note, count }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 10px" }}>
+      <span style={{ width: 10, height: 10, background: GOLD, borderRadius: 2 }} />
+      <span style={{ fontWeight: 800, fontSize: 13, textTransform: "uppercase", letterSpacing: ".04em", color: INK }}>{label}</span>
+      {note && <span className="muted" style={{ fontSize: 11 }}>· {note}</span>}
+      <span className="muted" style={{ fontSize: 11 }}>({count})</span>
+      <span style={{ flex: 1, height: 1, background: "#e9e2d2" }} />
+    </div>
+  );
+}
+
+function ReportCard({ r, recent }) {
+  return (
+    <Link href={`/reports/${r.serial}`} className="card" style={{ textDecoration: "none", display: "block", padding: 0, overflow: "hidden", borderColor: recent ? GOLD : undefined }}>
+      <div className="stripe" style={{ height: 4 }} />
+      <div style={{ padding: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span className="mono" style={{ fontSize: 12, fontWeight: 700, background: COAL, color: GOLD, padding: "2px 6px" }}>{r.serial}</span>
+            {recent && <span style={{ background: GOLD, color: COAL, fontSize: 10, fontWeight: 900, letterSpacing: ".04em", padding: "2px 6px", borderRadius: 3 }}>NEW</span>}
+          </span>
+          <Pill status={r.status} />
+        </div>
+        <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 14, marginTop: 8, color: INK }}>{r.templateName}</div>
+        <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
+          {r.clientName}
+          {r.site ? " - " + r.site : ""} · {r.weighbridgeId || "weighbridge not stated"}
+        </div>
+        <div className="muted" style={{ marginTop: 2, fontSize: 12 }}>
+          by {r.authorName} · <span title={new Date(r.createdAt).toLocaleString()}>{relTime(r.createdAt)}</span>
+        </div>
+      </div>
+    </Link>
   );
 }
