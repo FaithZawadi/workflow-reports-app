@@ -271,8 +271,8 @@ export default function Registry({ profile }) {
         <>
           <SectionHeading label="Recent" note="last 24 hours" count={recentReports.length} />
           <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", marginBottom: 18 }}>
-            {recentReports.map((r) => (
-              <ReportCard key={r.serial} r={r} recent />
+            {recentReports.map((r, i) => (
+              <ReportCard key={r.serial} r={r} num={i + 1} recent />
             ))}
           </div>
         </>
@@ -282,8 +282,8 @@ export default function Registry({ profile }) {
         <>
           {recentReports.length > 0 && <SectionHeading label="Earlier" count={earlierReports.length} />}
           <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))" }}>
-            {earlierReports.map((r) => (
-              <ReportCard key={r.serial} r={r} />
+            {earlierReports.map((r, i) => (
+              <ReportCard key={r.serial} r={r} num={recentReports.length + i + 1} />
             ))}
           </div>
         </>
@@ -305,13 +305,16 @@ function SectionHeading({ label, note, count }) {
   );
 }
 
-function ReportCard({ r, recent }) {
+function ReportCard({ r, recent, num }) {
   return (
     <Link href={`/reports/${r.serial}`} className="card" style={{ textDecoration: "none", display: "block", padding: 0, overflow: "hidden", borderColor: recent ? GOLD : undefined }}>
       <div className="stripe" style={{ height: 4 }} />
       <div style={{ padding: 14 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {num != null && (
+              <span title="Registry number (1 = latest)" style={{ fontSize: 11, fontWeight: 900, color: MUTE, minWidth: 22, textAlign: "right" }}>#{num}</span>
+            )}
             <span className="mono" style={{ fontSize: 12, fontWeight: 700, background: COAL, color: GOLD, padding: "2px 6px" }}>{r.serial}</span>
             {recent && <span style={{ background: GOLD, color: COAL, fontSize: 10, fontWeight: 900, letterSpacing: ".04em", padding: "2px 6px", borderRadius: 3 }}>NEW</span>}
           </span>

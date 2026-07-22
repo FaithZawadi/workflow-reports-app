@@ -160,7 +160,7 @@ class _RegistryScreenState extends State<RegistryScreen> {
                   padding: const EdgeInsets.fromLTRB(14, 14, 14, 90),
                   itemCount: rows.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) => _card(context, rows[i]),
+                  itemBuilder: (context, i) => _card(context, rows[i], i + 1),
                 );
               },
             ),
@@ -199,7 +199,7 @@ class _RegistryScreenState extends State<RegistryScreen> {
     return DateFormat('d MMM y').format(d);
   }
 
-  Widget _card(BuildContext context, ReportSummary r) {
+  Widget _card(BuildContext context, ReportSummary r, int num) {
     final recent = _isRecent(r);
     return AppCard(
       onTap: () async {
@@ -209,6 +209,8 @@ class _RegistryScreenState extends State<RegistryScreen> {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Row(children: [
+            Text('#$num', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: kMute)),
+            const SizedBox(width: 6),
             Serial(r.serial),
             if (recent) ...[
               const SizedBox(width: 6),
