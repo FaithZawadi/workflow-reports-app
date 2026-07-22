@@ -99,6 +99,10 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
+  // When the password was last set. Users are prompted to change it every 60
+  // days (see src/lib/passwordPolicy.js). Backfilled to the rollout date so the
+  // clock starts "today" for everyone.
+  passwordChangedAt DateTime?
   name         String
   // Primary role — kept for display, reviewer routing and backward compatibility.
   role         Role

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { isPasswordDue } from "@/lib/passwordPolicy";
 import AppShell from "@/components/AppShell";
 
 export default async function AppLayout({ children }) {
@@ -22,6 +23,8 @@ export default async function AppLayout({ children }) {
     clientId: user.clientId,
     clientName: user.client?.name || null,
     site: user.site,
+    // Prompt to rotate the password every ~2 months (see passwordPolicy.js).
+    passwordDue: isPasswordDue(user.passwordChangedAt),
   };
 
   return <AppShell user={profile}>{children}</AppShell>;

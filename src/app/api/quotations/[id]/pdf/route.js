@@ -1,8 +1,6 @@
 import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/auth";
-import { rolesOf, canPrepareQuotes, isClient } from "@/lib/roles";
 import { QuotationDocument } from "@/pdf/QuotationDocument";
 import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl, verifyUrl } from "@/lib/qr";
@@ -10,25 +8,15 @@ import { qrDataUrl, verifyUrl } from "@/lib/qr";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// GET /api/quotations/[id]/pdf — the quotation as a PDF. Reached by capability
+// URL (the id is an unguessable cuid) so it can be shared with the client as a
+// document — the recipient opens the PDF directly, no QSL login required. This
+// mirrors the customer survey / training feedback PDFs.
 export async function GET(_req, { params }) {
-  let user;
-  try {
-    user = await requireUser();
-  } catch (res) {
-    return res;
-  }
-
   const q = await prisma.quotation.findUnique({ where: { id: params.id } });
   if (!q) return Response.json({ error: "Not found." }, { status: 404 });
 
-  const roles = rolesOf(user);
-  const allowed =
-    roles.includes("ADMIN") ||
-    canPrepareQuotes(user) ||
-    (isClient(user) && (q.requestedById === user.sub || (user.clientId && q.clientId === user.clientId)));
-  if (!allowed) return Response.json({ error: "Not allowed." }, { status: 403 });
-
-  const qrSrc = await qrDataUrl(verifyUrl(`/quotations/${q.id}`));
+  const qrSrc = await qrDataUrl(verifyUrl(`/api/quotations/${q.id}/pdf`));
   const buffer = await renderToBuffer(React.createElement(QuotationDocument, { quotation: q, logoSrc: logoDataUrl(), qrSrc }));
 
   return new Response(buffer, {
