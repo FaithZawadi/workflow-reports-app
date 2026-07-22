@@ -24,11 +24,11 @@ export async function GET(req, { params }) {
   if (!report) return Response.json({ error: "Report not found." }, { status: 404 });
   if (!canView(report, user)) return Response.json({ error: "Not allowed." }, { status: 403 });
 
-  // Resolve the two routed reviewers (by email) to names so the detail view can
-  // show WHO must approve — even to viewers who can't act.
-  const emails = [report.supervisorEmail, report.managerEmail]
-    .map((e) => String(e || "").trim().toLowerCase())
-    .filter(Boolean);
+  // Resolve the routed reviewers (by email) to names so the detail view can show
+  // WHO must approve — even to viewers who can't act. There may be several
+  // Equipment Users; any one of them can review.
+  const supEmails = [...new Set([report.supervisorEmail, ...(report.supervisorEmails || [])].map((e) => String(e || "").trim().toLowerCase()).filter(Boolean))];
+  const emails = [...supEmails, String(report.managerEmail || "").trim().toLowerCase()].filter(Boolean);
   const reviewerUsers = emails.length
     ? await prisma.user.findMany({ where: { email: { in: emails } }, select: { name: true, email: true } })
     : [];
@@ -39,6 +39,8 @@ export async function GET(req, { params }) {
     reviewers: {
       supervisorEmail: report.supervisorEmail,
       supervisorName: nameFor(report.supervisorEmail),
+      // All Equipment Users the report is routed to.
+      supervisors: supEmails.map((e) => ({ email: e, name: nameFor(e) })),
       managerEmail: report.managerEmail,
       managerName: nameFor(report.managerEmail),
     },
@@ -104,8 +106,17 @@ export async function PATCH(req, { params }) {
     if (body.site !== undefined) fields.site = String(body.site).trim() || null;
   }
   if (body.weighbridgeId !== undefined) fields.weighbridgeId = String(body.weighbridgeId).trim() || null;
-  if (body.supervisorEmail !== undefined && String(body.supervisorEmail).trim())
-    fields.supervisorEmail = String(body.supervisorEmail).trim();
+  // Equipment User(s) — accept the array (or the legacy single) and keep the
+  // primary in sync. Stored lower-cased for case-insensitive membership checks.
+  const editSupers = [
+    ...(Array.isArray(body.supervisorEmails) ? body.supervisorEmails : []),
+    body.supervisorEmail,
+  ].map((e) => String(e || "").trim()).filter(Boolean);
+  if (editSupers.length) {
+    const deduped = [...new Set(editSupers.map((e) => e.toLowerCase()))];
+    fields.supervisorEmails = deduped;
+    fields.supervisorEmail = deduped[0];
+  }
   if (body.managerEmail !== undefined && String(body.managerEmail).trim())
     fields.managerEmail = String(body.managerEmail).trim();
 

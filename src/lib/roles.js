@@ -84,7 +84,7 @@ export const isClientOnly = (input) => {
 export const canPrepareQuotes = (input) => intersects(input, QUOTE_ROLES);
 // Who may open the Quotations / Calibration-requests area at all: the QSL
 // preparers (PM/TM) and the clients (who see only their own). No other role.
-export const canSeeQuotations = (input) => intersects(input, QUOTE_ROLES) || isClient(input);
+export const canSeeQuotations = (input) => intersects(input, [...QUOTE_ROLES, "ADMIN", "SUPERVISOR"]) || isClient(input);
 
 // Roles allowed to create/assign tasks and register projects.
 export const TASK_MANAGER_ROLES = SCHEDULE_MANAGER_ROLES;
@@ -92,6 +92,18 @@ export const canManageTasks = (input) => intersects(input, TASK_MANAGER_ROLES);
 
 // HR (and admins) record and review training feedback.
 export const canManageTraining = (input) => intersects(input, TRAINING_ROLES);
+
+// Who may register weighbridges: administrators and Equipment Users (supervisors).
+export const WEIGHBRIDGE_MANAGER_ROLES = ["ADMIN", "SUPERVISOR"];
+export const canManageWeighbridges = (input) => intersects(input, WEIGHBRIDGE_MANAGER_ROLES);
+
+// Equipment Users get a READ-ONLY view of quotations & calibration requests, but
+// scoped to the clients of the weighbridges assigned to them (see rbac.js).
+export const isSupervisor = (input) => rolesOf(input).includes("SUPERVISOR");
+
+// Managers/admins own the projects, contracts and customer-feedback areas
+// (Equipment Users and field staff do not).
+export const canManageProjects = (input) => intersects(input, ["ADMIN", ...MANAGER_ROLES]);
 
 // Which target roles an actor may assign when creating/editing a user.
 export function assignableRoles(actor) {

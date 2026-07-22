@@ -13,8 +13,10 @@ const appUrl = () => (process.env.APP_URL || "http://localhost:3000").replace(/\
 // Create a token for the reviewer routed to this stage. Returns the raw token
 // and the ready-to-use links for the email. Best-effort: if the DB write fails
 // we still return the app deep-link so the email is useful.
-export async function createApprovalLinks(report, stage) {
-  const email = stage === "SUPERVISOR" ? report.supervisorEmail : report.managerEmail;
+export async function createApprovalLinks(report, stage, emailOverride) {
+  // When several Equipment Users are routed, each gets a link scoped to their own
+  // email so any of them can act with one click.
+  const email = emailOverride || (stage === "SUPERVISOR" ? report.supervisorEmail : report.managerEmail);
   const review = `${appUrl()}/reports/${report.serial}`;
   try {
     const raw = crypto.randomBytes(32).toString("base64url");

@@ -9,7 +9,7 @@ import FeedbackPrompt from "./FeedbackPrompt";
 import NotificationBell from "./NotificationBell";
 import OfflineBadge from "./OfflineBadge";
 import { ROLE_LABEL } from "@/lib/theme";
-import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, isClientOnly, rolesOf } from "@/lib/roles";
+import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, isClientOnly, rolesOf } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
@@ -19,12 +19,15 @@ export default function AppShell({ user, children }) {
   const roles = rolesOf(user);
   const isAdmin = roles.includes("ADMIN");
   const showUsers = canManageUsers(user);
-  const canManageTasksNav = canManageTasks(user);
   const clientOnly = isClientOnly(user);
   const showTraining = canManageTraining(user);
-  // PM / TM (and admin) manage quotations + calibration requests; clients see
-  // their own. Everyone else sees neither.
-  const showQuotes = canPrepareQuotes(user) || isAdmin || clientOnly;
+  // Only managers/admin own projects, contracts and customer feedback.
+  const showProjects = canManageProjects(user);
+  // Equipment Users may register weighbridges (admins too).
+  const showWeighbridges = canManageWeighbridges(user);
+  // PM / TM / admin manage quotations + calibration; clients and Equipment Users
+  // get a scoped read-only view. Everyone else sees neither.
+  const showQuotes = canSeeQuotations(user) || isAdmin;
   // The dashboard (charts) is the landing page for everyone.
   const homeHref = "/overview";
 
@@ -72,12 +75,12 @@ export default function AppShell({ user, children }) {
         { href: "/tasks", label: "Tasks", icon: "tasks" },
         showQuotes && { href: "/quotations", label: "Quotations", icon: "quote" },
         showQuotes && { href: "/calibration-requests", label: "Calibration requests", icon: "gauge" },
-        canManageTasksNav && { href: "/projects", label: "Projects", icon: "projects" },
-        canManageTasksNav && { href: "/contracts", label: "Contracts", icon: "contract" },
-        canManageTasksNav && { href: "/customer-feedback", label: "Customer feedback", icon: "chat" },
+        showProjects && { href: "/projects", label: "Projects", icon: "projects" },
+        showProjects && { href: "/contracts", label: "Contracts", icon: "contract" },
+        showProjects && { href: "/customer-feedback", label: "Customer feedback", icon: "chat" },
         showTraining && { href: "/training-feedback", label: "Training feedback", icon: "training" },
         showUsers && { href: "/users", label: "Users", icon: "users" },
-        isAdmin && { href: "/weighbridges", label: "Weighbridges", icon: "scale" },
+        showWeighbridges && { href: "/weighbridges", label: "Weighbridges", icon: "scale" },
         isAdmin && { href: "/sites", label: "Sites", icon: "pin" },
         isAdmin && { href: "/feedback", label: "Feedback", icon: "star" },
         isAdmin && { href: "/audit", label: "Audit log", icon: "audit" },

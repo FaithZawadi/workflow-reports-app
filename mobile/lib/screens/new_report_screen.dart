@@ -27,7 +27,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
   final _client = TextEditingController();
   final _site = TextEditingController();
   final _weighbridge = TextEditingController();
-  String _supervisorEmail = '', _managerEmail = '';
+  final List<String> _supervisorEmails = [];
+  String _managerEmail = '';
   final Map<String, dynamic> _values = {};
   final Map<String, Map<String, dynamic>> _checks = {};
   final Map<String, dynamic> _grids = {};
@@ -61,7 +62,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
   }
 
   Future<void> _submit() async {
-    if (!RegExp(r'\S+@\S+\.\S+').hasMatch(_supervisorEmail)) return showError(context, "Choose the Equipment User's email.");
+    if (!_supervisorEmails.any((e) => RegExp(r'\S+@\S+\.\S+').hasMatch(e))) return showError(context, "Add at least one Equipment User.");
     if (!RegExp(r'\S+@\S+\.\S+').hasMatch(_managerEmail)) return showError(context, "Choose the Client/Manager's email.");
     if (_client.text.trim().isEmpty) return showError(context, 'Choose the client (plant).');
     setState(() => _busy = true);
@@ -71,7 +72,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
         'weighbridgeId': _weighbridge.text.trim(),
         'clientName': _client.text.trim(),
         'site': _site.text.trim(),
-        'supervisorEmail': _supervisorEmail.trim(),
+        'supervisorEmails': _supervisorEmails.map((e) => e.trim()).toList(),
         'managerEmail': _managerEmail.trim(),
         'values': _values,
         'checks': _checks,
@@ -140,7 +141,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
       _photosSection(),
 
       const SectionBar('Approval route'),
-      _reviewerPicker('Equipment User (reviews first)', _supervisors, _supervisorEmail, (v) => setState(() => _supervisorEmail = v)),
+      _multiReviewerPicker('Equipment User(s) — any one reviews', _supervisors, _supervisorEmails),
       const SizedBox(height: 8),
       _reviewerPicker('Client/Manager (approves)', _managers, _managerEmail, (v) => setState(() => _managerEmail = v)),
       const SizedBox(height: 18),
@@ -358,6 +359,51 @@ class _NewReportScreenState extends State<NewReportScreen> {
         )
       else
         TextField(keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(hintText: 'name@company.com'), onChanged: onChange),
+    ]);
+  }
+
+  // Pick one or more Equipment Users — any one of them can review.
+  Widget _multiReviewerPicker(String label, List<Person> people, List<String> chosen) {
+    String nameFor(String email) {
+      final p = people.where((p) => p.email.toLowerCase() == email.toLowerCase());
+      return p.isNotEmpty ? p.first.name : email;
+    }
+    final available = people.where((p) => !chosen.any((e) => e.toLowerCase() == p.email.toLowerCase())).toList();
+    final custom = TextEditingController();
+    void add(String email) {
+      final e = email.trim();
+      if (e.isEmpty || chosen.any((x) => x.toLowerCase() == e.toLowerCase())) return;
+      setState(() => chosen.add(e));
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMute)),
+      const SizedBox(height: 4),
+      if (chosen.isNotEmpty)
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final e in chosen)
+            Chip(
+              label: Text(nameFor(e), style: const TextStyle(fontSize: 12, color: kGold, fontWeight: FontWeight.w700)),
+              backgroundColor: kCoal,
+              deleteIconColor: kGold,
+              onDeleted: () => setState(() => chosen.remove(e)),
+            ),
+        ]),
+      if (available.isNotEmpty)
+        DropdownButtonFormField<String>(
+          value: null,
+          isExpanded: true,
+          hint: const Text('— add an Equipment User —'),
+          items: [for (final p in available) DropdownMenuItem(value: p.email, child: Text('${p.name} (${p.email})', overflow: TextOverflow.ellipsis))],
+          onChanged: (v) { if (v != null) add(v); },
+        ),
+      Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Row(children: [
+          Expanded(child: TextField(controller: custom, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(hintText: 'or type an email', isDense: true))),
+          const SizedBox(width: 6),
+          OutlinedButton(onPressed: () { add(custom.text); custom.clear(); }, child: const Text('Add')),
+        ]),
+      ),
     ]);
   }
 

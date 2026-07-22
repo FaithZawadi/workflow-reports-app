@@ -4,7 +4,7 @@ import { GOLD, INK, MUTE, PAPER, LINE } from "@/lib/theme";
 
 const BLANK = { label: "", clientName: "", site: "", makeModel: "", serialNo: "", capacity: "", deckLength: "" };
 
-export default function WeighbridgesAdmin() {
+export default function WeighbridgesAdmin({ canAdminister = true }) {
   const [rows, setRows] = useState(null);
   const [clients, setClients] = useState([]);
   const [managers, setManagers] = useState([]);
@@ -80,11 +80,13 @@ export default function WeighbridgesAdmin() {
                   Client manager: {w.managerName ? <b style={{ color: INK }}>{w.managerName}</b> : <span style={{ color: MUTE }}>not set</span>}
                 </div>
               </div>
-              <button className="btn" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => setEditing(editing === w.id ? null : w.id)}>
-                {editing === w.id ? "Cancel" : "Edit"}
-              </button>
+              {canAdminister && (
+                <button className="btn" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => setEditing(editing === w.id ? null : w.id)}>
+                  {editing === w.id ? "Cancel" : "Edit"}
+                </button>
+              )}
             </div>
-            {editing === w.id && (
+            {canAdminister && editing === w.id && (
               <WBForm clients={clients} managers={managers} wb={w} onSaved={() => { setEditing(null); load(); }} onDeleted={() => { setEditing(null); load(); }} />
             )}
           </div>

@@ -2,17 +2,23 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { nextSerial } from "@/lib/serial";
 import { recordAudit } from "@/lib/audit";
-import { rolesOf, canPrepareQuotes, isClient } from "@/lib/roles";
+import { rolesOf, canPrepareQuotes, isClient, isSupervisor } from "@/lib/roles";
+import { assignedClientIds } from "@/lib/rbac";
 import { sendMail, calibrationRequestEmail } from "@/lib/email";
 import { notifyEmails, oversight } from "@/lib/notify";
 
 // Who may see the calibration-request area at all, and the scope of what they see.
-function scopeFor(user) {
+async function scopeFor(user) {
   const roles = rolesOf(user);
   if (roles.includes("ADMIN") || canPrepareQuotes(user)) return {}; // PM/TM/admin: all
   if (isClient(user)) {
     // A client sees only their own company's requests.
     return user.clientId ? { clientId: user.clientId } : { requestedById: user.sub };
+  }
+  if (isSupervisor(user)) {
+    // Equipment User: read-only, scoped to their weighbridges' clients.
+    const ids = await assignedClientIds(user);
+    return ids.length ? { clientId: { in: ids } } : { id: "__none__" };
   }
   return null; // no access
 }
@@ -24,7 +30,7 @@ export async function GET() {
   } catch (res) {
     return res;
   }
-  const scope = scopeFor(user);
+  const scope = await scopeFor(user);
   if (scope === null) return Response.json({ error: "Not allowed." }, { status: 403 });
 
   const requests = await prisma.calibrationRequest.findMany({
