@@ -182,14 +182,17 @@ export default function QuotationDetail({ id, profile }) {
           </div>
         )}
 
-        {q.status !== "REQUESTED" && (
+        {q.status !== "REQUESTED" && q.shareToken && (
           <div style={{ marginTop: 12 }}>
             <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: MUTE, marginBottom: 6 }}>Share quotation</div>
             <ShareButtons
               subject={`Quotation ${q.number} — Qalibrated Systems`}
               message={`Quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}${q.validUntil ? `, valid until ${new Date(q.validUntil).toLocaleDateString()}` : ""}. Open the PDF:`}
-              url={typeof window !== "undefined" ? `${window.location.origin}/api/quotations/${q.id}/pdf` : ""}
+              url={typeof window !== "undefined" ? `${window.location.origin}/d/${q.shareToken}` : ""}
             />
+            <div style={{ fontSize: 11, color: MUTE, marginTop: 6 }}>
+              This is a private, unguessable link that opens only the quotation PDF — it doesn&apos;t expose the system.
+            </div>
           </div>
         )}
 

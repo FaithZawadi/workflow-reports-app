@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
@@ -21,9 +22,24 @@ export async function GET(_req, { params }) {
   } catch (res) {
     return res;
   }
-  const q = await prisma.quotation.findUnique({ where: { id: params.id } });
+  let q = await prisma.quotation.findUnique({ where: { id: params.id } });
   if (!q) return Response.json({ error: "Not found." }, { status: 404 });
   if (!canView(user, q)) return Response.json({ error: "Not allowed." }, { status: 403 });
+
+  // Mint the opaque share slug the first time the quote is opened. It backs the
+  // public /d/<token> link so staff can share the PDF without exposing the id or
+  // the API path.
+  if (!q.shareToken) {
+    try {
+      q = await prisma.quotation.update({
+        where: { id: q.id },
+        data: { shareToken: crypto.randomBytes(18).toString("base64url") },
+      });
+    } catch {
+      /* best-effort — a unique clash is astronomically unlikely; keep serving */
+    }
+  }
+
   return Response.json({
     quotation: q,
     permissions: {

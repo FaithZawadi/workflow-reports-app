@@ -21,7 +21,7 @@ function getTransport() {
 
 // Returns { sent: boolean, reason?: string }. Never throws — a failed email
 // must not break the workflow; the event is still recorded in the audit trail.
-export async function sendMail({ to, subject, text }) {
+export async function sendMail({ to, subject, text, html }) {
   const t = getTransport();
   if (!t) return { sent: false, reason: "email disabled" };
   if (!to) return { sent: false, reason: "no recipient" };
@@ -31,6 +31,7 @@ export async function sendMail({ to, subject, text }) {
       to,
       subject,
       text,
+      ...(html ? { html } : {}),
     });
     return { sent: true };
   } catch (err) {
@@ -58,7 +59,56 @@ Or open the full report first:
 (These links are private to you and expire in 14 days.)`;
 }
 
+// ---- HTML email (branded, button-driven — no raw links on show) -------------
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function emailShell(headline, innerHtml) {
+  return `<!doctype html><html><body style="margin:0;background:#f4f1ea;font-family:Segoe UI,Arial,sans-serif;color:#26221c;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ea;padding:24px 12px;"><tr><td align="center">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 6px 18px rgba(22,19,16,.10);">
+      <tr><td style="height:6px;background:repeating-linear-gradient(45deg,#f5a800 0 12px,#161310 12px 24px);"></td></tr>
+      <tr><td style="background:#161310;padding:16px 22px;color:#ffffff;font-weight:800;font-size:15px;">QALIBRATED <span style="color:#f5a800;">SYSTEMS</span></td></tr>
+      <tr><td style="padding:22px;">
+        <div style="font-size:18px;font-weight:800;color:#26221c;margin:0 0 12px;">${headline}</div>
+        ${innerHtml}
+      </td></tr>
+      <tr><td style="padding:14px 22px;border-top:2px solid #f5a800;color:#6b6355;font-size:11px;">QSL Maintenance Management System · Qalibrated Systems Limited</td></tr>
+    </table>
+  </td></tr></table></body></html>`;
+}
+
+// Approve / Reject buttons (and a quiet "open report" link) — the URLs are on the
+// buttons, never shown as text.
+function actionButtons(links, report) {
+  const review = links?.review || `${appUrl()}/reports/${report.serial}`;
+  if (!links || !links.hasToken) {
+    return `<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+      <td><a href="${esc(review)}" style="display:inline-block;background:#161310;color:#f5a800;text-decoration:none;font-weight:800;font-size:14px;padding:12px 22px;border-radius:8px;">Open report to review</a></td>
+    </tr></table>`;
+  }
+  return `<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+      <td style="padding-right:10px;"><a href="${esc(links.approve)}" style="display:inline-block;background:#2E7D46;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 24px;border-radius:8px;">✓ Approve</a></td>
+      <td><a href="${esc(links.reject)}" style="display:inline-block;background:#B03A2E;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 24px;border-radius:8px;">✗ Reject</a></td>
+    </tr></table>
+    <div style="margin-top:12px;"><a href="${esc(links.open)}" style="color:#6b6355;font-size:12.5px;">Open the full report first →</a></div>
+    <div style="margin-top:10px;color:#6b6355;font-size:11px;">These buttons are private to you and expire in 14 days. You can add a comment before rejecting.</div>`;
+}
+
+function metaRows(rows) {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">${rows
+    .filter(([, v]) => v)
+    .map(([k, v]) => `<tr><td style="color:#6b6355;font-size:12.5px;padding:2px 12px 2px 0;">${esc(k)}</td><td style="color:#26221c;font-size:12.5px;font-weight:700;padding:2px 0;">${esc(v)}</td></tr>`)
+    .join("")}</table>`;
+}
+
 export function reviewRequestEmail(report, links) {
+  const html = emailShell(
+    "A report needs your review",
+    `<p style="margin:0 0 14px;color:#26221c;font-size:14px;">${esc(report.authorName)} submitted a <b>${esc(report.templateName)}</b>. Review it, then approve or reject — no sign-in needed.</p>
+     ${metaRows([["Serial", report.serial], ["Client", `${report.clientName}${report.site ? " - " + report.site : ""}`], ["Weighbridge", report.weighbridgeId || "-"]])}
+     ${actionButtons(links, report)}
+     <p style="margin:16px 0 0;color:#6b6355;font-size:12px;">When you approve, it moves to the manager automatically.</p>`
+  );
   return {
     to: report.supervisorEmail,
     subject: `REVIEW NEEDED: ${report.serial} - ${report.templateName} (${report.clientName}${report.site ? " - " + report.site : ""})`,
@@ -72,10 +122,17 @@ ${actionBlock(links, report)}
 When you approve, it moves to the manager (${report.managerEmail}) automatically.
 
 - QSL Maintenance Management System`,
+    html,
   };
 }
 
 export function approvalRequestEmail(report, supervisorName, links) {
+  const html = emailShell(
+    "A report needs your approval",
+    `<p style="margin:0 0 14px;color:#26221c;font-size:14px;">${esc(supervisorName)} reviewed and approved <b>${esc(report.serial)}</b> (${esc(report.templateName)}, submitted by ${esc(report.authorName)}). Give the final approval, or reject with a comment.</p>
+     ${metaRows([["Serial", report.serial], ["Client", `${report.clientName}${report.site ? " - " + report.site : ""}`], ["Weighbridge", report.weighbridgeId || "-"]])}
+     ${actionButtons(links, report)}`
+  );
   return {
     to: report.managerEmail,
     subject: `APPROVAL NEEDED: ${report.serial} - ${report.templateName} (${report.clientName}${report.site ? " - " + report.site : ""})`,
@@ -84,6 +141,7 @@ export function approvalRequestEmail(report, supervisorName, links) {
 ${actionBlock(links, report)}
 
 - QSL Maintenance Management System`,
+    html,
   };
 }
 

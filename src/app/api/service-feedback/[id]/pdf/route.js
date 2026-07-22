@@ -3,7 +3,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/db";
 import { SurveyDocument } from "@/pdf/SurveyDocument";
 import { logoDataUrl } from "@/lib/logo";
-import { qrDataUrl, verifyUrl } from "@/lib/qr";
+import { qrDataUrl } from "@/lib/qr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +16,15 @@ export async function GET(_req, { params }) {
   const feedback = await prisma.serviceFeedback.findUnique({ where: { id: params.id } });
   if (!feedback) return Response.json({ error: "Not found." }, { status: 404 });
 
-  const qrSrc = await qrDataUrl(verifyUrl(`/api/service-feedback/${feedback.id}/pdf`));
+  // The QR carries a brief description of the survey (shown when scanned).
+  const rating = feedback.overall || feedback.rating;
+  const qrText = [
+    `QSL Customer Satisfaction Survey`,
+    `From: ${feedback.clientName || feedback.contactName || "client"}`,
+    rating ? `Overall satisfaction: ${rating} / 5` : null,
+    `Submitted ${new Date(feedback.createdAt).toLocaleDateString()}`,
+  ].filter(Boolean).join("\n");
+  const qrSrc = await qrDataUrl(qrText);
   const buffer = await renderToBuffer(React.createElement(SurveyDocument, { feedback, logoSrc: logoDataUrl(), qrSrc }));
 
   return new Response(buffer, {

@@ -28,7 +28,17 @@ export async function GET(_req, { params }) {
     (isClient(user) && (request.requestedById === user.sub || (user.clientId && request.clientId === user.clientId)));
   if (!allowed) return Response.json({ error: "Not allowed." }, { status: 403 });
 
-  const qrSrc = await qrDataUrl(verifyUrl(`/calibration-requests/${request.id}`));
+  // The QR carries a brief description of the document (shown when scanned),
+  // ending with the verify link.
+  const nItems = Array.isArray(request.equipment) ? request.equipment.length : 0;
+  const qrText = [
+    `QSL Calibration Request ${request.serial}`,
+    `Client: ${request.clientName}`,
+    `${nItems} instrument${nItems === 1 ? "" : "s"} · ${request.calibrationType === "IN_SITU" ? "on site" : request.calibrationType === "LAB" ? "lab" : "calibration"}`,
+    `Status: ${String(request.status || "").replace(/_/g, " ").toLowerCase()}`,
+    verifyUrl(`/calibration-requests/${request.id}`),
+  ].join("\n");
+  const qrSrc = await qrDataUrl(qrText);
   const buffer = await renderToBuffer(
     React.createElement(CalibrationRequestDocument, { request, logoSrc: logoDataUrl(), qrSrc })
   );
