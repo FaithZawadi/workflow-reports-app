@@ -8,6 +8,7 @@ import InstallPrompt from "./InstallPrompt";
 import FeedbackPrompt from "./FeedbackPrompt";
 import NotificationBell from "./NotificationBell";
 import OfflineBadge from "./OfflineBadge";
+import PasswordPrompt from "./PasswordPrompt";
 import { ROLE_LABEL } from "@/lib/theme";
 import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, isClientOnly, rolesOf } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
@@ -111,6 +112,7 @@ export default function AppShell({ user, children }) {
 
   return (
     <div className="has-tabbar app-body" style={{ minHeight: "100dvh" }}>
+      {user.passwordDue && <PasswordPrompt />}
       {/* ---- Sidebar ---- */}
       <aside className={`sidebar${navOpen ? " open" : ""}${collapsed ? " collapsed" : ""}`} aria-label="Primary navigation">
         <div className="stripe" />

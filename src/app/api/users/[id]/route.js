@@ -63,6 +63,7 @@ export async function PATCH(req, { params }) {
     if (String(body.newPassword).length < 8)
       return Response.json({ error: "Password must be at least 8 characters." }, { status: 400 });
     data.passwordHash = await hashPassword(String(body.newPassword));
+    data.passwordChangedAt = new Date(); // reset the 2-month rotation clock
   }
   // Weighbridge assignment (admin only).
   if (body.weighbridgeIds !== undefined && rolesOfRow(admin).includes("ADMIN")) {

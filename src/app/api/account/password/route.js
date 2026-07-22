@@ -21,6 +21,9 @@ export async function POST(req) {
   const ok = await verifyPassword(current, user.passwordHash);
   if (!ok) return Response.json({ error: "Your current password is incorrect." }, { status: 400 });
 
-  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(next) } });
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await hashPassword(next), passwordChangedAt: new Date() },
+  });
   return Response.json({ ok: true });
 }

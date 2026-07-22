@@ -187,8 +187,8 @@ export default function QuotationDetail({ id, profile }) {
             <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: MUTE, marginBottom: 6 }}>Share quotation</div>
             <ShareButtons
               subject={`Quotation ${q.number} — Qalibrated Systems`}
-              message={`Quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}${q.validUntil ? `, valid until ${new Date(q.validUntil).toLocaleDateString()}` : ""}.`}
-              url={typeof window !== "undefined" ? `${window.location.origin}/quotations/${q.id}` : ""}
+              message={`Quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}${q.validUntil ? `, valid until ${new Date(q.validUntil).toLocaleDateString()}` : ""}. Open the PDF:`}
+              url={typeof window !== "undefined" ? `${window.location.origin}/api/quotations/${q.id}/pdf` : ""}
             />
           </div>
         )}
