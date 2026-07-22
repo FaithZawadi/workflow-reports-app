@@ -49,7 +49,11 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const [managers, setManagers] = useState([]);
   const [clientName, setClientName] = useState(edit ? edit.clientName || "" : profile.clientName || prefill.client || "");
   const [site, setSite] = useState(edit ? edit.site || "" : profile.site || prefill.site || "");
-  const [supervisorEmail, setSupervisorEmail] = useState(edit ? edit.supervisorEmail || "" : "");
+  const [supervisorEmails, setSupervisorEmails] = useState(
+    edit
+      ? (edit.supervisorEmails && edit.supervisorEmails.length ? edit.supervisorEmails : edit.supervisorEmail ? [edit.supervisorEmail] : [])
+      : []
+  );
   const [managerEmail, setManagerEmail] = useState(edit ? edit.managerEmail || "" : "");
   const [scheduleId] = useState(prefill.scheduleId || null);
   const [busy, setBusy] = useState(false);
@@ -60,7 +64,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   // everything before it is sent.
   const review = () => {
     setMsg("");
-    if (!/\S+@\S+\.\S+/.test(supervisorEmail)) return setMsg("Enter the Equipment User's email.");
+    if (!supervisorEmails.some((e) => /\S+@\S+\.\S+/.test(e))) return setMsg("Add at least one Equipment User.");
     if (!/\S+@\S+\.\S+/.test(managerEmail)) return setMsg("Enter the Client/Manager's email.");
     if (!clientName.trim()) return setMsg("Choose the client (plant).");
     setConfirming(true);
@@ -124,7 +128,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       weighbridgeId: values.weighbridgeId || "",
       clientName: clientName.trim(),
       site: site.trim(),
-      supervisorEmail: supervisorEmail.trim(),
+      supervisorEmails: supervisorEmails.map((e) => e.trim()).filter(Boolean),
       managerEmail: managerEmail.trim(),
       values,
       checks,
@@ -233,11 +237,11 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
         {clientName ? " · " + clientName : ""}
         {site ? " - " + site : ""}
       </div>
-      <ReviewerPicker
-        label="Equipment User (reviews first)"
+      <MultiReviewerPicker
+        label="Equipment User(s) — reviews first"
         people={supervisors}
-        value={supervisorEmail}
-        onChange={setSupervisorEmail}
+        value={supervisorEmails}
+        onChange={setSupervisorEmails}
         placeholder="equipment.user@company.com"
       />
       <ReviewerPicker
@@ -281,7 +285,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
               <div><b>Client:</b> {clientName || "—"}</div>
               <div><b>Site / location:</b> {site || "—"}</div>
               <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>
-              <div><b>Equipment User:</b> {supervisorEmail}</div>
+              <div><b>Equipment User{supervisorEmails.length > 1 ? "s" : ""}:</b> {supervisorEmails.join(", ") || "—"}</div>
               <div><b>Client/Manager:</b> {managerEmail}</div>
               <div><b>Entries filled:</b> {filledCount} · <b>Photos:</b> {photos.length}</div>
             </div>
@@ -559,6 +563,63 @@ function WeighbridgePicker({ list, value, onPick, onType }) {
 
 // Pick a reviewer from registered staff. Falls back to a plain email input when
 // no one with that role is registered yet, so filing is never blocked.
+// Pick one or MORE Equipment Users. Any one of them can review the report; the
+// first to act decides. Chosen people show as removable chips; extra addresses
+// (not in the directory) can be typed in.
+function MultiReviewerPicker({ label, people, value, onChange, placeholder }) {
+  const [custom, setCustom] = useState("");
+  const list = value || [];
+  const has = (email) => list.some((e) => e.toLowerCase() === email.toLowerCase());
+  const add = (email) => {
+    const e = (email || "").trim();
+    if (!e || has(e)) return;
+    onChange([...list, e]);
+  };
+  const remove = (email) => onChange(list.filter((e) => e.toLowerCase() !== email.toLowerCase()));
+  const nameFor = (email) => {
+    const p = people.find((p) => p.email.toLowerCase() === email.toLowerCase());
+    return p ? p.name : email;
+  };
+  const available = people.filter((p) => !has(p.email));
+
+  return (
+    <div className="field">
+      <span className="label">{label}</span>
+      {list.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "0 0 8px" }}>
+          {list.map((e) => (
+            <span key={e} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: COAL, color: GOLD, fontSize: 12, fontWeight: 700, padding: "4px 8px", borderRadius: 999 }}>
+              {nameFor(e)}
+              <button type="button" onClick={() => remove(e)} aria-label={`Remove ${e}`} style={{ background: "transparent", border: 0, color: GOLD, cursor: "pointer", fontWeight: 900, lineHeight: 1 }}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      {available.length > 0 ? (
+        <select className="input" value="" onChange={(e) => { add(e.target.value); }}>
+          <option value="">— add an Equipment User —</option>
+          {available.map((p) => (
+            <option key={p.id} value={p.email}>{p.name} ({p.email})</option>
+          ))}
+        </select>
+      ) : null}
+      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        <input
+          className="input"
+          type="email"
+          value={custom}
+          placeholder={placeholder}
+          onChange={(e) => setCustom(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(custom); setCustom(""); } }}
+          style={{ flex: 1 }}
+        />
+        <button type="button" className="btn" onClick={() => { add(custom); setCustom(""); }} style={{ fontSize: 12 }}>Add</button>
+      </div>
+      <span className="muted" style={{ fontSize: 11, marginTop: 4, display: "block" }}>Add one or more. Any one of them can review — the first to act decides.</span>
+    </div>
+  );
+}
+
 function ReviewerPicker({ label, people, value, onChange, placeholder }) {
   const known = people.some((p) => p.email.toLowerCase() === (value || "").toLowerCase());
   return (

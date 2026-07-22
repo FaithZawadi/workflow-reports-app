@@ -1,7 +1,20 @@
+import { prisma } from "./db";
 import { TECH_TEMPLATES, ENGINEER_TEMPLATES } from "./templates";
 import { rolesOf } from "./roles";
 
 const norm = (v) => (v || "").trim().toLowerCase();
+
+// The client ids of the weighbridges assigned to this user (Equipment User).
+// Used to scope a supervisor's read-only view of quotations & calibration
+// requests to only the clients they are responsible for.
+export async function assignedClientIds(user) {
+  if (!user?.sub) return [];
+  const wbs = await prisma.weighbridge.findMany({
+    where: { users: { some: { id: user.sub } } },
+    select: { clientId: true },
+  });
+  return [...new Set(wbs.map((w) => w.clientId).filter(Boolean))];
+}
 
 // Build a Prisma `where` clause limiting reports to what this user may see.
 // A user may hold several roles; the visible set is the UNION of what each role
@@ -13,6 +26,8 @@ export function reportScope(user) {
   const clauses = [];
   const routedToMe = () => {
     clauses.push({ supervisorEmail: { equals: user.email, mode: "insensitive" } });
+    // Any of the report's Equipment Users (case-insensitive on the stored, lower-cased set).
+    if (user.email) clauses.push({ supervisorEmails: { has: user.email.trim().toLowerCase() } });
     clauses.push({ managerEmail: { equals: user.email, mode: "insensitive" } });
   };
 
@@ -30,10 +45,19 @@ export function reportScope(user) {
   return { OR: clauses };
 }
 
-// A user is the routed reviewer for a report if their email is on it.
+// The set of Equipment User emails a report is routed to (primary + the full
+// list), all lower-cased for comparison.
+function supervisorSet(report) {
+  const set = new Set((report.supervisorEmails || []).map(norm).filter(Boolean));
+  if (report.supervisorEmail) set.add(norm(report.supervisorEmail));
+  return set;
+}
+
+// A user is a routed reviewer for a report if their email is one of its Equipment
+// Users or its Client/Manager.
 function isReviewer(report, user) {
   const email = norm(user.email);
-  return !!email && (norm(report.supervisorEmail) === email || norm(report.managerEmail) === email);
+  return !!email && (supervisorSet(report).has(email) || norm(report.managerEmail) === email);
 }
 
 export function canView(report, user) {
@@ -73,7 +97,8 @@ export function canAct(report, user) {
   // approve on someone else's behalf.
   const email = norm(user.email);
   if (!email) return null;
-  if (pendingSup && norm(report.supervisorEmail) === email) return "SUPERVISOR";
+  // Any of the assigned Equipment Users may act at the review stage.
+  if (pendingSup && supervisorSet(report).has(email)) return "SUPERVISOR";
   if (pendingMgr && norm(report.managerEmail) === email) return "MANAGER";
   return null;
 }

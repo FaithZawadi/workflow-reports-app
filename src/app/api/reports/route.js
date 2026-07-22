@@ -111,10 +111,21 @@ export async function POST(req) {
   if (!allowedTemplates.some((t) => t.code === tpl.code))
     return Response.json({ error: "This form is not available for your role." }, { status: 403 });
 
-  const supervisorEmail = String(body.supervisorEmail || "").trim();
+  // One or more Equipment Users may be assigned. Accept `supervisorEmails` (an
+  // array) and/or the legacy single `supervisorEmail`; any ONE of them can
+  // review. Stored lower-cased so array membership checks are case-insensitive.
+  const rawSupers = [
+    ...(Array.isArray(body.supervisorEmails) ? body.supervisorEmails : []),
+    body.supervisorEmail,
+  ]
+    .map((e) => String(e || "").trim())
+    .filter(Boolean);
+  const supervisorEmails = [...new Set(rawSupers.map((e) => e.toLowerCase()))].filter(isEmail);
+  if (supervisorEmails.length === 0)
+    return Response.json({ error: "Add at least one Equipment User email." }, { status: 400 });
+  const supervisorEmail = supervisorEmails[0]; // primary (for display / routing snapshots)
+
   const managerEmail = String(body.managerEmail || "").trim();
-  if (!isEmail(supervisorEmail))
-    return Response.json({ error: "Enter the supervisor's email." }, { status: 400 });
   if (!isEmail(managerEmail))
     return Response.json({ error: "Enter the manager's email." }, { status: 400 });
 
@@ -179,6 +190,7 @@ export async function POST(req) {
       authorId: user.sub,
       authorName,
       supervisorEmail,
+      supervisorEmails,
       managerEmail,
       data,
       photos: {
@@ -242,11 +254,15 @@ export async function POST(req) {
     // scheduling is best-effort
   }
 
-  // Notify the Equipment User (reviewer) — email (with a one-click approve/reject
-  // link) + in-app.
-  const links = await createApprovalLinks(report, "SUPERVISOR");
-  const mail = await sendMail(reviewRequestEmail(report, links));
-  await notifyEmails([report.supervisorEmail], {
+  // Notify EVERY assigned Equipment User — each gets an email with their own
+  // one-click approve/reject link (any one of them can review) + in-app.
+  let mail = { sent: false, reason: "no reviewer" };
+  for (const email of report.supervisorEmails) {
+    const links = await createApprovalLinks(report, "SUPERVISOR", email);
+    const r = await sendMail({ ...reviewRequestEmail(report, links), to: email });
+    if (r?.sent) mail = r;
+  }
+  await notifyEmails(report.supervisorEmails, {
     type: "REVIEW",
     title: `Review needed · ${report.serial}`,
     body: `${report.templateName} — ${report.clientName}${report.site ? " - " + report.site : ""}, by ${report.authorName}`,

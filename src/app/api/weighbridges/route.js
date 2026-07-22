@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { weighbridgeScope, resolveManagerId } from "@/lib/weighbridge";
-import { rolesOf } from "@/lib/roles";
+import { rolesOf, canManageWeighbridges, WEIGHBRIDGE_MANAGER_ROLES } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +37,7 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
 
   if (searchParams.get("manage")) {
-    if (!rolesOf(user).includes("ADMIN"))
+    if (!canManageWeighbridges(user))
       return Response.json({ error: "Not allowed." }, { status: 403 });
     const list = await prisma.weighbridge.findMany({
       orderBy: [{ active: "desc" }, { label: "asc" }],
@@ -64,11 +64,11 @@ export async function GET(req) {
   return Response.json({ weighbridges: list.map(shape) });
 }
 
-// POST /api/weighbridges — administrators register a weighbridge.
+// POST /api/weighbridges — administrators and Equipment Users register a weighbridge.
 export async function POST(req) {
   let user;
   try {
-    user = await requireUser(["ADMIN"]);
+    user = await requireUser(WEIGHBRIDGE_MANAGER_ROLES);
   } catch (res) {
     return res;
   }

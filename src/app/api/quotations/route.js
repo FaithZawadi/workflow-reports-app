@@ -2,14 +2,21 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { nextSerial } from "@/lib/serial";
 import { recordAudit } from "@/lib/audit";
-import { rolesOf, canPrepareQuotes, isClient } from "@/lib/roles";
+import { rolesOf, canPrepareQuotes, isClient, isSupervisor } from "@/lib/roles";
+import { assignedClientIds } from "@/lib/rbac";
 import { sendMail, quoteRequestEmail } from "@/lib/email";
 import { notifyEmails } from "@/lib/notify";
 
-function scopeFor(user) {
+// Returns the Prisma `where` for what a user may READ, or null if no access.
+// Equipment Users get a read-only view scoped to their weighbridges' clients.
+async function scopeFor(user) {
   const roles = rolesOf(user);
   if (roles.includes("ADMIN") || canPrepareQuotes(user)) return {};
   if (isClient(user)) return user.clientId ? { clientId: user.clientId } : { requestedById: user.sub };
+  if (isSupervisor(user)) {
+    const ids = await assignedClientIds(user);
+    return ids.length ? { clientId: { in: ids } } : { id: "__none__" };
+  }
   return null;
 }
 
@@ -20,7 +27,7 @@ export async function GET() {
   } catch (res) {
     return res;
   }
-  const scope = scopeFor(user);
+  const scope = await scopeFor(user);
   if (scope === null) return Response.json({ error: "Not allowed." }, { status: 403 });
 
   const quotations = await prisma.quotation.findMany({

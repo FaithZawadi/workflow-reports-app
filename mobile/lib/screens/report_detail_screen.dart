@@ -114,9 +114,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('APPROVAL ROUTE', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: kInk, letterSpacing: 0.4)),
             const SizedBox(height: 8),
-            _reviewer('Equipment User (reviews first)', d.reviewers.supervisorName, d.reviewers.supervisorEmail,
-                r['status'] == 'PENDING_SUPERVISOR' ? 'current' : 'done'),
-            const SizedBox(height: 6),
+            ..._supervisorRows(d, '${r['status']}'),
             _reviewer('Client/Manager (final approval)', d.reviewers.managerName, d.reviewers.managerEmail,
                 r['status'] == 'PENDING_MANAGER' ? 'current' : (r['status'] == 'PENDING_SUPERVISOR' ? 'waiting' : 'done')),
           ]),
@@ -246,6 +244,21 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     ]);
   }
 
+  // Every Equipment User the report is routed to — any one may review.
+  List<Widget> _supervisorRows(ReportDetail d, String status) {
+    final sups = d.reviewers.supervisors.isNotEmpty
+        ? d.reviewers.supervisors
+        : [{'email': d.reviewers.supervisorEmail ?? '', 'name': d.reviewers.supervisorName ?? ''}];
+    final label = sups.length > 1 ? 'Equipment Users (any one reviews)' : 'Equipment User (reviews first)';
+    final rows = <Widget>[];
+    for (int i = 0; i < sups.length; i++) {
+      rows.add(_reviewer(i == 0 ? label : '', sups[i]['name'], sups[i]['email'],
+          status == 'PENDING_SUPERVISOR' ? 'current' : 'done'));
+      rows.add(const SizedBox(height: 6));
+    }
+    return rows;
+  }
+
   Widget _reviewer(String label, String? name, String? email, String state) {
     final color = state == 'current' ? kWait : (state == 'done' ? kPass : kMute);
     final icon = state == 'current' ? Icons.hourglass_top : (state == 'done' ? Icons.check_circle : Icons.schedule);
@@ -254,7 +267,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       const SizedBox(width: 6),
       Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(fontSize: 11, color: kMute, fontWeight: FontWeight.w700)),
+          if (label.isNotEmpty)
+            Text(label, style: const TextStyle(fontSize: 11, color: kMute, fontWeight: FontWeight.w700)),
           Text('${name ?? "—"}${email != null ? "  ·  $email" : ""}', style: const TextStyle(fontSize: 13, color: kInk)),
         ]),
       ),

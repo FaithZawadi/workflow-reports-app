@@ -97,12 +97,18 @@ export default function ReportDetail({ serial, profile }) {
         {pending && (
           <div className="card" style={{ padding: 14, marginTop: 14, background: "#f3eee2" }}>
             <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 12, color: INK, letterSpacing: ".04em", marginBottom: 8 }}>Approval route</div>
-            <ReviewerRow
-              label="Equipment User (reviews first)"
-              name={reviewers?.supervisorName}
-              email={reviewers?.supervisorEmail || rep.supervisorEmail}
-              state={rep.status === "PENDING_SUPERVISOR" ? "current" : "done"}
-            />
+            {(reviewers?.supervisors && reviewers.supervisors.length > 0
+              ? reviewers.supervisors
+              : [{ email: reviewers?.supervisorEmail || rep.supervisorEmail, name: reviewers?.supervisorName }]
+            ).map((s, i, arr) => (
+              <ReviewerRow
+                key={s.email}
+                label={i === 0 ? (arr.length > 1 ? "Equipment Users (any one reviews)" : "Equipment User (reviews first)") : ""}
+                name={s.name}
+                email={s.email}
+                state={rep.status === "PENDING_SUPERVISOR" ? "current" : "done"}
+              />
+            ))}
             <ReviewerRow
               label="Client/Manager (final approval)"
               name={reviewers?.managerName}
