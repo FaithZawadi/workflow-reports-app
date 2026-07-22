@@ -76,11 +76,16 @@ class TasksResult {
 
 class ReviewerInfo {
   final String? supervisorEmail, supervisorName, managerEmail, managerName;
+  // All Equipment Users the report is routed to — any one may review.
+  final List<Map<String, String>> supervisors;
   ReviewerInfo.fromJson(Map<String, dynamic> j)
       : supervisorEmail = j['supervisorEmail'],
         supervisorName = j['supervisorName'],
         managerEmail = j['managerEmail'],
-        managerName = j['managerName'];
+        managerName = j['managerName'],
+        supervisors = ((j['supervisors'] as List?) ?? [])
+            .map((e) => {'email': '${e['email'] ?? ''}', 'name': '${e['name'] ?? e['email'] ?? ''}'})
+            .toList();
 }
 
 class ReportDetail {
