@@ -158,3 +158,31 @@ export async function PATCH(req, { params }) {
 
   return Response.json({ ok: true });
 }
+
+// DELETE /api/reports/[serial] — permanently remove a report. Admin only (for
+// clearing test records). Photos and trail events cascade; approval tokens are
+// keyed by serial and removed explicitly.
+export async function DELETE(_req, { params }) {
+  let user;
+  try {
+    user = await requireUser(["ADMIN"]);
+  } catch (res) {
+    return res;
+  }
+
+  const report = await prisma.report.findUnique({ where: { serial: params.serial } });
+  if (!report) return Response.json({ error: "Report not found." }, { status: 404 });
+
+  await prisma.approvalToken.deleteMany({ where: { reportSerial: report.serial } });
+  await prisma.report.delete({ where: { serial: report.serial } });
+
+  await recordAudit({
+    actor: user,
+    action: "DELETE",
+    entity: "REPORT",
+    entityId: report.serial,
+    summary: `Deleted ${report.template} ${report.serial} (${report.clientName})`,
+  });
+
+  return Response.json({ ok: true });
+}

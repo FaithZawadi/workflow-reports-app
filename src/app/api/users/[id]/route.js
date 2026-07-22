@@ -90,3 +90,39 @@ export async function PATCH(req, { params }) {
     user: { id: u.id, email: u.email, name: u.name, role: u.role, roles: rolesOfRow(u), site: u.site, client: u.client?.name || null, active: u.active },
   });
 }
+
+// DELETE /api/users/[id] — permanently remove a user. Admin only (for clearing
+// test accounts). Prefer PATCH { active:false } to keep history; this hard-delete
+// is for cleanup. Authored reports keep (author is set null); notifications
+// cascade. You can't delete your own account.
+export async function DELETE(_req, { params }) {
+  let admin;
+  try {
+    admin = await requireUser(["ADMIN"]);
+  } catch (res) {
+    return res;
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: params.id } });
+  if (!target) return Response.json({ error: "User not found." }, { status: 404 });
+  if (target.id === admin.sub) return Response.json({ error: "You can't delete your own account." }, { status: 400 });
+
+  try {
+    await prisma.user.delete({ where: { id: params.id } });
+  } catch (e) {
+    return Response.json(
+      { error: "Could not delete this user (they may still be linked to records). Deactivate them instead." },
+      { status: 409 }
+    );
+  }
+
+  await recordAudit({
+    actor: admin,
+    action: "DELETE",
+    entity: "USER",
+    entityId: target.id,
+    summary: `Deleted user ${target.name} <${target.email}>`,
+  });
+
+  return Response.json({ ok: true });
+}
