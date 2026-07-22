@@ -65,8 +65,11 @@ curl -fsS https://qsl.example.com/api/health   # -> {"ok":true,"db":true,...}
 ## 5. First login & lock down
 - Open `https://qsl.example.com/login`, sign in with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
 - Change the admin password, onboard real staff.
-- Set `SEED_DEMO_ACCOUNTS="false"` in `.env`, then `docker compose ... up -d` again,
-  and delete the `*@demo.qsl` demo users so demo data stops re-seeding.
+- Demo/sample data is **off by default** — the seed only ensures the admin
+  account, so re-deploys never re-create records you've deleted. If you want the
+  sample client/staff/schedules on a fresh install to try things out, set
+  `SEED_DEMO_ACCOUNTS="true"` in `.env` before the first `up`. Leave it unset
+  (or `false`) for a clean production database.
 
 ## 6. Install as a mobile app
 On the phone browser, open `https://qsl.example.com`:
