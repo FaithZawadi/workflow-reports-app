@@ -16,10 +16,12 @@ async function main() {
     create: { email: adminEmail, name: adminName, role: "ADMIN", roles: ["ADMIN"], passwordHash: await hash(adminPass) },
   });
 
-  // Demo data can be turned off in production (SEED_DEMO_ACCOUNTS=false)
-  // once real staff are onboarded.
-  if (process.env.SEED_DEMO_ACCOUNTS === "false") {
-    console.log("Seed complete (admin only — demo accounts disabled).");
+  // Demo/sample data is OPT-IN. By default the seed only ensures the admin
+  // exists, so re-running it on every deploy never re-creates demo records —
+  // anything you delete stays deleted. Set SEED_DEMO_ACCOUNTS=true only on a
+  // fresh install if you want the sample client/staff/schedules to try things.
+  if (process.env.SEED_DEMO_ACCOUNTS !== "true") {
+    console.log("Seed complete (admin only — set SEED_DEMO_ACCOUNTS=true for demo data).");
     return;
   }
 
