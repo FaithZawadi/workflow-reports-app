@@ -571,6 +571,11 @@ model Quotation {
   lpoName       String?
   lpoUploadedAt DateTime?
 
+  // Opaque, unguessable slug used to share the quotation PDF with a client. The
+  // public link is /d/<shareToken>, so it reveals neither the record id nor the
+  // API path. Minted lazily the first time the quote is opened by staff.
+  shareToken String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

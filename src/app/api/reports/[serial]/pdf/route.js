@@ -29,7 +29,16 @@ export async function GET(req, { params }) {
   if (!report) return Response.json({ error: "Report not found." }, { status: 404 });
   if (!canView(report, user)) return Response.json({ error: "Not allowed." }, { status: 403 });
 
-  const qrSrc = await qrDataUrl(verifyUrl(`/reports/${report.serial}`));
+  // The QR carries a brief description of the document (shown when scanned),
+  // ending with the verify link.
+  const qrText = [
+    `QSL ${report.templateName}`,
+    `${report.serial} · ${report.clientName}${report.site ? " - " + report.site : ""}`,
+    `Status: ${String(report.status || "").replace(/_/g, " ").toLowerCase()}`,
+    `Filed by ${report.authorName}`,
+    verifyUrl(`/reports/${report.serial}`),
+  ].join("\n");
+  const qrSrc = await qrDataUrl(qrText);
   const buffer = await renderToBuffer(
     React.createElement(ReportDocument, { report, logoSrc: logoDataUrl(), qrSrc })
   );

@@ -8,12 +8,16 @@ import { qrDataUrl } from "@/lib/qr";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// GET /api/quotations/[id]/pdf — the quotation as a PDF. Reached by capability
-// URL (the id is an unguessable cuid) so it can be shared with the client as a
-// document — the recipient opens the PDF directly, no QSL login required. This
-// mirrors the customer survey / training feedback PDFs.
+// GET /d/[token] — the opaque public share link for a quotation. The token is an
+// unguessable random slug (minted lazily when staff first open the quote), so the
+// URL reveals neither the record id nor the /api/quotations path — it just says
+// "a document". Resolving the token serves the same quotation PDF the client would
+// otherwise download; no QSL login is required.
 export async function GET(_req, { params }) {
-  const q = await prisma.quotation.findUnique({ where: { id: params.id } });
+  const token = String(params.token || "");
+  if (!token) return Response.json({ error: "Not found." }, { status: 404 });
+
+  const q = await prisma.quotation.findUnique({ where: { shareToken: token } });
   if (!q) return Response.json({ error: "Not found." }, { status: 404 });
 
   const qrText = [
@@ -23,7 +27,9 @@ export async function GET(_req, { params }) {
     q.validUntil ? `Valid until ${new Date(q.validUntil).toLocaleDateString()}` : null,
   ].filter(Boolean).join("\n");
   const qrSrc = await qrDataUrl(qrText);
-  const buffer = await renderToBuffer(React.createElement(QuotationDocument, { quotation: q, logoSrc: logoDataUrl(), qrSrc }));
+  const buffer = await renderToBuffer(
+    React.createElement(QuotationDocument, { quotation: q, logoSrc: logoDataUrl(), qrSrc })
+  );
 
   return new Response(buffer, {
     status: 200,

@@ -43,6 +43,11 @@ const s = StyleSheet.create({
   noteSub: { fontSize: 7.5, color: MUTE, marginTop: 2 },
   footer: { position: "absolute", bottom: 16, left: 32, right: 32, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4, alignItems: "center" },
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
+  qrBlock: { flexDirection: "row", alignItems: "center", marginTop: 12, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: "#E4DCCB" },
+  qrImg: { width: 68, height: 68, marginRight: 10 },
+  qrText: { flex: 1 },
+  qrTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4 },
+  qrSub: { fontSize: 7.5, color: MUTE, marginTop: 2, lineHeight: 1.3, maxWidth: 260 },
 });
 
 function fmt(d, withTime) {
@@ -106,13 +111,6 @@ export function CalibrationRequestDocument({ request, logoSrc, qrSrc }) {
             <Text style={s.sys}>QSL/QP/013/CRF-NAWI</Text>
             <Text style={s.mono}>REQUEST NO: {request.serial}</Text>
             <Text style={s.mono}>RAISED: {fmt(request.createdAt, true)} EAT</Text>
-            {qrSrc ? (
-              <View style={{ alignItems: "center", marginTop: 3 }}>
-                {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                <Image src={qrSrc} style={{ width: 52, height: 52 }} />
-                <Text style={{ fontSize: 6, color: MUTE, fontFamily: "Courier", marginTop: 1 }}>Scan to verify</Text>
-              </View>
-            ) : null}
           </View>
         </View>
         <View style={s.rule} />
@@ -221,6 +219,18 @@ export function CalibrationRequestDocument({ request, logoSrc, qrSrc }) {
           <Text style={s.noteText}>System-generated document — no physical signature required.</Text>
           <Text style={s.noteSub}>Raised by the client and reviewed electronically by the QSL laboratory; the decision is recorded above.</Text>
         </View>
+
+        {/* Scan-for-details QR — at the foot of the request, not the header */}
+        {qrSrc ? (
+          <View style={s.qrBlock} wrap={false}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text */}
+            <Image src={qrSrc} style={s.qrImg} />
+            <View style={s.qrText}>
+              <Text style={s.qrTitle}>Scan for details</Text>
+              <Text style={s.qrSub}>Point your phone camera at this code for a summary of this request and a link to view it online.</Text>
+            </View>
+          </View>
+        ) : null}
 
         <View style={s.footer} fixed>
           <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · ${request.serial} · Page ${pageNumber} of ${totalPages}`} />

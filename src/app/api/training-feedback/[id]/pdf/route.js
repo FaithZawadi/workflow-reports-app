@@ -3,7 +3,7 @@ import { renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/db";
 import { TrainingFeedbackDocument } from "@/pdf/TrainingFeedbackDocument";
 import { logoDataUrl } from "@/lib/logo";
-import { qrDataUrl, verifyUrl } from "@/lib/qr";
+import { qrDataUrl } from "@/lib/qr";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +16,15 @@ export async function GET(_req, { params }) {
   const feedback = await prisma.trainingFeedback.findUnique({ where: { id: params.id } });
   if (!feedback) return Response.json({ error: "Not found." }, { status: 404 });
 
-  const qrSrc = await qrDataUrl(verifyUrl(`/api/training-feedback/${feedback.id}/pdf`));
+  // The QR carries a brief description of the sheet (shown when scanned).
+  const qrText = [
+    `QSL Training Feedback`,
+    `Participant: ${feedback.traineeName || "-"}`,
+    feedback.organization ? `Organization: ${feedback.organization}` : null,
+    feedback.overall ? `Overall rating: ${feedback.overall} / 5` : null,
+    `Recorded ${new Date(feedback.createdAt).toLocaleDateString()}`,
+  ].filter(Boolean).join("\n");
+  const qrSrc = await qrDataUrl(qrText);
   const buffer = await renderToBuffer(
     React.createElement(TrainingFeedbackDocument, { feedback, logoSrc: logoDataUrl(), qrSrc })
   );
