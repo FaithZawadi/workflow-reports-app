@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { COAL, GOLD, INK, MUTE, PAPER, LINE, ROLE_LABEL } from "@/lib/theme";
+import { COAL, GOLD, INK, MUTE, PAPER, LINE, FAIL, ROLE_LABEL } from "@/lib/theme";
 import { assignableRoles, rolesOf } from "@/lib/roles";
 
 const rolesOfUser = (u) => (u.roles && u.roles.length ? u.roles : u.role ? [u.role] : []);
@@ -60,6 +60,19 @@ export default function UsersAdmin({ profile }) {
     setUsers((await res.json()).users || []);
   }, []);
 
+  // Admin-only: permanently remove a user (for clearing test accounts). Prefer
+  // deactivating to keep history; deletion is for cleanup.
+  const deleteUser = async (u) => {
+    if (!confirm(`Delete user ${u.name} <${u.email}>? This can't be undone. To keep history, use Manage → Deactivate instead.`)) return;
+    const res = await fetch(`/api/users/${u.id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || "Could not delete this user.");
+      return;
+    }
+    setUsers((prev) => (prev || []).filter((x) => x.id !== u.id));
+  };
+
   useEffect(() => {
     load();
     if (isAdmin) {
@@ -111,9 +124,16 @@ export default function UsersAdmin({ profile }) {
                   {u.client ? ` · ${u.client}` : ""}{u.site ? ` — ${u.site}` : ""}
                 </div>
               </div>
-              <button className="btn" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => setEditing(editing === u.id ? null : u.id)}>
-                {editing === u.id ? "Cancel" : "Manage"}
-              </button>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button className="btn" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => setEditing(editing === u.id ? null : u.id)}>
+                  {editing === u.id ? "Cancel" : "Manage"}
+                </button>
+                {profile.role === "ADMIN" && u.id !== profile.id && (
+                  <button className="btn" style={{ fontSize: 12, padding: "6px 10px", color: FAIL, borderColor: "#e6cfca" }} onClick={() => deleteUser(u)} title="Delete user">
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
             {editing === u.id && <EditUser user={u} roleOptions={roleOptions} allWbs={allWbs} isSelf={u.id === profile.id} onSaved={() => { setEditing(null); load(); }} />}
           </div>
