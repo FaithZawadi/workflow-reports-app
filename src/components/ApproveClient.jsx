@@ -191,37 +191,56 @@ export default function ApproveClient({ token, initialAction }) {
 // ---- Fun result screen (shown after acting, or when the link is spent) -------
 
 const RESULT_CSS = `
-/* card springs in like a game reward popping onto screen */
+/* card + headline spring in like a game "level complete" panel */
 .qsl-pop{animation:qslPop .55s cubic-bezier(.18,1.35,.5,1) both}
 @keyframes qslPop{0%{transform:scale(.5) translateY(24px);opacity:0}55%{transform:scale(1.07) translateY(-4px)}100%{transform:scale(1);opacity:1}}
-.qsl-title-pop{display:inline-block;animation:qslTitle .6s .15s cubic-bezier(.18,1.5,.5,1) both}
+.qsl-title-pop{display:inline-block;animation:qslTitle .6s .2s cubic-bezier(.18,1.5,.5,1) both}
 @keyframes qslTitle{0%{transform:scale(.4) rotate(-6deg);opacity:0}60%{transform:scale(1.12) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
 
-/* squash-and-stretch hop (win) / gentle breathing sway (sleep) */
+/* big spinning jump (win) / gentle breathing (sleep) */
 .qsl-hop{transform-box:fill-box;transform-origin:50% 100%;animation:qslHop 1.5s cubic-bezier(.3,.7,.4,1) infinite}
-@keyframes qslHop{0%{transform:translateY(0) scale(1,1)}10%{transform:translateY(0) scale(1.1,.88)}30%{transform:translateY(-32px) scale(.9,1.12)}50%{transform:translateY(-32px) scale(1,1)}72%{transform:translateY(0) scale(1.14,.84)}86%{transform:translateY(-5px) scale(.97,1.03)}100%{transform:translateY(0) scale(1,1)}}
+@keyframes qslHop{0%{transform:translateY(0) scale(1,1) rotate(0)}10%{transform:translateY(0) scale(1.14,.84)}30%{transform:translateY(-46px) scale(.86,1.16) rotate(-7deg)}48%{transform:translateY(-50px) rotate(7deg)}58%{transform:translateY(-46px) rotate(-5deg)}76%{transform:translateY(0) scale(1.18,.8)}88%{transform:translateY(-7px) scale(.96,1.04)}100%{transform:translateY(0) scale(1,1) rotate(0)}}
 .qsl-breathe{transform-box:fill-box;transform-origin:50% 100%;animation:qslBreathe 3.2s ease-in-out infinite}
 @keyframes qslBreathe{0%,100%{transform:scale(1,1) rotate(-3deg)}50%{transform:scale(1.04,.97) rotate(3deg)}}
 
-/* landing shadow that squashes in sync with the hop */
+/* landing shadow that squashes in sync with the jump */
 .qsl-shadow{transform-box:fill-box;transform-origin:center;animation:qslShadow 1.5s cubic-bezier(.3,.7,.4,1) infinite}
-@keyframes qslShadow{0%,50%,100%{transform:scaleX(1);opacity:.16}30%{transform:scaleX(.62);opacity:.07}72%{transform:scaleX(1.18);opacity:.2}}
+@keyframes qslShadow{0%,48%,100%{transform:scaleX(1);opacity:.16}30%{transform:scaleX(.5);opacity:.05}76%{transform:scaleX(1.22);opacity:.2}}
 
-/* blinking eyes + a cheerful waving arm */
 .qsl-blink{transform-box:fill-box;transform-origin:center;animation:qslBlink 3.4s infinite}
 @keyframes qslBlink{0%,93%,100%{transform:scaleY(1)}96.5%{transform:scaleY(.08)}}
-.qsl-wave{transform-box:fill-box;transform-origin:0% 100%;animation:qslWave .5s ease-in-out infinite}
-@keyframes qslWave{0%,100%{transform:rotate(8deg)}50%{transform:rotate(-26deg)}}
+.qsl-armL{transform-box:fill-box;transform-origin:100% 0%;animation:qslCheer .55s ease-in-out infinite}
+.qsl-armR{transform-box:fill-box;transform-origin:0% 0%;animation:qslCheer .55s ease-in-out infinite reverse}
+@keyframes qslCheer{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(12deg)}}
 
-/* glowing power-up ring + twinkling sparkles for a win */
-.qsl-glow{position:absolute;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(245,168,0,.55),rgba(245,168,0,0) 68%);z-index:0;animation:qslGlow 1.8s ease-in-out infinite}
-@keyframes qslGlow{0%,100%{transform:scale(.75);opacity:.45}50%{transform:scale(1.18);opacity:.9}}
+/* rotating sunburst backdrop — instant arcade-reward vibe */
+.qsl-rays{position:absolute;width:280px;height:280px;bottom:-40px;z-index:0;animation:qslSpin 9s linear infinite}
+@keyframes qslSpin{to{transform:rotate(360deg)}}
+/* pulsing glow behind the character */
+.qsl-glow{position:absolute;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(245,168,0,.6),rgba(245,168,0,0) 68%);z-index:0;bottom:8px;animation:qslGlow 1.8s ease-in-out infinite}
+@keyframes qslGlow{0%,100%{transform:scale(.75);opacity:.5}50%{transform:scale(1.2);opacity:.95}}
+
+/* stars orbiting the character */
+.qsl-orbit{position:absolute;top:44%;left:50%;width:0;height:0;z-index:2;animation:qslSpin 7s linear infinite}
+.qsl-orbit-rev{animation-direction:reverse;animation-duration:9s}
+
+/* twinkling sparkles */
 .qsl-spark{position:absolute;z-index:2;animation:qslSpark 1.7s ease-in-out infinite}
 @keyframes qslSpark{0%,100%{transform:scale(0) rotate(0);opacity:0}45%{transform:scale(1) rotate(120deg);opacity:1}}
 
-/* confetti with a playful side-to-side wiggle */
-.qsl-confetti{position:absolute;top:-24px;display:block;animation-name:qslFall;animation-timing-function:linear;animation-iteration-count:infinite}
+/* one-shot confetti CANNON burst from the centre on load */
+.qsl-burst{position:absolute;left:50%;top:44%;z-index:4;opacity:0;animation:qslBurst 1.1s cubic-bezier(.12,.7,.25,1) forwards}
+@keyframes qslBurst{0%{transform:translate(-50%,-50%) scale(.3);opacity:1}70%{opacity:1}100%{transform:translate(calc(-50% + var(--tx)),calc(-50% + var(--ty))) rotate(var(--rot));opacity:0}}
+
+/* continuous confetti rain with a side-to-side wiggle */
+.qsl-confetti{position:absolute;top:-24px;display:block;z-index:3;animation-name:qslFall;animation-timing-function:linear;animation-iteration-count:infinite}
 @keyframes qslFall{0%{transform:translateY(-24px) translateX(0) rotate(0);opacity:0}12%{opacity:1}50%{transform:translateY(200px) translateX(16px) rotate(360deg)}100%{transform:translateY(430px) translateX(-8px) rotate(700deg);opacity:.1}}
+
+/* "APPROVED" stamp that slams in with a shockwave ring */
+.qsl-stamp{position:absolute;top:2px;right:9%;z-index:5;animation:qslStamp .55s .3s cubic-bezier(.2,1.7,.4,1) both}
+@keyframes qslStamp{0%{transform:scale(2.6) rotate(-24deg);opacity:0}55%{transform:scale(.88) rotate(7deg);opacity:1}100%{transform:scale(1) rotate(-8deg);opacity:1}}
+.qsl-shock{position:absolute;top:14px;right:13%;width:54px;height:54px;border:3px solid ${PASS};border-radius:50%;z-index:4;animation:qslShock .7s .32s ease-out both}
+@keyframes qslShock{0%{transform:scale(.2);opacity:.7}100%{transform:scale(2);opacity:0}}
 
 /* floating Zzz for the spent-link snooze */
 .qsl-z{position:absolute;font-weight:900;color:#8a8172;z-index:2;animation:qslZ 2.6s ease-in-out infinite}
@@ -231,35 +250,80 @@ const RESULT_CSS = `
 .qsl-cta:hover{transform:translateY(-2px) scale(1.03)}
 .qsl-cta:active{transform:translateY(1px) scale(.98)}
 
-@media (prefers-reduced-motion: reduce){.qsl-pop,.qsl-title-pop,.qsl-hop,.qsl-breathe,.qsl-shadow,.qsl-blink,.qsl-wave,.qsl-glow,.qsl-spark,.qsl-confetti,.qsl-z{animation:none!important}}
+@media (prefers-reduced-motion: reduce){.qsl-pop,.qsl-title-pop,.qsl-hop,.qsl-breathe,.qsl-shadow,.qsl-blink,.qsl-armL,.qsl-armR,.qsl-rays,.qsl-glow,.qsl-orbit,.qsl-spark,.qsl-burst,.qsl-confetti,.qsl-stamp,.qsl-shock,.qsl-z{animation:none!important}.qsl-burst,.qsl-shock{opacity:0!important}}
 `;
 
 const SPARKS = [
-  { x: "12%", y: "8%", s: 20, d: 0 },
-  { x: "82%", y: "12%", s: 16, d: 0.3 },
-  { x: "6%", y: "52%", s: 14, d: 0.6 },
-  { x: "88%", y: "48%", s: 22, d: 0.15 },
-  { x: "24%", y: "72%", s: 13, d: 0.5 },
-  { x: "74%", y: "74%", s: 17, d: 0.8 },
+  { x: "10%", y: "6%", s: 20, d: 0 },
+  { x: "84%", y: "10%", s: 16, d: 0.3 },
+  { x: "4%", y: "50%", s: 14, d: 0.6 },
+  { x: "90%", y: "46%", s: 22, d: 0.15 },
+  { x: "22%", y: "74%", s: 13, d: 0.5 },
+  { x: "76%", y: "76%", s: 17, d: 0.8 },
 ];
+
+// Orbiting stars: fixed angle/radius inside a slowly rotating container.
+const ORBIT = [
+  { a: 0, r: 78, s: 15, c: GOLD },
+  { a: 120, r: 78, s: 12, c: PASS },
+  { a: 240, r: 78, s: 13, c: "#3B82C4" },
+];
+
+// Confetti-cannon burst: 26 chips fired radially outward from the centre.
+const BURST = Array.from({ length: 26 }).map((_, i) => {
+  const ang = (i / 26) * Math.PI * 2 + (i % 2 ? 0.22 : -0.22);
+  const dist = 96 + ((i * 41) % 78);
+  const colors = [GOLD, PASS, "#3B82C4", FAIL, "#E24AA0", COAL];
+  return {
+    tx: `${Math.round(Math.cos(ang) * dist)}px`,
+    ty: `${Math.round(Math.sin(ang) * dist)}px`,
+    rot: `${(i * 57) % 360}deg`,
+    c: colors[i % colors.length],
+    size: 7 + (i % 3) * 3,
+    round: i % 2,
+  };
+});
 
 function ResultCard({ mood, celebrate, title, message, sub, serial }) {
   const accent = mood === "happy" ? PASS : mood === "sad" ? FAIL : MUTE;
   return (
     <div style={{ position: "relative", overflow: "hidden" }}>
       <style>{RESULT_CSS}</style>
-      {celebrate && <Confetti />}
+      {celebrate && (
+        <>
+          <Confetti />
+          <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 4 }}>
+            {BURST.map((b, i) => (
+              <span
+                key={i}
+                className="qsl-burst"
+                style={{ "--tx": b.tx, "--ty": b.ty, "--rot": b.rot, width: b.size, height: b.round ? b.size : b.size * 0.55, background: b.c, borderRadius: b.round ? "50%" : 1 }}
+              />
+            ))}
+          </div>
+        </>
+      )}
       <div className="qsl-pop" style={{ background: "#fff", border: "1px solid #e6e0d2", borderTop: `5px solid ${accent}`, borderRadius: 10, padding: "26px 20px 30px", marginTop: 24, textAlign: "center", position: "relative", zIndex: 1 }}>
         {/* stage for the character + its effects */}
-        <div style={{ position: "relative", height: 168, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+        <div style={{ position: "relative", height: 184, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
           {celebrate && (
             <>
-              <div className="qsl-glow" style={{ bottom: 8 }} />
+              <div className="qsl-rays" aria-hidden style={{ opacity: 0.4 }}><Rays /></div>
+              <div className="qsl-glow" />
+              <div className="qsl-orbit" aria-hidden>
+                {ORBIT.map((o, i) => (
+                  <span key={i} style={{ position: "absolute", transform: `rotate(${o.a}deg) translateX(${o.r}px)` }}>
+                    <Sparkle size={o.s} color={o.c} />
+                  </span>
+                ))}
+              </div>
               {SPARKS.map((sp, i) => (
                 <span key={i} className="qsl-spark" aria-hidden style={{ left: sp.x, top: sp.y, animationDelay: `${sp.d}s` }}>
                   <Sparkle size={sp.s} color={i % 2 ? GOLD : PASS} />
                 </span>
               ))}
+              <div className="qsl-shock" aria-hidden />
+              <div className="qsl-stamp" aria-hidden><Seal /></div>
             </>
           )}
           {mood === "sleep" && (
@@ -269,7 +333,7 @@ function ResultCard({ mood, celebrate, title, message, sub, serial }) {
               ))}
             </div>
           )}
-          <div style={{ width: 150, height: 160, position: "relative", zIndex: 1 }}>
+          <div style={{ width: 156, height: 172, position: "relative", zIndex: 1 }}>
             <Mascot mood={mood} />
           </div>
         </div>
@@ -291,18 +355,39 @@ function ResultCard({ mood, celebrate, title, message, sub, serial }) {
 
 function Sparkle({ size = 16, color = GOLD }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} style={{ display: "block" }}>
       <path d="M12 0c1 6 5 10 12 12-7 2-11 6-12 12-1-6-5-10-12-12 7-2 11-6 12-12z" />
     </svg>
   );
 }
 
+// A gold sunburst used as the celebratory backdrop.
+function Rays() {
+  return (
+    <svg viewBox="0 0 100 100" width="100%" height="100%" style={{ display: "block" }}>
+      {Array.from({ length: 12 }).map((_, i) => (
+        <path key={i} d="M50 50 L45 0 L55 0 Z" fill={GOLD} opacity={i % 2 ? 0.22 : 0.4} transform={`rotate(${i * 30} 50 50)`} />
+      ))}
+    </svg>
+  );
+}
+
+// The green "APPROVED ✓" reward seal.
+function Seal() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+      <circle cx="28" cy="28" r="24" fill={PASS} stroke="#fff" strokeWidth="3" />
+      <path d="M17 29 l7 7 15 -16" stroke="#fff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </svg>
+  );
+}
+
 function Confetti() {
-  const colors = [GOLD, PASS, "#3B82C4", FAIL, COAL];
+  const colors = [GOLD, PASS, "#3B82C4", FAIL, "#E24AA0", COAL];
   return (
     <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 3 }}>
-      {Array.from({ length: 22 }).map((_, i) => {
-        const left = (i * 4.7 + (i % 3) * 4) % 100;
+      {Array.from({ length: 26 }).map((_, i) => {
+        const left = (i * 3.9 + (i % 3) * 4) % 100;
         const size = 7 + (i % 3) * 3;
         return (
           <span
@@ -345,8 +430,8 @@ function Mascot({ mood }) {
   const mouth =
     mood === "happy" ? (
       <>
-        <path d="M46 73 q14 15 28 0" fill="#7a2f24" stroke="#161310" />
-        <path d="M52 79 q8 6 16 0" fill="#e0563f" stroke="none" />
+        <path d="M44 72 q16 17 32 0" fill="#7a2f24" stroke="#161310" />
+        <path d="M51 79 q9 7 18 0" fill="#e0563f" stroke="none" />
       </>
     ) : mood === "sad" ? (
       <path d="M48 80 q12 -11 24 0" />
@@ -356,16 +441,13 @@ function Mascot({ mood }) {
   return (
     <svg viewBox="0 0 120 132" width="100%" height="100%" fill="none" stroke="#161310" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
       {/* ground shadow */}
-      <ellipse className="qsl-shadow" cx="60" cy="126" rx="30" ry="5" fill="#161310" stroke="none" />
+      <ellipse className="qsl-shadow" cx="60" cy="128" rx="30" ry="5" fill="#161310" stroke="none" />
       <g className={lively ? "qsl-hop" : "qsl-breathe"}>
-        {/* arms */}
+        {/* arms — both thrown up cheering on a win */}
         {mood === "happy" ? (
           <>
-            <path d="M42 78 q-10 4 -12 14" />
-            <g className="qsl-wave">
-              <path d="M78 74 q12 -4 14 -18" />
-              <circle cx="92" cy="55" r="2.6" fill="#F5A800" />
-            </g>
+            <g className="qsl-armL"><path d="M42 74 q-12 -6 -14 -20" /><circle cx="28" cy="52" r="3" fill={GOLD} /></g>
+            <g className="qsl-armR"><path d="M78 74 q12 -6 14 -20" /><circle cx="92" cy="52" r="3" fill={GOLD} /></g>
           </>
         ) : (
           <>
@@ -377,12 +459,19 @@ function Mascot({ mood }) {
         <path d="M50 40 q10 -16 20 0" />
         {/* body — a calibration test weight */}
         <path d="M42 44 h36 l8 58 h-52 z" fill={GOLD} />
+        {/* little feet */}
+        {lively && (
+          <>
+            <ellipse cx="48" cy="104" rx="7" ry="4" fill="#161310" stroke="none" />
+            <ellipse cx="72" cy="104" rx="7" ry="4" fill="#161310" stroke="none" />
+          </>
+        )}
         {eyes}
         {mouth}
         {lively && (
           <>
-            <circle cx="41" cy="71" r="3.4" fill="#e8763a" stroke="none" opacity="0.55" />
-            <circle cx="79" cy="71" r="3.4" fill="#e8763a" stroke="none" opacity="0.55" />
+            <circle cx="41" cy="71" r="3.6" fill="#e8763a" stroke="none" opacity="0.6" />
+            <circle cx="79" cy="71" r="3.6" fill="#e8763a" stroke="none" opacity="0.6" />
           </>
         )}
       </g>
