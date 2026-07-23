@@ -191,16 +191,57 @@ export default function ApproveClient({ token, initialAction }) {
 // ---- Fun result screen (shown after acting, or when the link is spent) -------
 
 const RESULT_CSS = `
-.qsl-bounce{animation:qslBounce 1.6s ease-in-out infinite}
-.qsl-sway{animation:qslSway 3s ease-in-out infinite;transform-origin:50% 92%}
-@keyframes qslBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-@keyframes qslSway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+/* card springs in like a game reward popping onto screen */
+.qsl-pop{animation:qslPop .55s cubic-bezier(.18,1.35,.5,1) both}
+@keyframes qslPop{0%{transform:scale(.5) translateY(24px);opacity:0}55%{transform:scale(1.07) translateY(-4px)}100%{transform:scale(1);opacity:1}}
+.qsl-title-pop{display:inline-block;animation:qslTitle .6s .15s cubic-bezier(.18,1.5,.5,1) both}
+@keyframes qslTitle{0%{transform:scale(.4) rotate(-6deg);opacity:0}60%{transform:scale(1.12) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+
+/* squash-and-stretch hop (win) / gentle breathing sway (sleep) */
+.qsl-hop{transform-box:fill-box;transform-origin:50% 100%;animation:qslHop 1.5s cubic-bezier(.3,.7,.4,1) infinite}
+@keyframes qslHop{0%{transform:translateY(0) scale(1,1)}10%{transform:translateY(0) scale(1.1,.88)}30%{transform:translateY(-32px) scale(.9,1.12)}50%{transform:translateY(-32px) scale(1,1)}72%{transform:translateY(0) scale(1.14,.84)}86%{transform:translateY(-5px) scale(.97,1.03)}100%{transform:translateY(0) scale(1,1)}}
+.qsl-breathe{transform-box:fill-box;transform-origin:50% 100%;animation:qslBreathe 3.2s ease-in-out infinite}
+@keyframes qslBreathe{0%,100%{transform:scale(1,1) rotate(-3deg)}50%{transform:scale(1.04,.97) rotate(3deg)}}
+
+/* landing shadow that squashes in sync with the hop */
+.qsl-shadow{transform-box:fill-box;transform-origin:center;animation:qslShadow 1.5s cubic-bezier(.3,.7,.4,1) infinite}
+@keyframes qslShadow{0%,50%,100%{transform:scaleX(1);opacity:.16}30%{transform:scaleX(.62);opacity:.07}72%{transform:scaleX(1.18);opacity:.2}}
+
+/* blinking eyes + a cheerful waving arm */
+.qsl-blink{transform-box:fill-box;transform-origin:center;animation:qslBlink 3.4s infinite}
+@keyframes qslBlink{0%,93%,100%{transform:scaleY(1)}96.5%{transform:scaleY(.08)}}
+.qsl-wave{transform-box:fill-box;transform-origin:0% 100%;animation:qslWave .5s ease-in-out infinite}
+@keyframes qslWave{0%,100%{transform:rotate(8deg)}50%{transform:rotate(-26deg)}}
+
+/* glowing power-up ring + twinkling sparkles for a win */
+.qsl-glow{position:absolute;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(245,168,0,.55),rgba(245,168,0,0) 68%);z-index:0;animation:qslGlow 1.8s ease-in-out infinite}
+@keyframes qslGlow{0%,100%{transform:scale(.75);opacity:.45}50%{transform:scale(1.18);opacity:.9}}
+.qsl-spark{position:absolute;z-index:2;animation:qslSpark 1.7s ease-in-out infinite}
+@keyframes qslSpark{0%,100%{transform:scale(0) rotate(0);opacity:0}45%{transform:scale(1) rotate(120deg);opacity:1}}
+
+/* confetti with a playful side-to-side wiggle */
 .qsl-confetti{position:absolute;top:-24px;display:block;animation-name:qslFall;animation-timing-function:linear;animation-iteration-count:infinite}
-@keyframes qslFall{0%{transform:translateY(-24px) rotate(0);opacity:0}12%{opacity:1}100%{transform:translateY(380px) rotate(540deg);opacity:.1}}
-.qsl-cta{display:inline-block;padding:12px 18px;border-radius:8px;font-weight:800;font-size:14px;text-decoration:none;transition:transform .08s}
-.qsl-cta:active{transform:translateY(1px)}
-@media (prefers-reduced-motion: reduce){.qsl-bounce,.qsl-sway,.qsl-confetti{animation:none!important}}
+@keyframes qslFall{0%{transform:translateY(-24px) translateX(0) rotate(0);opacity:0}12%{opacity:1}50%{transform:translateY(200px) translateX(16px) rotate(360deg)}100%{transform:translateY(430px) translateX(-8px) rotate(700deg);opacity:.1}}
+
+/* floating Zzz for the spent-link snooze */
+.qsl-z{position:absolute;font-weight:900;color:#8a8172;z-index:2;animation:qslZ 2.6s ease-in-out infinite}
+@keyframes qslZ{0%{transform:translateY(6px) scale(.5);opacity:0}25%{opacity:.9}100%{transform:translateY(-50px) scale(1.25) rotate(14deg);opacity:0}}
+
+.qsl-cta{display:inline-block;padding:12px 18px;border-radius:8px;font-weight:800;font-size:14px;text-decoration:none;transition:transform .12s cubic-bezier(.2,1.4,.5,1),box-shadow .12s}
+.qsl-cta:hover{transform:translateY(-2px) scale(1.03)}
+.qsl-cta:active{transform:translateY(1px) scale(.98)}
+
+@media (prefers-reduced-motion: reduce){.qsl-pop,.qsl-title-pop,.qsl-hop,.qsl-breathe,.qsl-shadow,.qsl-blink,.qsl-wave,.qsl-glow,.qsl-spark,.qsl-confetti,.qsl-z{animation:none!important}}
 `;
+
+const SPARKS = [
+  { x: "12%", y: "8%", s: 20, d: 0 },
+  { x: "82%", y: "12%", s: 16, d: 0.3 },
+  { x: "6%", y: "52%", s: 14, d: 0.6 },
+  { x: "88%", y: "48%", s: 22, d: 0.15 },
+  { x: "24%", y: "72%", s: 13, d: 0.5 },
+  { x: "74%", y: "74%", s: 17, d: 0.8 },
+];
 
 function ResultCard({ mood, celebrate, title, message, sub, serial }) {
   const accent = mood === "happy" ? PASS : mood === "sad" ? FAIL : MUTE;
@@ -208,13 +249,33 @@ function ResultCard({ mood, celebrate, title, message, sub, serial }) {
     <div style={{ position: "relative", overflow: "hidden" }}>
       <style>{RESULT_CSS}</style>
       {celebrate && <Confetti />}
-      <div style={{ background: "#fff", border: "1px solid #e6e0d2", borderTop: `5px solid ${accent}`, borderRadius: 10, padding: "30px 20px", marginTop: 24, textAlign: "center", position: "relative", zIndex: 1 }}>
-        <div style={{ display: "flex", justifyContent: "center" }}>
-          <div className={mood === "happy" ? "qsl-bounce" : "qsl-sway"} style={{ width: 130, height: 130 }}>
+      <div className="qsl-pop" style={{ background: "#fff", border: "1px solid #e6e0d2", borderTop: `5px solid ${accent}`, borderRadius: 10, padding: "26px 20px 30px", marginTop: 24, textAlign: "center", position: "relative", zIndex: 1 }}>
+        {/* stage for the character + its effects */}
+        <div style={{ position: "relative", height: 168, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+          {celebrate && (
+            <>
+              <div className="qsl-glow" style={{ bottom: 8 }} />
+              {SPARKS.map((sp, i) => (
+                <span key={i} className="qsl-spark" aria-hidden style={{ left: sp.x, top: sp.y, animationDelay: `${sp.d}s` }}>
+                  <Sparkle size={sp.s} color={i % 2 ? GOLD : PASS} />
+                </span>
+              ))}
+            </>
+          )}
+          {mood === "sleep" && (
+            <div aria-hidden style={{ position: "absolute", top: 6, left: "58%" }}>
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="qsl-z" style={{ left: i * 12, fontSize: 13 + i * 5, animationDelay: `${i * 0.7}s` }}>z</span>
+              ))}
+            </div>
+          )}
+          <div style={{ width: 150, height: 160, position: "relative", zIndex: 1 }}>
             <Mascot mood={mood} />
           </div>
         </div>
-        <h1 style={{ fontSize: 22, color: INK, margin: "6px 0 0" }}>{title}</h1>
+        <h1 style={{ fontSize: 22, color: INK, margin: "6px 0 0" }}>
+          <span className="qsl-title-pop">{title}</span>
+        </h1>
         <p style={{ color: INK, marginTop: 8, fontSize: 15, lineHeight: 1.5 }}>{message}</p>
         {sub && <p style={{ color: MUTE, fontSize: 13, marginTop: 6 }}>{sub}</p>}
         <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 18 }}>
@@ -228,12 +289,20 @@ function ResultCard({ mood, celebrate, title, message, sub, serial }) {
   );
 }
 
+function Sparkle({ size = 16, color = GOLD }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <path d="M12 0c1 6 5 10 12 12-7 2-11 6-12 12-1-6-5-10-12-12 7-2 11-6 12-12z" />
+    </svg>
+  );
+}
+
 function Confetti() {
   const colors = [GOLD, PASS, "#3B82C4", FAIL, COAL];
   return (
-    <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 2 }}>
-      {Array.from({ length: 16 }).map((_, i) => {
-        const left = (i * 6.5 + (i % 3) * 4) % 100;
+    <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 3 }}>
+      {Array.from({ length: 22 }).map((_, i) => {
+        const left = (i * 4.7 + (i % 3) * 4) % 100;
         const size = 7 + (i % 3) * 3;
         return (
           <span
@@ -244,8 +313,8 @@ function Confetti() {
               background: colors[i % colors.length],
               width: size,
               height: size * 0.6,
-              animationDelay: `${(i % 8) * 0.25}s`,
-              animationDuration: `${2.6 + (i % 5) * 0.35}s`,
+              animationDelay: `${(i % 10) * 0.2}s`,
+              animationDuration: `${2.4 + (i % 5) * 0.35}s`,
               borderRadius: i % 2 ? 2 : 0,
             }}
           />
@@ -255,8 +324,9 @@ function Confetti() {
   );
 }
 
-// A friendly QSL calibration test-weight character. mood: happy | sad | sleep.
+// A bouncy QSL calibration test-weight character. mood: happy | sad | sleep.
 function Mascot({ mood }) {
+  const lively = mood !== "sleep";
   const eyes =
     mood === "sleep" ? (
       <>
@@ -264,36 +334,58 @@ function Mascot({ mood }) {
         <path d="M64 62 q6 5 12 0" />
       </>
     ) : (
-      <>
-        <circle cx="50" cy="61" r="4.6" fill="#161310" stroke="none" />
-        <circle cx="70" cy="61" r="4.6" fill="#161310" stroke="none" />
-      </>
+      <g className="qsl-blink">
+        <circle cx="50" cy="61" r="4.8" fill="#161310" stroke="none" />
+        <circle cx="70" cy="61" r="4.8" fill="#161310" stroke="none" />
+        {/* sparkle glints */}
+        <circle cx="51.6" cy="59.4" r="1.4" fill="#fff" stroke="none" />
+        <circle cx="71.6" cy="59.4" r="1.4" fill="#fff" stroke="none" />
+      </g>
     );
   const mouth =
     mood === "happy" ? (
-      <path d="M47 74 q13 13 26 0" />
+      <>
+        <path d="M46 73 q14 15 28 0" fill="#7a2f24" stroke="#161310" />
+        <path d="M52 79 q8 6 16 0" fill="#e0563f" stroke="none" />
+      </>
     ) : mood === "sad" ? (
       <path d="M48 80 q12 -11 24 0" />
     ) : (
       <path d="M55 78 h10" />
     );
   return (
-    <svg viewBox="0 0 120 120" width="100%" height="100%" fill="none" stroke="#161310" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
-      {/* carry handle */}
-      <path d="M50 40 q10 -16 20 0" />
-      {/* body — a calibration test weight */}
-      <path d="M42 44 h36 l8 58 h-52 z" fill={GOLD} />
-      {eyes}
-      {mouth}
-      {mood === "happy" && (
-        <>
-          <circle cx="42" cy="71" r="3.2" fill="#e8763a" stroke="none" opacity="0.55" />
-          <circle cx="78" cy="71" r="3.2" fill="#e8763a" stroke="none" opacity="0.55" />
-        </>
-      )}
-      {mood === "sleep" && (
-        <text x="84" y="44" fontSize="13" fill="#6B6355" stroke="none" fontFamily="sans-serif" fontWeight="700">z</text>
-      )}
+    <svg viewBox="0 0 120 132" width="100%" height="100%" fill="none" stroke="#161310" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+      {/* ground shadow */}
+      <ellipse className="qsl-shadow" cx="60" cy="126" rx="30" ry="5" fill="#161310" stroke="none" />
+      <g className={lively ? "qsl-hop" : "qsl-breathe"}>
+        {/* arms */}
+        {mood === "happy" ? (
+          <>
+            <path d="M42 78 q-10 4 -12 14" />
+            <g className="qsl-wave">
+              <path d="M78 74 q12 -4 14 -18" />
+              <circle cx="92" cy="55" r="2.6" fill="#F5A800" />
+            </g>
+          </>
+        ) : (
+          <>
+            <path d="M42 80 q-8 6 -8 15" />
+            <path d="M78 80 q8 6 8 15" />
+          </>
+        )}
+        {/* carry handle */}
+        <path d="M50 40 q10 -16 20 0" />
+        {/* body — a calibration test weight */}
+        <path d="M42 44 h36 l8 58 h-52 z" fill={GOLD} />
+        {eyes}
+        {mouth}
+        {lively && (
+          <>
+            <circle cx="41" cy="71" r="3.4" fill="#e8763a" stroke="none" opacity="0.55" />
+            <circle cx="79" cy="71" r="3.4" fill="#e8763a" stroke="none" opacity="0.55" />
+          </>
+        )}
+      </g>
     </svg>
   );
 }
