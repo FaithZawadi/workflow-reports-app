@@ -167,10 +167,24 @@ export default function AppShell({ user, children }) {
           <button className="icon-btn hamburger" aria-label="Open menu" onClick={() => setNavOpen(true)}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
           </button>
+          {pathname !== homeHref && (
+            <button className="icon-btn" aria-label="Go back" title="Back" onClick={() => router.back()}>
+              <NavIcon name="back" />
+            </button>
+          )}
+          <button className="icon-btn" aria-label="Refresh this page" title="Refresh" onClick={() => window.location.reload()}>
+            <NavIcon name="refresh" />
+          </button>
           <div className="topbar-brand">
             <Link href={homeHref} style={{ textDecoration: "none" }}><Brand small /></Link>
           </div>
           <div style={{ flex: 1 }} />
+          {canFile && (
+            <Link href="/reports/new" className="btn btn-primary newreport-btn" title="File a new report">
+              <span aria-hidden style={{ fontWeight: 900, fontSize: 16, lineHeight: 1 }}>+</span>
+              <span className="newreport-label">New report</span>
+            </Link>
+          )}
           <NotificationBell />
           <div className="profile-menu" ref={menuRef}>
             <button className="profile-trigger" onClick={() => setMenuOpen((v) => !v)} aria-haspopup="menu" aria-expanded={menuOpen}>
@@ -283,6 +297,10 @@ function NavIcon({ name }) {
       return (<svg {...p}><path d="M15 4h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3" /><path d="M10 12H3M6 8l-3 4 3 4" /></svg>);
     case "plus":
       return (<svg {...p}><path d="M12 6v12M6 12h12" /></svg>);
+    case "back":
+      return (<svg {...p}><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>);
+    case "refresh":
+      return (<svg {...p}><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>);
     default:
       return null;
   }

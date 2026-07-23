@@ -144,6 +144,14 @@ img { max-width: 100%; }
 .icon-btn:hover { background: #f3f0e8; }
 .topbar-brand { display: flex; }
 
+/* Always-accessible "New report" action in the top bar. Label collapses to a
+   compact "+" on narrow phones so it never crowds the bell/profile controls. */
+.newreport-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; white-space: nowrap; }
+@media (max-width: 560px) {
+  .newreport-btn { padding: 8px 12px; }
+  .newreport-label { display: none; }
+}
+
 .profile-menu { position: relative; }
 .profile-trigger {
   display: flex; align-items: center; gap: 9px;

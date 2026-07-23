@@ -68,11 +68,12 @@ export default function ApproveClient({ token, initialAction }) {
 
   if (!state.ok) {
     return shell(
-      <div style={card}>
-        <h1 style={{ fontSize: 20, color: INK, margin: 0 }}>Link unavailable</h1>
-        <p style={{ color: MUTE, marginTop: 8 }}>{state.message || "This approval link can't be used."}</p>
-        <p style={{ color: MUTE, fontSize: 13 }}>If you still need to act on this report, open the app and sign in.</p>
-      </div>
+      <ResultCard
+        mood="sleep"
+        title="This link has clocked out"
+        message={state.message || "This approval link can't be used."}
+        sub="If you still need to act on this report, open the app and sign in — everything is waiting for you there."
+      />
     );
   }
 
@@ -81,15 +82,14 @@ export default function ApproveClient({ token, initialAction }) {
     const finalWord =
       done.status === "APPROVED" ? "fully approved" : done.status === "PENDING_MANAGER" ? "approved and sent to the Client/Manager" : "returned to the sender";
     return shell(
-      <div style={{ ...card, borderColor: approved ? PASS : FAIL, borderLeftWidth: 5 }}>
-        <h1 style={{ fontSize: 20, color: approved ? PASS : FAIL, margin: 0 }}>
-          {approved ? "✓ Recorded" : "Returned"}
-        </h1>
-        <p style={{ color: INK, marginTop: 8 }}>
-          {state.report.serial} has been <b>{finalWord}</b>. Your decision is stamped on the report’s approval trail.
-        </p>
-        <p style={{ color: MUTE, fontSize: 13 }}>You can close this page.</p>
-      </div>
+      <ResultCard
+        mood={approved ? "happy" : "sad"}
+        celebrate={approved}
+        title={approved ? "Nice one — decision recorded!" : "Sent back to the author"}
+        message={<>{state.report.serial} has been <b>{finalWord}</b>. Your decision is stamped on the report’s approval trail.</>}
+        sub="You can close this page, or jump into the dashboard."
+        serial={state.report?.serial}
+      />
     );
   }
 
@@ -185,5 +185,115 @@ export default function ApproveClient({ token, initialAction }) {
 
       {lightbox != null && <Lightbox photos={photos} index={lightbox} onClose={() => setLightbox(null)} />}
     </>
+  );
+}
+
+// ---- Fun result screen (shown after acting, or when the link is spent) -------
+
+const RESULT_CSS = `
+.qsl-bounce{animation:qslBounce 1.6s ease-in-out infinite}
+.qsl-sway{animation:qslSway 3s ease-in-out infinite;transform-origin:50% 92%}
+@keyframes qslBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@keyframes qslSway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+.qsl-confetti{position:absolute;top:-24px;display:block;animation-name:qslFall;animation-timing-function:linear;animation-iteration-count:infinite}
+@keyframes qslFall{0%{transform:translateY(-24px) rotate(0);opacity:0}12%{opacity:1}100%{transform:translateY(380px) rotate(540deg);opacity:.1}}
+.qsl-cta{display:inline-block;padding:12px 18px;border-radius:8px;font-weight:800;font-size:14px;text-decoration:none;transition:transform .08s}
+.qsl-cta:active{transform:translateY(1px)}
+@media (prefers-reduced-motion: reduce){.qsl-bounce,.qsl-sway,.qsl-confetti{animation:none!important}}
+`;
+
+function ResultCard({ mood, celebrate, title, message, sub, serial }) {
+  const accent = mood === "happy" ? PASS : mood === "sad" ? FAIL : MUTE;
+  return (
+    <div style={{ position: "relative", overflow: "hidden" }}>
+      <style>{RESULT_CSS}</style>
+      {celebrate && <Confetti />}
+      <div style={{ background: "#fff", border: "1px solid #e6e0d2", borderTop: `5px solid ${accent}`, borderRadius: 10, padding: "30px 20px", marginTop: 24, textAlign: "center", position: "relative", zIndex: 1 }}>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <div className={mood === "happy" ? "qsl-bounce" : "qsl-sway"} style={{ width: 130, height: 130 }}>
+            <Mascot mood={mood} />
+          </div>
+        </div>
+        <h1 style={{ fontSize: 22, color: INK, margin: "6px 0 0" }}>{title}</h1>
+        <p style={{ color: INK, marginTop: 8, fontSize: 15, lineHeight: 1.5 }}>{message}</p>
+        {sub && <p style={{ color: MUTE, fontSize: 13, marginTop: 6 }}>{sub}</p>}
+        <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 18 }}>
+          <a href="/overview" className="qsl-cta" style={{ background: COAL, color: "#fff" }}>Go to the dashboard →</a>
+          {serial && (
+            <a href={`/reports/${serial}`} className="qsl-cta" style={{ background: "#fff", color: INK, border: "1px solid #cfc8ba" }}>View the report</a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Confetti() {
+  const colors = [GOLD, PASS, "#3B82C4", FAIL, COAL];
+  return (
+    <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 2 }}>
+      {Array.from({ length: 16 }).map((_, i) => {
+        const left = (i * 6.5 + (i % 3) * 4) % 100;
+        const size = 7 + (i % 3) * 3;
+        return (
+          <span
+            key={i}
+            className="qsl-confetti"
+            style={{
+              left: `${left}%`,
+              background: colors[i % colors.length],
+              width: size,
+              height: size * 0.6,
+              animationDelay: `${(i % 8) * 0.25}s`,
+              animationDuration: `${2.6 + (i % 5) * 0.35}s`,
+              borderRadius: i % 2 ? 2 : 0,
+            }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// A friendly QSL calibration test-weight character. mood: happy | sad | sleep.
+function Mascot({ mood }) {
+  const eyes =
+    mood === "sleep" ? (
+      <>
+        <path d="M44 62 q6 5 12 0" />
+        <path d="M64 62 q6 5 12 0" />
+      </>
+    ) : (
+      <>
+        <circle cx="50" cy="61" r="4.6" fill="#161310" stroke="none" />
+        <circle cx="70" cy="61" r="4.6" fill="#161310" stroke="none" />
+      </>
+    );
+  const mouth =
+    mood === "happy" ? (
+      <path d="M47 74 q13 13 26 0" />
+    ) : mood === "sad" ? (
+      <path d="M48 80 q12 -11 24 0" />
+    ) : (
+      <path d="M55 78 h10" />
+    );
+  return (
+    <svg viewBox="0 0 120 120" width="100%" height="100%" fill="none" stroke="#161310" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+      {/* carry handle */}
+      <path d="M50 40 q10 -16 20 0" />
+      {/* body — a calibration test weight */}
+      <path d="M42 44 h36 l8 58 h-52 z" fill={GOLD} />
+      {eyes}
+      {mouth}
+      {mood === "happy" && (
+        <>
+          <circle cx="42" cy="71" r="3.2" fill="#e8763a" stroke="none" opacity="0.55" />
+          <circle cx="78" cy="71" r="3.2" fill="#e8763a" stroke="none" opacity="0.55" />
+        </>
+      )}
+      {mood === "sleep" && (
+        <text x="84" y="44" fontSize="13" fill="#6B6355" stroke="none" fontFamily="sans-serif" fontWeight="700">z</text>
+      )}
+    </svg>
   );
 }
