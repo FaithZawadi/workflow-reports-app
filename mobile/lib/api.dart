@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 // Thrown for any non-2xx API response, carrying the server's message.
@@ -144,6 +145,19 @@ class ApiClient {
   Future<ReportDetail> getReport(String serial) async {
     final d = _decode(await http.get(_u('/api/reports/$serial'), headers: _headers));
     return ReportDetail.fromJson(Map<String, dynamic>.from(d));
+  }
+
+  // The report as a PDF (raw bytes). Sends the bearer token, so it works for the
+  // same reports the signed-in user may view on the web — including finished ones.
+  Future<Uint8List> getReportPdf(String serial) async {
+    final r = await http.get(_u('/api/reports/$serial/pdf'), headers: {if (token != null) 'authorization': 'Bearer $token'});
+    if (r.statusCode >= 200 && r.statusCode < 300) return r.bodyBytes;
+    String msg = 'Could not load the PDF (${r.statusCode}).';
+    try {
+      final b = jsonDecode(r.body);
+      if (b is Map && b['error'] != null) msg = b['error'].toString();
+    } catch (_) {}
+    throw ApiException(r.statusCode, msg);
   }
 
   Future<String> decide(String serial, String decision, String comment) async {

@@ -15,7 +15,8 @@ It covers:
 - **Report registry** — list, filter by status, search, pull-to-refresh. Opens
   pre-filtered when you arrive from a dashboard chart.
 - **Report detail** — full checklist results, photos (tap to view full-screen &
-  zoom), approval route and trail.
+  zoom), approval route and trail. **Open or share/download the report PDF** from
+  the top bar (fetched with your token, so finished reports work too).
 - **Approve / reject** — the routed reviewer approves or rejects with a comment,
   straight from the phone.
 - **File a report** — pick any form your role allows (fetched live from the

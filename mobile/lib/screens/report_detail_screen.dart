@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:share_plus/share_plus.dart';
 import '../session.dart';
 import '../api.dart';
 import '../theme.dart';
@@ -25,8 +29,46 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   Map<String, dynamic>? _template; // matching template definition
   String? _err;
   bool _busy = false;
+  bool _pdfBusy = false;
   bool _changed = false;
   final _comment = TextEditingController();
+
+  // Fetch the report PDF (with the bearer token) and cache it to a temp file.
+  Future<File> _pdfFile() async {
+    final bytes = await context.read<Session>().api.getReportPdf(widget.serial);
+    final dir = await getTemporaryDirectory();
+    final safe = widget.serial.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    final f = File('${dir.path}/$safe.pdf');
+    await f.writeAsBytes(bytes, flush: true);
+    return f;
+  }
+
+  Future<void> _openPdf() async {
+    setState(() => _pdfBusy = true);
+    try {
+      final f = await _pdfFile();
+      final res = await OpenFilex.open(f.path);
+      if (res.type != ResultType.done && mounted) {
+        showError(context, 'No PDF viewer found — use Share to save it instead.');
+      }
+    } catch (e) {
+      if (mounted) showError(context, e.toString());
+    } finally {
+      if (mounted) setState(() => _pdfBusy = false);
+    }
+  }
+
+  Future<void> _sharePdf() async {
+    setState(() => _pdfBusy = true);
+    try {
+      final f = await _pdfFile();
+      await Share.shareXFiles([XFile(f.path, mimeType: 'application/pdf')], subject: '${widget.serial}.pdf');
+    } catch (e) {
+      if (mounted) showError(context, e.toString());
+    } finally {
+      if (mounted) setState(() => _pdfBusy = false);
+    }
+  }
 
   @override
   void initState() {
@@ -76,7 +118,28 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
         if (!didPop) Navigator.pop(context, _changed);
       },
       child: Scaffold(
-        appBar: AppBar(title: Text(widget.serial, style: const TextStyle(fontFamily: 'monospace', fontSize: 15))),
+        appBar: AppBar(
+          title: Text(widget.serial, style: const TextStyle(fontFamily: 'monospace', fontSize: 15)),
+          actions: [
+            if (_pdfBusy)
+              const Padding(
+                padding: EdgeInsets.only(right: 16),
+                child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))),
+              )
+            else if (_detail != null) ...[
+              IconButton(
+                tooltip: 'Open PDF',
+                icon: const Icon(Icons.picture_as_pdf_outlined),
+                onPressed: _openPdf,
+              ),
+              IconButton(
+                tooltip: 'Share / download PDF',
+                icon: const Icon(Icons.ios_share),
+                onPressed: _sharePdf,
+              ),
+            ],
+          ],
+        ),
         body: _err != null
             ? Center(child: Padding(padding: const EdgeInsets.all(24), child: Text(_err!, style: const TextStyle(color: kFail))))
             : _detail == null
