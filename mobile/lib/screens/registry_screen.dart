@@ -207,20 +207,25 @@ class _RegistryScreenState extends State<RegistryScreen> {
         if (changed == true) _reload();
       },
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Row(children: [
-            Text('#$num', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: kMute)),
-            const SizedBox(width: 6),
-            Serial(r.serial),
-            if (recent) ...[
+        Row(children: [
+          // Left cluster flexes and the serial ellipsizes, so the status pill
+          // on the right can never be pushed off the card edge.
+          Expanded(
+            child: Row(children: [
+              Text('#$num', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: kMute)),
               const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: kGold, borderRadius: BorderRadius.circular(3)),
-                child: const Text('NEW', style: TextStyle(color: kCoal, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.4)),
-              ),
-            ],
-          ]),
+              Flexible(child: Serial(r.serial)),
+              if (recent) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: kGold, borderRadius: BorderRadius.circular(3)),
+                  child: const Text('NEW', style: TextStyle(color: kCoal, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.4)),
+                ),
+              ],
+            ]),
+          ),
+          const SizedBox(width: 6),
           StatusPill(r.status),
         ]),
         const SizedBox(height: 12),
