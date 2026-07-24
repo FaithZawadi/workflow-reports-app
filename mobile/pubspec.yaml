@@ -1,7 +1,7 @@
 name: qsl_mobile
 description: QSL Maintenance Management — field app (Qalibrated Systems).
 publish_to: "none"
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -22,6 +22,7 @@ dependencies:
 dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.13.1
+  flutter_native_splash: ^2.3.10
 
 # App launcher icon (the QSL emblem). Generate with:
 #   flutter pub get
@@ -35,6 +36,16 @@ flutter_launcher_icons:
   # Android 8+ adaptive icon: emblem on a white field.
   adaptive_icon_background: "#FFFFFF"
   adaptive_icon_foreground: "assets/brand/icon_foreground.png"
+
+# Native launch screen (the frame Android/iOS show before Flutter draws):
+# coal-dark with the white QSL badge, so it hands off smoothly into the
+# animated splash. Generate with:
+#   dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#161310"
+  image: assets/brand/splash_badge.png
+  android_12:
+    color: "#161310"
 
 flutter:
   uses-material-design: true
