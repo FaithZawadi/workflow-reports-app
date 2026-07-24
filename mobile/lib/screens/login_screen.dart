@@ -55,14 +55,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [BoxShadow(color: kGold.withOpacity(0.25), blurRadius: 34, spreadRadius: 2)],
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: const Duration(milliseconds: 650),
+                        curve: Curves.easeOutBack,
+                        builder: (_, v, child) => Transform.scale(scale: 0.6 + 0.4 * v, child: Opacity(opacity: v.clamp(0.0, 1.0), child: child)),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(color: kGold.withOpacity(0.25), blurRadius: 34, spreadRadius: 2)],
+                          ),
+                          child: const LogoMark(size: 62),
                         ),
-                        child: const LogoMark(size: 62),
                       ),
                       const SizedBox(height: 16),
                       const Text.rich(
