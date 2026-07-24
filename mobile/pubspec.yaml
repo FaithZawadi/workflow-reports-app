@@ -46,6 +46,7 @@ flutter_native_splash:
   image: assets/brand/splash_badge.png
   android_12:
     color: "#161310"
+    image: assets/brand/splash_icon_a12.png
 
 flutter:
   uses-material-design: true
