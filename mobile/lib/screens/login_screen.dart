@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../session.dart';
 import '../theme.dart';
-import '../widgets/common.dart';
+import '../widgets/space_scene.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -41,47 +41,38 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Branded header
+            // Branded header — the same starfield scene as the welcome page,
+            // with the badge bobbing gently above the wordmark.
             Container(
               height: topH,
               width: double.infinity,
+              clipBehavior: Clip.antiAlias,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF2A241C), kCoal]),
                 borderRadius: BorderRadius.only(bottomLeft: Radius.circular(34), bottomRight: Radius.circular(34)),
               ),
-              child: SafeArea(
-                bottom: false,
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0.0, end: 1.0),
-                        duration: const Duration(milliseconds: 650),
-                        curve: Curves.easeOutBack,
-                        builder: (_, v, child) => Transform.scale(scale: 0.6 + 0.4 * v, child: Opacity(opacity: v.clamp(0.0, 1.0), child: child)),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [BoxShadow(color: kGold.withOpacity(0.25), blurRadius: 34, spreadRadius: 2)],
-                          ),
-                          child: const LogoMark(size: 62),
+              child: Stack(fit: StackFit.expand, children: [
+                const Starfield(stars: 55),
+                SafeArea(
+                  bottom: false,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const FloatingBadge(size: 58, thruster: false),
+                        const SizedBox(height: 14),
+                        const Text.rich(
+                          TextSpan(children: [
+                            TextSpan(text: 'QALIBRATED ', style: TextStyle(color: Colors.white)),
+                            TextSpan(text: 'SYSTEMS', style: TextStyle(color: kGold)),
+                          ]),
+                          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: 0.5),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text.rich(
-                        TextSpan(children: [
-                          TextSpan(text: 'QALIBRATED ', style: TextStyle(color: Colors.white)),
-                          TextSpan(text: 'SYSTEMS', style: TextStyle(color: kGold)),
-                        ]),
-                        style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900, letterSpacing: 0.5),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
+              ]),
             ),
 
             // Form
