@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'theme.dart';
 import 'session.dart';
 import 'screens/splash_screen.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_shell.dart';
 
@@ -50,7 +51,27 @@ class _RootState extends State<_Root> {
       duration: const Duration(milliseconds: 350),
       child: !ready
           ? const SplashScreen()
-          : (s.signedIn ? const HomeShell() : const LoginScreen()),
+          : (s.signedIn ? const HomeShell() : const AuthFlow()),
+    );
+  }
+}
+
+// Signed-out flow: the Get Started welcome page, then the login form. Kept as
+// local state (no Navigator push) so the root switcher can swap cleanly to the
+// home shell the moment the session signs in.
+class AuthFlow extends StatefulWidget {
+  const AuthFlow({super.key});
+  @override
+  State<AuthFlow> createState() => _AuthFlowState();
+}
+
+class _AuthFlowState extends State<AuthFlow> {
+  bool _started = false;
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      child: _started ? const LoginScreen() : OnboardingScreen(onStart: () => setState(() => _started = true)),
     );
   }
 }

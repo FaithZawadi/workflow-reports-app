@@ -62,6 +62,7 @@ cd mobile
 flutter create --platforms=android,ios .   # generates android/ and ios/ (keeps lib/ and pubspec.yaml)
 flutter pub get
 dart run flutter_launcher_icons            # stamps the QSL emblem as the app/launcher icon
+dart run flutter_native_splash:create      # brands the native launch screen (coal + QSL badge)
 flutter run                                 # on a connected device/emulator
 ```
 
@@ -136,6 +137,7 @@ flutter build ipa --release --dart-define=QSL_BASE_URL=https://reports.qalibrate
 - [ ] `flutter analyze` is clean.
 - [ ] Android manifest permissions + iOS Info.plist keys added (above).
 - [ ] Launcher icon stamped: `dart run flutter_launcher_icons` (QSL emblem).
+- [ ] Native launch screen branded: `dart run flutter_native_splash:create`.
 - [ ] Backend reachable over **HTTPS** at the baked `QSL_BASE_URL`
       (`/api/auth/mobile-login` returns `{ token, user }`).
 
