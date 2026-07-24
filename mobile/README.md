@@ -99,6 +99,11 @@ The camera + location features need platform permissions.
 
 ### Ship a release build
 
+**Versioning** — bump `version:` in `pubspec.yaml` for every release. The part
+before `+` is the user-visible name (e.g. `1.1.0`); the number after `+` is the
+build number and **must increase on every store upload** (e.g. `1.1.0+2` →
+`1.1.0+3`). Flutter maps these to Android `versionName` / `versionCode`.
+
 **Android APK** (side-load / direct install):
 
 ```bash
