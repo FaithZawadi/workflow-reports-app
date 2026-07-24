@@ -50,7 +50,12 @@ class Serial extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       color: kCoal,
-      child: Text(serial, style: const TextStyle(color: kGold, fontFamily: 'monospace', fontSize: 12, fontWeight: FontWeight.w700)),
+      child: Text(
+        serial,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(color: kGold, fontFamily: 'monospace', fontSize: 12, fontWeight: FontWeight.w700),
+      ),
     );
   }
 }
