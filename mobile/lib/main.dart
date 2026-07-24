@@ -37,8 +37,9 @@ class _RootState extends State<_Root> {
   @override
   void initState() {
     super.initState();
-    // Keep the animated splash up for a beat even if the session restores instantly.
-    Future.delayed(const Duration(milliseconds: 2200), () {
+    // Keep the animated splash up for its full cinematic run (~2.6s) even if
+    // the session restores instantly.
+    Future.delayed(const Duration(milliseconds: 2700), () {
       if (mounted) setState(() => _minElapsed = true);
     });
   }
