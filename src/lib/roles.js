@@ -105,6 +105,11 @@ export const isSupervisor = (input) => rolesOf(input).includes("SUPERVISOR");
 // (Equipment Users and field staff do not).
 export const canManageProjects = (input) => intersects(input, ["ADMIN", ...MANAGER_ROLES]);
 
+// Who may generate the segmented management report (admin + the oversight/manager
+// and Equipment-User roles). Field staff and clients don't get it.
+export const REPORT_GENERATOR_ROLES = ["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "MANAGER", "SUPERVISOR"];
+export const canGenerateReports = (input) => intersects(input, REPORT_GENERATOR_ROLES);
+
 // Which target roles an actor may assign when creating/editing a user.
 export function assignableRoles(actor) {
   const roles = rolesOf(actor);

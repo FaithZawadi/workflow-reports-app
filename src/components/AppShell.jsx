@@ -10,7 +10,7 @@ import NotificationBell from "./NotificationBell";
 import OfflineBadge from "./OfflineBadge";
 import PasswordPrompt from "./PasswordPrompt";
 import { ROLE_LABEL } from "@/lib/theme";
-import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, isClientOnly, rolesOf } from "@/lib/roles";
+import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, canGenerateReports, isClientOnly, rolesOf } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
@@ -72,6 +72,7 @@ export default function AppShell({ user, children }) {
     : [
         { href: "/overview", label: "Dashboard", icon: "dashboard" },
         { href: "/dashboard", label: "Report registry", icon: "reports" },
+        canGenerateReports(user) && { href: "/reports-summary", label: "Management report", icon: "chart" },
         { href: "/schedule", label: "Schedule", icon: "schedule" },
         { href: "/tasks", label: "Tasks", icon: "tasks" },
         showQuotes && { href: "/quotations", label: "Quotations", icon: "quote" },
@@ -301,6 +302,8 @@ function NavIcon({ name }) {
       return (<svg {...p}><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>);
     case "refresh":
       return (<svg {...p}><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>);
+    case "chart":
+      return (<svg {...p}><path d="M4 4v16h16" /><rect x="7" y="11" width="3" height="6" rx="0.5" /><rect x="12" y="7" width="3" height="10" rx="0.5" /><rect x="17" y="13" width="3" height="4" rx="0.5" /></svg>);
     default:
       return null;
   }
