@@ -159,8 +159,8 @@ export default function ReportDetail({ serial, profile }) {
             <div key={si}>
               <SectionBar>{sec.title}</SectionBar>
               <div style={{ overflowX: "auto" }}>
-                <div style={{ minWidth: 480, maxWidth: 880, border: "1px solid #e6e0d2", borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,1.7fr) 118px minmax(170px,1.3fr)", background: COAL, color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
+                <div style={{ minWidth: 480, maxWidth: 980, border: "1px solid #e6e0d2", borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,1.7fr) 160px minmax(180px,1.3fr)", background: COAL, color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
                     <span style={{ padding: "6px 10px", borderRight: "1px solid #2c2720" }}>Item</span>
                     <span style={{ padding: "6px 10px", borderRight: "1px solid #2c2720", textAlign: "center" }}>Result</span>
                     <span style={{ padding: "6px 10px" }}>Remarks</span>
@@ -171,12 +171,18 @@ export default function ReportDetail({ serial, profile }) {
                     const st = states.find((s) => s.key === v?.state);
                     const isGood = st && st.key === states[0].key;
                     return (
-                      <div key={ii} style={{ display: "grid", gridTemplateColumns: "minmax(220px,1.7fr) 118px minmax(170px,1.3fr)", fontSize: 14, borderTop: "1px solid #eae4d6" }}>
-                        <span style={{ padding: "8px 10px", borderRight: "1px solid #eae4d6", color: INK }}>{it}</span>
-                        <span style={{ padding: "8px 10px", borderRight: "1px solid #eae4d6", textAlign: "center", fontWeight: 800, color: st ? colorFor(st.key) : "#b8af9e" }}>
-                          {st ? <span>{isGood ? "✓ " : ""}{st.label}</span> : "—"}
+                      <div key={ii} style={{ display: "grid", gridTemplateColumns: "minmax(220px,1.7fr) 160px minmax(180px,1.3fr)", fontSize: 14, borderTop: "1px solid #eae4d6" }}>
+                        <span style={{ padding: "10px 12px", borderRight: "1px solid #eae4d6", color: INK, lineHeight: 1.35 }}>{it}</span>
+                        <span style={{ padding: "10px 8px", borderRight: "1px solid #eae4d6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {st ? (
+                            <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".02em", color: "#fff", background: colorFor(st.key), textAlign: "center", lineHeight: 1.3 }}>
+                              {isGood ? "✓ " : ""}{st.label}
+                            </span>
+                          ) : (
+                            <span style={{ color: "#b8af9e" }}>—</span>
+                          )}
                         </span>
-                        <span style={{ padding: "8px 10px", color: v?.remark ? FAIL : MUTE }}>{v?.remark || "—"}</span>
+                        <span style={{ padding: "10px 12px", color: v?.remark ? FAIL : MUTE, lineHeight: 1.35 }}>{v?.remark || "—"}</span>
                       </div>
                     );
                   })}
