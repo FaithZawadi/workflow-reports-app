@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth";
 import { claimsFromUser } from "@/lib/auth";
-import { signSession, sessionMaxAgeSeconds } from "@/lib/jwt";
+import { signSession, mobileMaxAgeSeconds, MOBILE_TTL_DAYS } from "@/lib/jwt";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +19,11 @@ export async function POST(req) {
   if (!(await verifyPassword(password, user.passwordHash)))
     return Response.json({ error: "Wrong email or password." }, { status: 401 });
 
-  const token = await signSession(claimsFromUser(user));
+  // Long-lived token so the field app stays signed in (stored encrypted on-device).
+  const token = await signSession(claimsFromUser(user), { expiresIn: `${MOBILE_TTL_DAYS}d` });
   return Response.json({
     token,
-    expiresInSeconds: sessionMaxAgeSeconds,
+    expiresInSeconds: mobileMaxAgeSeconds,
     user: {
       id: user.id,
       email: user.email,
