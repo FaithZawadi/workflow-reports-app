@@ -33,6 +33,7 @@ export async function GET(_req, { params }) {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="customer-survey-${params.id.slice(-6)}.pdf"`,
       "Cache-Control": "no-store",
+      "X-Robots-Tag": "noindex, nofollow",
     },
   });
 }
