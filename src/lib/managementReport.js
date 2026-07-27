@@ -14,6 +14,29 @@ function statesOf(sec) {
 
 const STATUS_KEYS = ["PENDING_SUPERVISOR", "PENDING_MANAGER", "APPROVED", "REJECTED"];
 
+// A continuous time series of submissions across the range — daily buckets, or
+// weekly when the span is long — so the trend chart always has sensible points.
+function buildTrend(reports, from, to) {
+  if (!reports.length) return [];
+  const times = reports.map((r) => new Date(r.createdAt).getTime());
+  const start = from ? new Date(from).getTime() : Math.min(...times);
+  const end = to ? new Date(to + "T23:59:59").getTime() : Math.max(...times);
+  const dayMs = 86400000;
+  const spanDays = Math.max(1, Math.round((end - start) / dayMs));
+  const bucketMs = spanDays > 62 ? 7 * dayMs : dayMs;
+  const buckets = new Map();
+  for (const t of times) {
+    const idx = Math.floor((t - start) / bucketMs);
+    buckets.set(idx, (buckets.get(idx) || 0) + 1);
+  }
+  const n = Math.min(400, Math.floor((end - start) / bucketMs) + 1);
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    out.push({ date: new Date(start + i * bucketMs).toISOString().slice(0, 10), count: buckets.get(i) || 0 });
+  }
+  return out;
+}
+
 // Build the role-scoped management report for a date range. Returns a plain
 // object with the summary and every segmented breakdown, plus the flagged
 // findings. Reused by both the JSON API (on-screen) and the PDF.
@@ -103,19 +126,34 @@ export async function buildManagementReport(user, { from, to } = {}) {
 
   const desc = (a, b) => b.count - a.count;
 
+  // Most-common flagged items across the period.
+  const findingCounts = new Map();
+  for (const f of findings) findingCounts.set(f.item, (findingCounts.get(f.item) || 0) + 1);
+  const topFindings = [...findingCounts.entries()].map(([item, count]) => ({ item, count })).sort(desc).slice(0, 8);
+
+  const total = reports.length;
+  const approved = byStatus.APPROVED || 0;
+  const rejected = byStatus.REJECTED || 0;
+  const pending = (byStatus.PENDING_SUPERVISOR || 0) + (byStatus.PENDING_MANAGER || 0);
+
   return {
     range: { from: from || null, to: to || null },
     generatedAt: new Date().toISOString(),
-    total: reports.length,
+    total,
     byStatus,
-    pending: (byStatus.PENDING_SUPERVISOR || 0) + (byStatus.PENDING_MANAGER || 0),
-    approved: byStatus.APPROVED || 0,
-    rejected: byStatus.REJECTED || 0,
+    pending,
+    approved,
+    rejected,
+    approvalRate: total ? Math.round((approved / total) * 100) : 0,
+    rejectionRate: total ? Math.round((rejected / total) * 100) : 0,
+    findingsRate: total ? Number((findings.length / total).toFixed(2)) : 0,
     avgTurnaroundHours: turnaroundN ? Number((turnaroundSum / turnaroundN / 3.6e6).toFixed(1)) : null,
+    trend: buildTrend(reports, from, to),
     byWeighbridge: [...wb.entries()].map(([id, v]) => ({ id, count: v.count, findings: v.findings })).sort(desc),
     byClient: [...client.entries()].map(([name, count]) => ({ name, count })).sort(desc),
     byTemplate: [...tpl.entries()].map(([code, v]) => ({ code, name: v.name, count: v.count })).sort(desc),
     byAuthor: [...author.entries()].map(([name, count]) => ({ name, count })).sort(desc),
+    topFindings,
     findings,
     findingsCount: findings.length,
   };

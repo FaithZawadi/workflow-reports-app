@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { PaperCard, SectionBar } from "./ui";
+import { StatTile, Donut, BarList, TrendArea } from "./charts";
 import { COAL, GOLD, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
 const STATUS_LABEL = {
@@ -9,28 +10,28 @@ const STATUS_LABEL = {
   APPROVED: "Approved",
   REJECTED: "Rejected",
 };
-const STATUS_COLOR = { PENDING_SUPERVISOR: WAIT, PENDING_MANAGER: WAIT, APPROVED: PASS, REJECTED: FAIL };
+const STATUS_COLOR = { PENDING_SUPERVISOR: WAIT, PENDING_MANAGER: "#B8860B", APPROVED: PASS, REJECTED: FAIL };
+const BAR_COLORS = ["#161310", "#946B00", "#2E7D46", "#3B82C4", "#B03A2E", "#7A5CCB", "#0E7C86", "#C2711C"];
 
-const iso = (d) => d.toISOString().slice(0, 10);
+const isoOf = (d) => d.toISOString().slice(0, 10);
 
-// Preset date ranges → { from, to } (YYYY-MM-DD).
 function presetRange(key) {
   const now = new Date();
-  const to = iso(now);
+  const to = isoOf(now);
   const start = new Date(now);
   if (key === "week") start.setDate(now.getDate() - 7);
   else if (key === "month") start.setMonth(now.getMonth() - 1);
   else if (key === "quarter") start.setMonth(now.getMonth() - 3);
   else if (key === "year") start.setFullYear(now.getFullYear() - 1);
   else if (key === "all") return { from: "", to: "" };
-  return { from: iso(start), to };
+  return { from: isoOf(start), to };
 }
 
 const PRESETS = [
-  ["week", "Last 7 days"],
-  ["month", "Last 30 days"],
-  ["quarter", "Last 3 months"],
-  ["year", "Last 12 months"],
+  ["week", "7 days"],
+  ["month", "30 days"],
+  ["quarter", "3 months"],
+  ["year", "12 months"],
   ["all", "All time"],
 ];
 
@@ -50,27 +51,25 @@ export default function ManagementReport() {
     return p.toString();
   }, [from, to]);
 
-  const load = async () => {
+  useEffect(() => {
+    let alive = true;
     setLoading(true);
     setErr("");
-    try {
-      const res = await fetch(`/api/reports/summary?${qs}`);
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error || "Could not load the report.");
-      setData(d);
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetch(`/api/reports/summary?${qs}`)
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!alive) return;
+        if (!ok) throw new Error(d.error || "Could not load the report.");
+        setData(d);
+      })
+      .catch((e) => alive && setErr(e.message))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
   }, [qs]);
 
-  const choosePreset = (key) => {
+  const choose = (key) => {
     setPreset(key);
     setCustom(false);
     const r = presetRange(key);
@@ -78,13 +77,16 @@ export default function ManagementReport() {
     setTo(r.to);
   };
 
+  const rangeLabel = from || to ? `${from || "start"} → ${to || "today"}` : "All time";
+
   return (
     <div style={{ marginTop: 12 }}>
+      {/* Toolbar */}
       <PaperCard>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <div>
             <h1 className="h1" style={{ margin: 0 }}>Management report</h1>
-            <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>A segmented summary of the reports you oversee.</div>
+            <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Analytics across the reports you oversee · <b>{rangeLabel}</b></div>
           </div>
           <a
             className="btn btn-dark"
@@ -97,32 +99,11 @@ export default function ManagementReport() {
           </a>
         </div>
 
-        {/* range picker */}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 14, alignItems: "center" }}>
           {PRESETS.map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => choosePreset(key)}
-              className="btn"
-              style={{
-                fontSize: 12,
-                padding: "6px 12px",
-                background: !custom && preset === key ? COAL : "#fff",
-                color: !custom && preset === key ? GOLD : INK,
-                borderColor: !custom && preset === key ? COAL : "var(--line)",
-                fontWeight: 700,
-              }}
-            >
-              {label}
-            </button>
+            <button key={key} onClick={() => choose(key)} className="btn" style={chip(!custom && preset === key)}>{label}</button>
           ))}
-          <button
-            onClick={() => setCustom(true)}
-            className="btn"
-            style={{ fontSize: 12, padding: "6px 12px", background: custom ? COAL : "#fff", color: custom ? GOLD : INK, borderColor: custom ? COAL : "var(--line)", fontWeight: 700 }}
-          >
-            Custom
-          </button>
+          <button onClick={() => setCustom(true)} className="btn" style={chip(custom)}>Custom</button>
           {custom && (
             <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12, color: MUTE }}>
               <input className="input" type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} style={{ padding: "5px 8px", fontSize: 12 }} />
@@ -131,131 +112,119 @@ export default function ManagementReport() {
             </span>
           )}
         </div>
-
         {err && <div className="err" style={{ marginTop: 14 }}>{err}</div>}
-        {loading && !data ? (
-          <div className="muted" style={{ marginTop: 20 }}>Building report…</div>
-        ) : data ? (
-          <Report data={data} loading={loading} />
-        ) : null}
+      </PaperCard>
+
+      {loading && !data ? (
+        <div className="muted" style={{ marginTop: 16 }}>Building analytics…</div>
+      ) : data ? (
+        <Analytics data={data} loading={loading} />
+      ) : null}
+    </div>
+  );
+}
+
+function chip(active) {
+  return {
+    fontSize: 12,
+    padding: "6px 12px",
+    background: active ? COAL : "#fff",
+    color: active ? GOLD : INK,
+    borderColor: active ? COAL : "var(--line)",
+    fontWeight: 700,
+  };
+}
+
+function Analytics({ data, loading }) {
+  const statusSegments = ["APPROVED", "PENDING_MANAGER", "PENDING_SUPERVISOR", "REJECTED"]
+    .map((k) => ({ label: STATUS_LABEL[k], value: data.byStatus?.[k] || 0, color: STATUS_COLOR[k] }))
+    .filter((s) => s.value > 0);
+
+  const bars = (arr, key = "count") => arr.map((r, i) => ({ label: r.label, value: r[key], color: BAR_COLORS[i % BAR_COLORS.length] }));
+
+  return (
+    <div style={{ marginTop: 14, opacity: loading ? 0.55 : 1, transition: "opacity .2s", display: "grid", gap: 14 }}>
+      {/* KPI tiles */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 12 }}>
+        <StatTile label="Total reports" value={data.total} icon="📋" />
+        <StatTile label="Approved" value={`${data.approved}`} sub={`${data.approvalRate}% of total`} tone="pass" icon="✓" />
+        <StatTile label="Pending" value={data.pending} tone="wait" icon="⏳" />
+        <StatTile label="Rejected" value={data.rejected} sub={`${data.rejectionRate}% of total`} tone="fail" icon="✗" />
+        <StatTile label="Findings" value={data.findingsCount} sub={`${data.findingsRate} per report`} tone="fail" icon="⚠" />
+        <StatTile label="Avg approval" value={data.avgTurnaroundHours != null ? `${data.avgTurnaroundHours}h` : "—"} sub="submit → approved" icon="⚡" />
+      </div>
+
+      {/* Status donut + submissions trend */}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(260px,1fr) minmax(300px,1.4fr)", gap: 14 }}>
+        <PaperCard>
+          <SectionBar>Status distribution</SectionBar>
+          {statusSegments.length ? <Donut segments={statusSegments} centerValue={data.total} centerLabel="reports" /> : <Empty />}
+        </PaperCard>
+        <PaperCard>
+          <SectionBar>Submissions over time</SectionBar>
+          {data.trend?.length ? <TrendArea points={data.trend} height={150} /> : <Empty />}
+        </PaperCard>
+      </div>
+
+      {/* Breakdowns */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14 }}>
+        <PaperCard>
+          <SectionBar>By weighbridge</SectionBar>
+          <BarList items={bars(data.byWeighbridge.map((r) => ({ label: r.id, count: r.count })))} />
+        </PaperCard>
+        <PaperCard>
+          <SectionBar>By report type</SectionBar>
+          <BarList items={bars(data.byTemplate.map((r) => ({ label: `${r.name}`, count: r.count })))} />
+        </PaperCard>
+        <PaperCard>
+          <SectionBar>By client &amp; site</SectionBar>
+          <BarList items={bars(data.byClient.map((r) => ({ label: r.name, count: r.count })))} />
+        </PaperCard>
+        <PaperCard>
+          <SectionBar>By person (filed)</SectionBar>
+          <BarList items={bars(data.byAuthor.map((r) => ({ label: r.name, count: r.count })))} />
+        </PaperCard>
+      </div>
+
+      {/* Findings */}
+      <PaperCard>
+        <SectionBar>Most common findings</SectionBar>
+        {data.topFindings?.length ? (
+          <BarList items={data.topFindings.map((r) => ({ label: r.item, value: r.count, color: FAIL }))} color={FAIL} />
+        ) : (
+          <div className="muted" style={{ fontSize: 13, fontStyle: "italic" }}>No items needed attention in this period. 🎉</div>
+        )}
+      </PaperCard>
+
+      <PaperCard>
+        <SectionBar>Flagged findings — needs attention ({data.findingsCount})</SectionBar>
+        {data.findings?.length ? (
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ minWidth: 640 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "150px 1.4fr 120px 1.2fr", background: COAL, color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
+                <span style={{ padding: "6px 10px" }}>Serial</span>
+                <span style={{ padding: "6px 10px" }}>Item</span>
+                <span style={{ padding: "6px 10px" }}>Result</span>
+                <span style={{ padding: "6px 10px" }}>Remark</span>
+              </div>
+              {data.findings.map((f, i) => (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "150px 1.4fr 120px 1.2fr", fontSize: 13, borderTop: "1px solid #eae4d6" }}>
+                  <a href={`/reports/${f.serial}`} style={{ padding: "8px 10px", fontFamily: "monospace", fontSize: 12, color: "#8a6d00", textDecoration: "none" }}>{f.serial}</a>
+                  <span style={{ padding: "8px 10px", color: INK }}>{f.item}</span>
+                  <span style={{ padding: "8px 10px", color: FAIL, fontWeight: 800 }}>{f.result}</span>
+                  <span style={{ padding: "8px 10px", color: INK }}>{f.remark || "—"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="muted" style={{ fontSize: 13, fontStyle: "italic" }}>No items needed attention in this period.</div>
+        )}
       </PaperCard>
     </div>
   );
 }
 
-function Report({ data, loading }) {
-  const kpis = [
-    { n: data.total, l: "Total reports", c: INK },
-    { n: data.pending, l: "Pending", c: WAIT },
-    { n: data.approved, l: "Approved", c: PASS },
-    { n: data.rejected, l: "Rejected", c: FAIL },
-    { n: data.findingsCount, l: "Findings", c: FAIL },
-    { n: data.avgTurnaroundHours != null ? `${data.avgTurnaroundHours}h` : "—", l: "Avg approval", c: INK },
-  ];
-  return (
-    <div style={{ marginTop: 16, opacity: loading ? 0.6 : 1 }}>
-      {/* KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 10 }}>
-        {kpis.map((k, i) => (
-          <div key={i} style={{ border: "1px solid var(--line)", borderRadius: 8, padding: "12px 10px", textAlign: "center", background: "#fff" }}>
-            <div style={{ fontSize: 24, fontWeight: 900, color: k.c }}>{k.n}</div>
-            <div style={{ fontSize: 10.5, color: MUTE, textTransform: "uppercase", letterSpacing: 0.4, marginTop: 2 }}>{k.l}</div>
-          </div>
-        ))}
-      </div>
-
-      <Segment title="Status breakdown">
-        <Table
-          cols={[
-            { label: "Status", w: "1fr", get: (r) => STATUS_LABEL[r.key] || r.key, color: (r) => STATUS_COLOR[r.key] },
-            { label: "Reports", w: "90px", align: "right", get: (r) => r.count },
-          ]}
-          rows={Object.keys(data.byStatus || {}).map((k) => ({ key: k, count: data.byStatus[k] }))}
-        />
-      </Segment>
-
-      <Segment title="By weighbridge">
-        <Table
-          cols={[
-            { label: "Weighbridge", w: "1fr", get: (r) => r.id },
-            { label: "Reports", w: "90px", align: "right", get: (r) => r.count },
-            { label: "Findings", w: "90px", align: "right", get: (r) => r.findings, color: (r) => (r.findings ? FAIL : MUTE) },
-          ]}
-          rows={data.byWeighbridge}
-        />
-      </Segment>
-
-      <Segment title="By client & site">
-        <Table cols={[{ label: "Client / site", w: "1fr", get: (r) => r.name }, { label: "Reports", w: "90px", align: "right", get: (r) => r.count }]} rows={data.byClient} />
-      </Segment>
-
-      <Segment title="By report type">
-        <Table cols={[{ label: "Report type", w: "1fr", get: (r) => `${r.name} (${r.code})` }, { label: "Reports", w: "90px", align: "right", get: (r) => r.count }]} rows={data.byTemplate} />
-      </Segment>
-
-      <Segment title="By person (filed)">
-        <Table cols={[{ label: "Filed by", w: "1fr", get: (r) => r.name }, { label: "Reports", w: "90px", align: "right", get: (r) => r.count }]} rows={data.byAuthor} />
-      </Segment>
-
-      <Segment title={`Flagged findings — needs attention (${data.findingsCount})`}>
-        {data.findings?.length ? (
-          <Table
-            cols={[
-              { label: "Serial", w: "130px", get: (r) => r.serial, mono: true },
-              { label: "Item", w: "1.4fr", get: (r) => r.item },
-              { label: "Result", w: "120px", get: (r) => r.result, color: () => FAIL, bold: true },
-              { label: "Remark", w: "1.2fr", get: (r) => r.remark || "—" },
-            ]}
-            rows={data.findings}
-          />
-        ) : (
-          <div className="muted" style={{ fontSize: 13, fontStyle: "italic" }}>No items needed attention in this period.</div>
-        )}
-      </Segment>
-    </div>
-  );
-}
-
-function Segment({ title, children }) {
-  return (
-    <div>
-      <SectionBar>{title}</SectionBar>
-      {children}
-    </div>
-  );
-}
-
-function Table({ cols, rows }) {
-  if (!rows || !rows.length) return <div className="muted" style={{ fontSize: 13, fontStyle: "italic" }}>None in this period.</div>;
-  const template = cols.map((c) => c.w).join(" ");
-  return (
-    <div style={{ overflowX: "auto" }}>
-      <div style={{ minWidth: 420, border: "1px solid #e6e0d2", borderRadius: 4, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: template, background: COAL, color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
-          {cols.map((c, i) => (
-            <span key={i} style={{ padding: "6px 10px", textAlign: c.align || "left" }}>{c.label}</span>
-          ))}
-        </div>
-        {rows.map((r, ri) => (
-          <div key={ri} style={{ display: "grid", gridTemplateColumns: template, fontSize: 13.5, borderTop: "1px solid #eae4d6" }}>
-            {cols.map((c, i) => (
-              <span
-                key={i}
-                style={{
-                  padding: "8px 10px",
-                  textAlign: c.align || "left",
-                  color: c.color ? c.color(r) : INK,
-                  fontWeight: c.bold ? 800 : 400,
-                  fontFamily: c.mono ? "monospace" : "inherit",
-                  fontSize: c.mono ? 12 : undefined,
-                }}
-              >
-                {c.get(r)}
-              </span>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function Empty() {
+  return <div className="muted" style={{ fontSize: 13, fontStyle: "italic", padding: "10px 0" }}>No data in this period.</div>;
 }

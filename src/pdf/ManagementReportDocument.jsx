@@ -9,6 +9,7 @@ const MUTE = "#6B6355";
 const PASS = "#2E7D46";
 const FAIL = "#B03A2E";
 const WAIT = "#946B00";
+const BAR_COLORS = ["#161310", "#946B00", "#2E7D46", "#3B82C4", "#B03A2E", "#7A5CCB", "#0E7C86", "#C2711C"];
 
 const STATUS_LABEL = {
   PENDING_SUPERVISOR: "Supervisor review",
@@ -33,14 +34,29 @@ const s = StyleSheet.create({
   sectionBar: { flexDirection: "row", alignItems: "center", marginTop: 14, marginBottom: 5 },
   swatch: { width: 8, height: 8, backgroundColor: GOLD, marginRight: 4 },
   sectionTitle: { fontSize: 9.5, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
+  sectionNote: { fontSize: 7, color: MUTE, marginLeft: 6 },
   kpiRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 10 },
   kpi: { width: "16.66%", padding: 4 },
   kpiBox: { borderWidth: 1, borderColor: "#E4DCCB", borderRadius: 3, padding: 8, alignItems: "center" },
   kpiNum: { fontSize: 18, fontFamily: "Helvetica-Bold" },
   kpiLabel: { fontSize: 6.5, color: MUTE, textTransform: "uppercase", marginTop: 2, textAlign: "center", letterSpacing: 0.3 },
+  kpiSub: { fontSize: 6, color: MUTE, marginTop: 1, textAlign: "center" },
+  rateRow: { flexDirection: "row", marginTop: 6 },
+  rateCell: { flex: 1, paddingVertical: 6, paddingHorizontal: 8, borderLeftWidth: 3, marginRight: 6, backgroundColor: "#FAF7F0" },
+  rateNum: { fontSize: 13, fontFamily: "Helvetica-Bold" },
+  rateLabel: { fontSize: 6.5, color: MUTE, textTransform: "uppercase", marginTop: 1, letterSpacing: 0.3 },
   row: { flexDirection: "row" },
   th: { backgroundColor: COAL, color: "#fff", fontSize: 7.5, padding: 4, fontFamily: "Helvetica-Bold", borderRightWidth: 0.5, borderColor: "#2c2720" },
   td: { fontSize: 8, padding: 4, borderWidth: 0.5, borderColor: "#E4DCCB" },
+  barRow: { flexDirection: "row", alignItems: "center", marginBottom: 3, paddingVertical: 1 },
+  barLabel: { width: "40%", fontSize: 8, paddingRight: 6 },
+  barTrack: { flex: 1, height: 10, backgroundColor: "#F0EADD", borderRadius: 2, overflow: "hidden" },
+  barFill: { height: 10, borderRadius: 2 },
+  barVal: { width: 42, fontSize: 8, fontFamily: "Helvetica-Bold", textAlign: "right", paddingLeft: 4 },
+  trendWrap: { flexDirection: "row", alignItems: "flex-end", height: 60, marginTop: 4, borderBottomWidth: 0.5, borderColor: "#E4DCCB", paddingTop: 2 },
+  trendBar: { flex: 1, marginHorizontal: 0.6, backgroundColor: GOLD, minHeight: 1 },
+  trendAxis: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
+  trendTick: { fontSize: 6, color: MUTE },
   empty: { fontSize: 8.5, color: MUTE, fontStyle: "italic", marginTop: 4 },
   footer: { position: "absolute", bottom: 16, left: 32, right: 32, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4, alignItems: "center" },
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
@@ -55,37 +71,56 @@ function fmtDate(d) {
   }
 }
 
-function Kpi({ num, label, color }) {
+function Kpi({ num, label, sub, color }) {
   return (
     <View style={s.kpi}>
       <View style={s.kpiBox}>
         <Text style={[s.kpiNum, color ? { color } : {}]}>{num}</Text>
         <Text style={s.kpiLabel}>{label}</Text>
+        {sub ? <Text style={s.kpiSub}>{sub}</Text> : null}
       </View>
     </View>
   );
 }
 
-// A simple two/three column count table.
-function CountTable({ cols, rows }) {
-  if (!rows.length) return <Text style={s.empty}>None in this period.</Text>;
-  const widths = cols.map((c) => c.w);
+// A horizontal bar chart — one row per item, filled proportionally to the max.
+function BarChart({ items, color }) {
+  if (!items || !items.length) return <Text style={s.empty}>None in this period.</Text>;
+  const max = Math.max(...items.map((i) => i.value)) || 1;
   return (
     <View>
-      <View style={s.row}>
-        {cols.map((c, i) => (
-          <Text key={i} style={[s.th, { width: widths[i], textAlign: c.align || "left" }]}>{c.label}</Text>
-        ))}
-      </View>
-      {rows.map((r, ri) => (
-        <View style={s.row} key={ri} wrap={false}>
-          {cols.map((c, i) => (
-            <Text key={i} style={[s.td, { width: widths[i], textAlign: c.align || "left", color: c.color ? c.color(r) : INK }]}>
-              {c.get(r)}
-            </Text>
-          ))}
+      {items.map((it, i) => (
+        <View style={s.barRow} key={i} wrap={false}>
+          <Text style={s.barLabel} hyphenationCallback={(w) => [w]}>{it.label}</Text>
+          <View style={s.barTrack}>
+            <View style={[s.barFill, { width: `${Math.max(3, (it.value / max) * 100)}%`, backgroundColor: color || it.color || GOLD }]} />
+          </View>
+          <Text style={s.barVal}>{it.value}</Text>
         </View>
       ))}
+    </View>
+  );
+}
+
+// Compact submissions sparkline drawn as vertical bars.
+function TrendBars({ points }) {
+  if (!points || !points.length) return <Text style={s.empty}>No submissions in this period.</Text>;
+  const max = Math.max(...points.map((p) => p.count)) || 1;
+  const first = points[0]?.date;
+  const last = points[points.length - 1]?.date;
+  const total = points.reduce((a, p) => a + p.count, 0);
+  return (
+    <View>
+      <View style={s.trendWrap}>
+        {points.map((p, i) => (
+          <View key={i} style={[s.trendBar, { height: `${Math.max(2, (p.count / max) * 100)}%` }]} />
+        ))}
+      </View>
+      <View style={s.trendAxis}>
+        <Text style={s.trendTick}>{fmtDate(first)}</Text>
+        <Text style={s.trendTick}>{total} submissions · peak {max}/period</Text>
+        <Text style={s.trendTick}>{fmtDate(last)}</Text>
+      </View>
     </View>
   );
 }
@@ -96,6 +131,12 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
     d.range && (d.range.from || d.range.to)
       ? `${fmtDate(d.range.from) || "start"} — ${fmtDate(d.range.to) || "today"}`
       : "All time";
+
+  const wbBars = (d.byWeighbridge || []).slice(0, 10).map((r, i) => ({ label: r.id, value: r.count, color: BAR_COLORS[i % BAR_COLORS.length] }));
+  const tplBars = (d.byTemplate || []).slice(0, 10).map((r, i) => ({ label: r.name, value: r.count, color: BAR_COLORS[i % BAR_COLORS.length] }));
+  const clientBars = (d.byClient || []).slice(0, 10).map((r, i) => ({ label: r.name, value: r.count, color: BAR_COLORS[i % BAR_COLORS.length] }));
+  const authorBars = (d.byAuthor || []).slice(0, 10).map((r, i) => ({ label: r.name, value: r.count, color: BAR_COLORS[i % BAR_COLORS.length] }));
+  const findingBars = (d.topFindings || []).slice(0, 8).map((r) => ({ label: r.item, value: r.count }));
 
   return (
     <Document>
@@ -128,64 +169,65 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         <View style={s.kpiRow}>
           <Kpi num={d.total || 0} label="Total reports" />
           <Kpi num={d.pending || 0} label="Pending" color={WAIT} />
-          <Kpi num={d.approved || 0} label="Approved" color={PASS} />
-          <Kpi num={d.rejected || 0} label="Rejected" color={FAIL} />
-          <Kpi num={d.findingsCount || 0} label="Findings" color={FAIL} />
-          <Kpi num={d.avgTurnaroundHours != null ? `${d.avgTurnaroundHours}h` : "—"} label="Avg approval" />
+          <Kpi num={d.approved || 0} label="Approved" sub={`${d.approvalRate || 0}% of total`} color={PASS} />
+          <Kpi num={d.rejected || 0} label="Rejected" sub={`${d.rejectionRate || 0}% of total`} color={FAIL} />
+          <Kpi num={d.findingsCount || 0} label="Findings" sub={`${d.findingsRate || 0} / report`} color={FAIL} />
+          <Kpi num={d.avgTurnaroundHours != null ? `${d.avgTurnaroundHours}h` : "—"} label="Avg approval" sub="submit → approved" />
         </View>
 
+        {/* Key rates */}
+        <View style={s.rateRow}>
+          <View style={[s.rateCell, { borderLeftColor: PASS }]}>
+            <Text style={[s.rateNum, { color: PASS }]}>{d.approvalRate || 0}%</Text>
+            <Text style={s.rateLabel}>Approval rate</Text>
+          </View>
+          <View style={[s.rateCell, { borderLeftColor: FAIL }]}>
+            <Text style={[s.rateNum, { color: FAIL }]}>{d.rejectionRate || 0}%</Text>
+            <Text style={s.rateLabel}>Rejection rate</Text>
+          </View>
+          <View style={[s.rateCell, { borderLeftColor: WAIT }]}>
+            <Text style={[s.rateNum, { color: WAIT }]}>{d.findingsRate || 0}</Text>
+            <Text style={s.rateLabel}>Findings per report</Text>
+          </View>
+          <View style={[s.rateCell, { borderLeftColor: COAL, marginRight: 0 }]}>
+            <Text style={[s.rateNum, { color: COAL }]}>{d.avgTurnaroundHours != null ? `${d.avgTurnaroundHours}h` : "—"}</Text>
+            <Text style={s.rateLabel}>Avg time to approve</Text>
+          </View>
+        </View>
+
+        {/* Submissions trend */}
+        <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Submissions over time</Text></View>
+        <TrendBars points={d.trend} />
+
         {/* Status breakdown */}
-        <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Status breakdown</Text></View>
-        <CountTable
-          cols={[
-            { label: "Status", w: "70%", get: (r) => STATUS_LABEL[r.key] || r.key, color: (r) => STATUS_COLOR[r.key] || INK },
-            { label: "Reports", w: "30%", align: "right", get: (r) => r.count },
-          ]}
-          rows={Object.keys(d.byStatus || {}).map((k) => ({ key: k, count: d.byStatus[k] }))}
+        <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Status distribution</Text></View>
+        <BarChart
+          items={["APPROVED", "PENDING_MANAGER", "PENDING_SUPERVISOR", "REJECTED"]
+            .map((k) => ({ label: STATUS_LABEL[k], value: (d.byStatus && d.byStatus[k]) || 0, color: STATUS_COLOR[k] }))
+            .filter((r) => r.value > 0)}
         />
 
         {/* By weighbridge */}
-        <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>By weighbridge</Text></View>
-        <CountTable
-          cols={[
-            { label: "Weighbridge", w: "55%", get: (r) => r.id },
-            { label: "Reports", w: "22%", align: "right", get: (r) => r.count },
-            { label: "Findings", w: "23%", align: "right", get: (r) => r.findings, color: (r) => (r.findings ? FAIL : MUTE) },
-          ]}
-          rows={d.byWeighbridge || []}
-        />
-
-        {/* By client / site */}
-        <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>By client &amp; site</Text></View>
-        <CountTable
-          cols={[
-            { label: "Client / site", w: "78%", get: (r) => r.name },
-            { label: "Reports", w: "22%", align: "right", get: (r) => r.count },
-          ]}
-          rows={d.byClient || []}
-        />
+        <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>By weighbridge</Text><Text style={s.sectionNote}>top {wbBars.length}</Text></View>
+        <BarChart items={wbBars} />
 
         {/* By report type */}
         <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>By report type</Text></View>
-        <CountTable
-          cols={[
-            { label: "Report type", w: "78%", get: (r) => `${r.name} (${r.code})` },
-            { label: "Reports", w: "22%", align: "right", get: (r) => r.count },
-          ]}
-          rows={d.byTemplate || []}
-        />
+        <BarChart items={tplBars} />
+
+        {/* By client / site */}
+        <View style={s.sectionBar} break><View style={s.swatch} /><Text style={s.sectionTitle}>By client &amp; site</Text><Text style={s.sectionNote}>top {clientBars.length}</Text></View>
+        <BarChart items={clientBars} />
 
         {/* By author */}
-        <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>By person (filed)</Text></View>
-        <CountTable
-          cols={[
-            { label: "Filed by", w: "78%", get: (r) => r.name },
-            { label: "Reports", w: "22%", align: "right", get: (r) => r.count },
-          ]}
-          rows={d.byAuthor || []}
-        />
+        <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>By person (filed)</Text><Text style={s.sectionNote}>top {authorBars.length}</Text></View>
+        <BarChart items={authorBars} />
 
-        {/* Findings */}
+        {/* Most common findings */}
+        <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Most common findings</Text></View>
+        {findingBars.length ? <BarChart items={findingBars} color={FAIL} /> : <Text style={s.empty}>No items needed attention in this period.</Text>}
+
+        {/* Findings detail */}
         <View style={s.sectionBar} break><View style={s.swatch} /><Text style={s.sectionTitle}>Flagged findings — needs attention ({d.findingsCount || 0})</Text></View>
         {(!d.findings || !d.findings.length) ? (
           <Text style={s.empty}>No items needed attention in this period.</Text>
