@@ -250,17 +250,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
               style: const TextStyle(color: kMute, fontSize: 12, fontStyle: FontStyle.italic)),
         ),
 
-      // Free fields — proper spaced labels above each value.
+      // Free fields — label and value on the same line (value to the right),
+      // with proper spaced labels (no run-together words).
       for (final e in values.entries)
         if (e.key != 'weighbridgeId' && '${e.value}'.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(labelFor(e.key).toUpperCase(),
-                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: kMute, letterSpacing: 0.4)),
-              const SizedBox(height: 2),
-              Text('${e.value}', style: const TextStyle(fontSize: 14.5, color: kInk, height: 1.35)),
-            ]),
+            padding: const EdgeInsets.only(top: 8),
+            child: Text.rich(TextSpan(children: [
+              TextSpan(text: '${labelFor(e.key).toUpperCase()}: ',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5, color: kMute, letterSpacing: 0.3)),
+              TextSpan(text: '${e.value}', style: const TextStyle(fontSize: 14, color: kInk)),
+            ])),
           ),
 
       // Checklists (from the template)
