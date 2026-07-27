@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
+import 'cache.dart';
 
 // Thrown for any non-2xx API response, carrying the server's message.
 class ApiException implements Exception {
@@ -134,17 +135,36 @@ class ApiClient {
     return AppUser.fromJson(Map<String, dynamic>.from(d['user']));
   }
 
+  List<ReportSummary> _parseReports(dynamic d) =>
+      ((d['reports'] as List?) ?? []).map((e) => ReportSummary.fromJson(Map<String, dynamic>.from(e))).toList();
+
   Future<List<ReportSummary>> getReports({String? status, String? q}) async {
     final params = <String, String>{};
     if (status != null && status != 'all') params['status'] = status;
     if (q != null && q.trim().isNotEmpty) params['q'] = q.trim();
-    final d = _decode(await http.get(_u('/api/reports', params.isEmpty ? null : params), headers: _headers));
-    return ((d['reports'] as List?) ?? []).map((e) => ReportSummary.fromJson(Map<String, dynamic>.from(e))).toList();
+    final key = 'reports:${status ?? "all"}:${q ?? ""}';
+    try {
+      final d = _decode(await http.get(_u('/api/reports', params.isEmpty ? null : params), headers: _headers));
+      await LocalCache.put(key, d);
+      return _parseReports(d);
+    } catch (e) {
+      final cached = await LocalCache.get(key);
+      if (cached != null) return _parseReports(cached);
+      rethrow;
+    }
   }
 
   Future<ReportDetail> getReport(String serial) async {
-    final d = _decode(await http.get(_u('/api/reports/$serial'), headers: _headers));
-    return ReportDetail.fromJson(Map<String, dynamic>.from(d));
+    final key = 'report:$serial';
+    try {
+      final d = _decode(await http.get(_u('/api/reports/$serial'), headers: _headers));
+      await LocalCache.put(key, d);
+      return ReportDetail.fromJson(Map<String, dynamic>.from(d));
+    } catch (e) {
+      final cached = await LocalCache.get(key);
+      if (cached != null) return ReportDetail.fromJson(Map<String, dynamic>.from(cached));
+      rethrow;
+    }
   }
 
   // The report as a PDF (raw bytes). Sends the bearer token, so it works for the
@@ -167,8 +187,15 @@ class ApiClient {
 
   // Returns { templates: [...], allowed: [codes] }.
   Future<Map<String, dynamic>> getTemplates() async {
-    final d = _decode(await http.get(_u('/api/templates'), headers: _headers));
-    return Map<String, dynamic>.from(d);
+    try {
+      final d = _decode(await http.get(_u('/api/templates'), headers: _headers));
+      await LocalCache.put('templates', d);
+      return Map<String, dynamic>.from(d);
+    } catch (e) {
+      final cached = await LocalCache.get('templates');
+      if (cached != null) return Map<String, dynamic>.from(cached);
+      rethrow;
+    }
   }
 
   Future<Map<String, List<Person>>> getDirectory() async {
@@ -190,15 +217,33 @@ class ApiClient {
 
   // Role-scoped dashboard metrics.
   Future<Map<String, dynamic>> getStats() async {
-    final d = _decode(await http.get(_u('/api/stats'), headers: _headers));
-    return Map<String, dynamic>.from(d);
+    try {
+      final d = _decode(await http.get(_u('/api/stats'), headers: _headers));
+      await LocalCache.put('stats', d);
+      return Map<String, dynamic>.from(d);
+    } catch (e) {
+      final cached = await LocalCache.get('stats');
+      if (cached != null) return Map<String, dynamic>.from(cached);
+      rethrow;
+    }
+  }
+
+  TasksResult _parseTasks(dynamic d) {
+    final list = ((d['tasks'] as List?) ?? []).map((e) => TaskItem.fromJson(Map<String, dynamic>.from(e))).toList();
+    return TasksResult(list, d['canManage'] == true);
   }
 
   // Tasks assigned to the user (or all, for managers/admin).
   Future<TasksResult> getTasks() async {
-    final d = _decode(await http.get(_u('/api/tasks'), headers: _headers));
-    final list = ((d['tasks'] as List?) ?? []).map((e) => TaskItem.fromJson(Map<String, dynamic>.from(e))).toList();
-    return TasksResult(list, d['canManage'] == true);
+    try {
+      final d = _decode(await http.get(_u('/api/tasks'), headers: _headers));
+      await LocalCache.put('tasks', d);
+      return _parseTasks(d);
+    } catch (e) {
+      final cached = await LocalCache.get('tasks');
+      if (cached != null) return _parseTasks(cached);
+      rethrow;
+    }
   }
 
   // Update a task's status (managers, or the task's assignee).

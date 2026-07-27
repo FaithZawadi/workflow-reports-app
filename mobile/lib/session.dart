@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'api.dart';
+import 'cache.dart';
 
 const kDefaultBaseUrl = String.fromEnvironment('QSL_BASE_URL', defaultValue: 'https://reports.qalibrated.com');
 
@@ -52,6 +53,7 @@ class Session extends ChangeNotifier {
     api = ApiClient(baseUrl);
     await _store.delete(key: 'token');
     await _store.delete(key: 'user');
+    await LocalCache.clear();
     notifyListeners();
   }
 }

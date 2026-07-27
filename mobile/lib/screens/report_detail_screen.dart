@@ -17,6 +17,18 @@ Color _colorFor(String key) {
   return m[key] ?? kFail;
 }
 
+// Turn a machine key ("stampExpiry", "max_spread", "REPEATREADINGS") into a
+// readable label with proper spaces between words.
+String _humanizeKey(String k) {
+  var s = k
+      .replaceAll('_', ' ')
+      .replaceAllMapped(RegExp(r'([a-z0-9])([A-Z])'), (m) => '${m[1]} ${m[2]}')
+      .replaceAllMapped(RegExp(r'([A-Za-z])([0-9])'), (m) => '${m[1]} ${m[2]}');
+  s = s.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (s.isEmpty) return k;
+  return s[0].toUpperCase() + s.substring(1);
+}
+
 class ReportDetailScreen extends StatefulWidget {
   final String serial;
   const ReportDetailScreen({super.key, required this.serial});
@@ -159,6 +171,24 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     final pending = r['status'] == 'PENDING_SUPERVISOR' || r['status'] == 'PENDING_MANAGER';
     final sections = (_template?['sections'] as List?) ?? [];
 
+    // Proper field labels (from the template) so a value key like "stampExpiry"
+    // reads "Stamp expiry" instead of the run-together "STAMPEXPIRY".
+    final fieldLabels = <String, String>{};
+    for (final s in sections) {
+      final m = Map<String, dynamic>.from(s as Map);
+      if (m['type'] == 'fields') {
+        for (final f in (m['fields'] as List? ?? [])) {
+          final fm = Map<String, dynamic>.from(f as Map);
+          if (fm['k'] != null) fieldLabels['${fm['k']}'] = '${fm['label'] ?? fm['k']}';
+        }
+      } else if (m['type'] == 'choices' && m['k'] != null) {
+        fieldLabels['${m['k']}'] = '${m['title'] ?? m['k']}';
+      } else if (m['type'] == 'textarea' && m['k'] != null) {
+        fieldLabels['${m['k']}'] = '${m['label'] ?? m['k']}';
+      }
+    }
+    String labelFor(String k) => fieldLabels[k] ?? _humanizeKey(k);
+
     return ListView(padding: const EdgeInsets.all(14), children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Expanded(child: Text(r['templateName'] ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: kInk))),
@@ -220,15 +250,17 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
               style: const TextStyle(color: kMute, fontSize: 12, fontStyle: FontStyle.italic)),
         ),
 
-      // Free fields
+      // Free fields — proper spaced labels above each value.
       for (final e in values.entries)
         if (e.key != 'weighbridgeId' && '${e.value}'.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text.rich(TextSpan(children: [
-              TextSpan(text: '${e.key.toUpperCase()}: ', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: kMute)),
-              TextSpan(text: '${e.value}', style: const TextStyle(fontSize: 14, color: kInk)),
-            ])),
+            padding: const EdgeInsets.only(top: 10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(labelFor(e.key).toUpperCase(),
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11, color: kMute, letterSpacing: 0.4)),
+              const SizedBox(height: 2),
+              Text('${e.value}', style: const TextStyle(fontSize: 14.5, color: kInk, height: 1.35)),
+            ]),
           ),
 
       // Checklists (from the template)
