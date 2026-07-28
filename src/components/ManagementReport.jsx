@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
@@ -34,6 +34,26 @@ const PRESETS = [
   ["all", "All time"],
 ];
 
+const relTime = (ts) => {
+  const s = Math.round((Date.now() - ts) / 1000);
+  if (s < 10) return "just now";
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  return `${Math.round(m / 60)}h ago`;
+};
+
+// Deep-link into the report registry (which lives at /dashboard and reads
+// ?status=, ?template= and ?q=) so every chart drills through to its rows.
+const registryHref = ({ status, template, q } = {}) => {
+  const p = new URLSearchParams();
+  if (status) p.set("status", status);
+  if (template) p.set("template", template);
+  if (q) p.set("q", q);
+  const s = p.toString();
+  return `/dashboard${s ? `?${s}` : ""}`;
+};
+
 const fmtDay = (iso) => {
   if (!iso) return "";
   try {
@@ -50,6 +70,8 @@ export default function ManagementReport() {
   const [to, setTo] = useState(presetRange("month").to);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState(null);
   const [err, setErr] = useState("");
 
   const qs = useMemo(() => {
@@ -59,23 +81,48 @@ export default function ManagementReport() {
     return p.toString();
   }, [from, to]);
 
-  useEffect(() => {
-    let alive = true;
-    setLoading(true);
-    setErr("");
-    fetch(`/api/reports/summary?${qs}`)
-      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
-      .then(({ ok, d }) => {
-        if (!alive) return;
-        if (!ok) throw new Error(d.error || "Could not load the report.");
+  // Load the report. `silent` keeps the current view on screen while a background
+  // refresh runs, so the dashboard autopopulates without flashing or scrolling.
+  const load = useCallback(
+    async (silent = false) => {
+      if (silent) setRefreshing(true);
+      else setLoading(true);
+      setErr("");
+      try {
+        const r = await fetch(`/api/reports/summary?${qs}`, { cache: "no-store" });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Could not load the report.");
         setData(d);
-      })
-      .catch((e) => alive && setErr(e.message))
-      .finally(() => alive && setLoading(false));
+        setUpdatedAt(Date.now());
+      } catch (e) {
+        setErr(e.message);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [qs]
+  );
+
+  // Initial + on filter change.
+  useEffect(() => {
+    load(false);
+  }, [load]);
+
+  // Live: poll every 60s, and refresh the moment the tab regains focus, so new
+  // reports, approvals and findings appear on their own.
+  useEffect(() => {
+    const tick = () => document.visibilityState === "visible" && load(true);
+    const id = setInterval(tick, 60000);
+    const onFocus = () => load(true);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
     return () => {
-      alive = false;
+      clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
     };
-  }, [qs]);
+  }, [load]);
 
   const choose = (key) => {
     setPreset(key);
@@ -89,6 +136,7 @@ export default function ManagementReport() {
 
   return (
     <div style={{ display: "grid", gap: 16, marginTop: 12 }}>
+      <style>{`@keyframes qslPulse{0%{box-shadow:0 0 0 0 rgba(46,125,70,.5)}70%{box-shadow:0 0 0 6px rgba(46,125,70,0)}100%{box-shadow:0 0 0 0 rgba(46,125,70,0)}}.qsl-lb-row{transition:background .12s}.qsl-lb-row:hover{background:#FAF7EE!important}`}</style>
       {/* Title + filter bar */}
       <section style={S.bar}>
         <div>
@@ -114,7 +162,12 @@ export default function ManagementReport() {
               <input className="input" type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} style={{ padding: "6px 8px", fontSize: 12, width: "auto" }} />
             </div>
           )}
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <button onClick={() => load(true)} title="Refresh now" style={S.live} disabled={refreshing}>
+              <span style={{ ...S.liveDot, animation: refreshing ? "none" : undefined, background: refreshing ? WAIT : PASS }} />
+              {refreshing ? "Updating…" : updatedAt ? `Live · ${relTime(updatedAt)}` : "Live"}
+              <span style={{ marginLeft: 2, fontSize: 13 }}>⟳</span>
+            </button>
             <a className="btn" href={`/api/reports/summary/excel?${qs}`} style={{ ...S.btn, pointerEvents: loading ? "none" : "auto", opacity: loading ? 0.6 : 1 }}>⬇ Excel</a>
             <a className="btn" href={`/api/reports/summary/pdf?${qs}`} target="_blank" rel="noreferrer" style={{ ...S.btn, ...S.btnDark, pointerEvents: loading ? "none" : "auto", opacity: loading ? 0.6 : 1 }}>⬇ PDF report</a>
           </div>
@@ -138,8 +191,8 @@ function Analytics({ data, loading }) {
     .map((k) => ({ key: k, label: STATUS_LABEL[k], value: d.byStatus?.[k] || 0, color: STATUS_COLOR[k] }))
     .filter((s) => s.value > 0);
 
-  const rank = (arr, key = "count", labelKey = "label") =>
-    arr.slice(0, 6).map((r, i) => ({ label: r[labelKey] ?? r.name ?? r.id, value: r[key], color: BAR_COLORS[i % BAR_COLORS.length] }));
+  const rank = (arr, key = "count", labelKey = "label", hrefFor) =>
+    arr.slice(0, 6).map((r, i) => ({ label: r[labelKey] ?? r.name ?? r.id, value: r[key], color: BAR_COLORS[i % BAR_COLORS.length], href: hrefFor ? hrefFor(r) : undefined }));
 
   return (
     <div style={{ display: "grid", gap: 16, opacity: loading ? 0.55 : 1, transition: "opacity .2s" }}>
@@ -183,19 +236,19 @@ function Analytics({ data, loading }) {
         </Card>
       </div>
 
-      {/* Breakdowns */}
+      {/* Breakdowns — every row drills through to its filtered reports */}
       <div style={S.grid2b}>
         <Card title="By weighbridge" note={`top ${Math.min(6, d.byWeighbridge.length)} of ${d.byWeighbridge.length}`}>
-          <Leaderboard items={rank(d.byWeighbridge)} total={d.total} />
+          <Leaderboard items={rank(d.byWeighbridge, "count", "label", (r) => registryHref({ q: r.label }))} total={d.total} />
         </Card>
         <Card title="By client & site" note={`${d.byClient.length} site${d.byClient.length === 1 ? "" : "s"}`}>
-          <Leaderboard items={rank(d.byClient, "count", "name")} total={d.total} />
+          <Leaderboard items={rank(d.byClient, "count", "name", (r) => registryHref({ q: String(r.name).split(" — ")[0] }))} total={d.total} />
         </Card>
         <Card title="By report type" note={`${d.byTemplate.length} template${d.byTemplate.length === 1 ? "" : "s"}`}>
-          <Leaderboard items={rank(d.byTemplate, "count", "name")} total={d.total} />
+          <Leaderboard items={rank(d.byTemplate, "count", "name", (r) => registryHref({ template: r.code }))} total={d.total} />
         </Card>
         <Card title="Filed by · top people" note={`${d.byAuthor.length} ${d.byAuthor.length === 1 ? "person" : "people"}`}>
-          <Leaderboard items={rank(d.byAuthor, "count", "name")} total={d.total} />
+          <Leaderboard items={rank(d.byAuthor, "count", "name", (r) => registryHref({ q: r.name }))} total={d.total} />
         </Card>
       </div>
 
@@ -310,14 +363,19 @@ function Donut({ segments, total }) {
         <text x={cx} y={cx + 15} textAnchor="middle" style={{ fontSize: 9, fill: MUTE, letterSpacing: ".08em" }}>REPORTS</text>
       </svg>
       <div style={{ display: "grid", gap: 9, flex: 1, minWidth: 130 }}>
-        {segments.map((s, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13 }}>
-            <span style={{ width: 11, height: 11, borderRadius: 3, background: s.color, flexShrink: 0 }} />
-            <span style={{ flex: 1, color: INK }}>{s.label}</span>
-            <b>{s.value}</b>
-            <span style={{ color: MUTE, fontSize: 11.5, width: 38, textAlign: "right" }}>{Math.round((s.value / sum) * 100)}%</span>
-          </div>
-        ))}
+        {segments.map((s, i) => {
+          const href = s.key ? registryHref({ status: s.key }) : null;
+          const Row = href ? Link : "div";
+          const rp = href ? { href, title: `View ${s.label} reports`, className: "qsl-lb-row" } : {};
+          return (
+            <Row key={i} {...rp} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 13, textDecoration: "none", color: "inherit", borderRadius: 6 }}>
+              <span style={{ width: 11, height: 11, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+              <span style={{ flex: 1, color: INK }}>{s.label}{href ? <span style={{ color: "#c3b58f", marginLeft: 5 }}>›</span> : null}</span>
+              <b>{s.value}</b>
+              <span style={{ color: MUTE, fontSize: 11.5, width: 38, textAlign: "right" }}>{Math.round((s.value / sum) * 100)}%</span>
+            </Row>
+          );
+        })}
       </div>
     </div>
   );
@@ -370,25 +428,29 @@ function Leaderboard({ items, total, noShare }) {
   if (!items.length) return <Empty />;
   return (
     <div style={{ display: "grid", gap: 11 }}>
-      {items.map((it, i) => (
-        <div key={i} style={{ display: "grid", gridTemplateColumns: "20px 1fr auto", gap: 10, alignItems: "center" }}>
-          <span style={{ fontSize: 11, fontWeight: 900, color: "#b6ab93", fontFamily: "var(--mono)", textAlign: "center" }}>{i + 1}</span>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12.5, marginBottom: 4 }}>
-              <span style={{ color: INK, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.label}</span>
-              <b style={{ flexShrink: 0 }}>{it.value}</b>
+      {items.map((it, i) => {
+        const Row = it.href ? Link : "div";
+        const rowProps = it.href ? { href: it.href, title: `View ${it.label} reports`, className: "qsl-lb-row" } : {};
+        return (
+          <Row key={i} {...rowProps} style={{ display: "grid", gridTemplateColumns: "20px 1fr auto", gap: 10, alignItems: "center", textDecoration: "none", color: "inherit", borderRadius: 6, padding: "1px 0" }}>
+            <span style={{ fontSize: 11, fontWeight: 900, color: "#b6ab93", fontFamily: "var(--mono)", textAlign: "center" }}>{i + 1}</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12.5, marginBottom: 4 }}>
+                <span style={{ color: INK, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.label}{it.href ? <span style={{ color: "#c3b58f", marginLeft: 5 }}>›</span> : null}</span>
+                <b style={{ flexShrink: 0 }}>{it.value}</b>
+              </div>
+              <div style={{ height: 7, background: "#F0EADD", borderRadius: 5, overflow: "hidden" }}>
+                <div style={{ width: `${Math.max(3, (it.value / max) * 100)}%`, height: "100%", background: it.color, borderRadius: 5 }} />
+              </div>
             </div>
-            <div style={{ height: 7, background: "#F0EADD", borderRadius: 5, overflow: "hidden" }}>
-              <div style={{ width: `${Math.max(3, (it.value / max) * 100)}%`, height: "100%", background: it.color, borderRadius: 5 }} />
-            </div>
-          </div>
-          {!noShare && total ? (
-            <span style={{ fontSize: 11, color: MUTE, fontWeight: 700, width: 34, textAlign: "right" }}>{Math.round((it.value / total) * 100)}%</span>
-          ) : (
-            <span style={{ width: noShare ? 0 : 34 }} />
-          )}
-        </div>
-      ))}
+            {!noShare && total ? (
+              <span style={{ fontSize: 11, color: MUTE, fontWeight: 700, width: 34, textAlign: "right" }}>{Math.round((it.value / total) * 100)}%</span>
+            ) : (
+              <span style={{ width: noShare ? 0 : 34 }} />
+            )}
+          </Row>
+        );
+      })}
     </div>
   );
 }
@@ -639,6 +701,8 @@ const S = {
   seg: (on) => ({ fontSize: 12, fontWeight: 800, color: on ? GOLD : MUTE, padding: "6px 12px", borderRadius: 7, border: "none", background: on ? COAL : "transparent" }),
   btn: { border: "1px solid var(--line)", background: "#fff", color: INK, fontWeight: 800, padding: "9px 14px", borderRadius: 10, fontSize: 12.5, textDecoration: "none", boxShadow: SHADOW },
   btnDark: { background: COAL, color: GOLD, borderColor: COAL },
+  live: { display: "inline-flex", alignItems: "center", gap: 6, border: "1px solid var(--line)", background: "#fff", color: MUTE, fontWeight: 700, padding: "8px 11px", borderRadius: 999, fontSize: 11.5, cursor: "pointer", boxShadow: SHADOW },
+  liveDot: { width: 8, height: 8, borderRadius: "50%", background: PASS, boxShadow: "0 0 0 0 rgba(46,125,70,.5)", animation: "qslPulse 2s infinite" },
 
   exec: { background: "linear-gradient(135deg,#1c1813 0%,#161310 60%,#221c12 100%)", borderRadius: 18, boxShadow: SHADOW_LG, padding: "22px 22px 20px", color: "#fff", position: "relative", overflow: "hidden" },
   execGlow: { position: "absolute", right: -40, top: -40, width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle,rgba(245,168,0,.16),transparent 70%)", pointerEvents: "none" },
