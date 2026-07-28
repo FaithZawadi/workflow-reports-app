@@ -100,6 +100,18 @@ export default function ApproveClient({ token, initialAction }) {
   const freeFields = Object.entries(data.values || {}).filter(([k, v]) => k !== "weighbridgeId" && v);
   const photos = (r.photos || []).filter((p) => (p.dataUrl || "").startsWith("data:image"));
 
+  // Proper spaced labels (from the template, else split camelCase) — matches the
+  // report view and the mobile app.
+  const fieldLabels = {};
+  (tpl?.sections || []).forEach((sec) => {
+    if (sec.type === "fields") (sec.fields || []).forEach((f) => { if (f.k) fieldLabels[f.k] = f.label || f.k; });
+    else if (sec.type === "choices" && sec.k) fieldLabels[sec.k] = sec.title || sec.k;
+    else if (sec.type === "textarea" && sec.k) fieldLabels[sec.k] = sec.label || sec.k;
+  });
+  const labelFor = (k) =>
+    fieldLabels[k] ||
+    String(k).replace(/_/g, " ").replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Za-z])([0-9])/g, "$1 $2").trim().replace(/\s+/g, " ").replace(/^./, (c) => c.toUpperCase());
+
   return shell(
     <>
       <p style={{ color: WAIT, fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: ".05em", margin: 0 }}>
@@ -116,7 +128,7 @@ export default function ApproveClient({ token, initialAction }) {
         <div style={card}>
           {freeFields.map(([k, v]) => (
             <div key={k} style={{ fontSize: 14, marginBottom: 6 }}>
-              <b style={{ textTransform: "uppercase", fontSize: 11, color: MUTE }}>{k}: </b>
+              <b style={{ textTransform: "uppercase", fontSize: 11, color: MUTE }}>{labelFor(k)}: </b>
               {String(v)}
             </div>
           ))}

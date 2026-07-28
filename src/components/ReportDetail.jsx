@@ -64,6 +64,26 @@ export default function ReportDetail({ serial, profile }) {
 
   const freeFields = Object.entries(data.values || {}).filter(([k, v]) => k !== "weighbridgeId" && v);
 
+  // Proper field labels so a value key like "stampExpiry" reads "Stamp Expiry"
+  // instead of "STAMPEXPIRY". Prefer the template's own label; otherwise split
+  // camelCase / underscores / letter-number runs (mirrors the mobile app).
+  const fieldLabels = {};
+  (tpl?.sections || []).forEach((sec) => {
+    if (sec.type === "fields") (sec.fields || []).forEach((f) => { if (f.k) fieldLabels[f.k] = f.label || f.k; });
+    else if (sec.type === "choices" && sec.k) fieldLabels[sec.k] = sec.title || sec.k;
+    else if (sec.type === "textarea" && sec.k) fieldLabels[sec.k] = sec.label || sec.k;
+  });
+  const humanizeKey = (k) => {
+    let s = String(k)
+      .replace(/_/g, " ")
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/([A-Za-z])([0-9])/g, "$1 $2")
+      .trim()
+      .replace(/\s+/g, " ");
+    return s ? s[0].toUpperCase() + s.slice(1) : s;
+  };
+  const labelFor = (k) => fieldLabels[k] || humanizeKey(k);
+
   return (
     <div style={{ marginTop: 12 }}>
       <PaperCard>
@@ -148,7 +168,7 @@ export default function ReportDetail({ serial, profile }) {
         {/* free fields */}
         {freeFields.map(([k, v]) => (
           <div key={k} style={{ fontSize: 14, marginTop: 8 }}>
-            <b style={{ textTransform: "uppercase", fontSize: 11, color: MUTE }}>{k}: </b>
+            <b style={{ textTransform: "uppercase", fontSize: 11, color: MUTE }}>{labelFor(k)}: </b>
             {String(v)}
           </div>
         ))}
