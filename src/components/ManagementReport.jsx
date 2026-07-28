@@ -414,15 +414,17 @@ function Empty() {
 }
 
 /* ---------- styles ---------- */
+const SHADOW = "0 1px 2px rgba(20,16,10,.04), 0 4px 16px rgba(20,16,10,.06)";
+const SHADOW_LG = "0 2px 8px rgba(20,16,10,.10), 0 12px 34px rgba(20,16,10,.14)";
 const S = {
-  bar: { background: "#fff", border: "1px solid var(--line)", borderRadius: 14, padding: "16px 18px", display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "space-between", alignItems: "center" },
+  bar: { background: "#fff", border: "1px solid var(--line)", borderRadius: 16, boxShadow: SHADOW, padding: "16px 20px", display: "flex", flexWrap: "wrap", gap: 14, justifyContent: "space-between", alignItems: "center" },
   eyebrow: { fontSize: 11, fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "#8a6d00" },
   segs: { display: "flex", gap: 4, background: "#F3EFE6", border: "1px solid var(--line)", borderRadius: 10, padding: 4, flexWrap: "wrap" },
   seg: (on) => ({ fontSize: 12, fontWeight: 800, color: on ? GOLD : MUTE, padding: "6px 12px", borderRadius: 7, border: "none", background: on ? COAL : "transparent" }),
-  btn: { border: "1px solid var(--line)", background: "#fff", color: INK, fontWeight: 800, padding: "9px 14px", borderRadius: 9, fontSize: 12.5, textDecoration: "none" },
+  btn: { border: "1px solid var(--line)", background: "#fff", color: INK, fontWeight: 800, padding: "9px 14px", borderRadius: 10, fontSize: 12.5, textDecoration: "none", boxShadow: SHADOW },
   btnDark: { background: COAL, color: GOLD, borderColor: COAL },
 
-  exec: { background: "linear-gradient(135deg,#1c1813 0%,#161310 60%,#221c12 100%)", borderRadius: 16, padding: "22px 22px 20px", color: "#fff", position: "relative", overflow: "hidden" },
+  exec: { background: "linear-gradient(135deg,#1c1813 0%,#161310 60%,#221c12 100%)", borderRadius: 18, boxShadow: SHADOW_LG, padding: "22px 22px 20px", color: "#fff", position: "relative", overflow: "hidden" },
   execGlow: { position: "absolute", right: -40, top: -40, width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle,rgba(245,168,0,.16),transparent 70%)", pointerEvents: "none" },
   execTop: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, position: "relative", flexWrap: "wrap", gap: 6 },
   execT: { fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#cdbd98" },
@@ -435,11 +437,11 @@ const S = {
   delta: { fontSize: 11.5, fontWeight: 900, padding: "3px 8px", borderRadius: 999, whiteSpace: "nowrap" },
 
   insights: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 12 },
-  ins: (k) => ({ background: "#fff", border: "1px solid var(--line)", borderLeft: `4px solid ${k === "good" ? PASS : k === "bad" ? FAIL : GOLD}`, borderRadius: 12, padding: "13px 15px" }),
+  ins: (k) => ({ background: "#fff", border: "1px solid var(--line)", borderLeft: `4px solid ${k === "good" ? PASS : k === "bad" ? FAIL : GOLD}`, borderRadius: 13, boxShadow: SHADOW, padding: "13px 15px" }),
   insH: { fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".05em", color: MUTE },
   insB: { fontSize: 13.5, marginTop: 6, lineHeight: 1.4, color: INK },
 
-  card: { background: "#fff", border: "1px solid var(--line)", borderRadius: 14, padding: 18 },
+  card: { background: "#fff", border: "1px solid var(--line)", borderRadius: 16, boxShadow: SHADOW, padding: 18 },
   sec: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 8, flexWrap: "wrap" },
   secTtl: { fontSize: 13, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".04em", display: "flex", gap: 9, alignItems: "center", color: INK },
   secDot: { width: 10, height: 10, background: GOLD, borderRadius: 3, flexShrink: 0 },

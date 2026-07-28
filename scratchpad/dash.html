@@ -1,0 +1,206 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root{--gold:#F5A800;--coal:#161310;--paper:#F4F5F7;--ink:#26221C;--pass:#2E7D46;--fail:#B03A2E;--wait:#946B00;--line:#E7E3DA;--mute:#6B6355;--mono:ui-monospace,SFMono-Regular,Menlo,monospace;--shadow:0 1px 2px rgba(20,16,10,.04),0 4px 16px rgba(20,16,10,.06);--shadowLg:0 2px 8px rgba(20,16,10,.10),0 12px 34px rgba(20,16,10,.14)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--paper);color:var(--ink);padding:22px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:16px}
+.h1{font-size:23px;font-weight:900;letter-spacing:-.02em}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+b{font-weight:800}
+/* toolbar */
+.bar{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:16px 20px;display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8a6d00}
+.subline{font-size:12.5px;color:var(--mute);margin-top:3px}
+.segs{display:flex;gap:4px;background:#F0F1F3;border:1px solid var(--line);border-radius:11px;padding:4px}
+.seg{font-size:12px;font-weight:800;color:var(--mute);padding:7px 13px;border-radius:8px;border:none;background:transparent;cursor:pointer}
+.seg.on{color:var(--gold);background:var(--coal)}
+.btns{display:flex;gap:8px}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:800;padding:9px 14px;border-radius:10px;font-size:12.5px;box-shadow:var(--shadow)}
+.btn.dark{background:var(--coal);color:var(--gold);border-color:var(--coal)}
+/* exec band */
+.exec{background:linear-gradient(135deg,#1c1813,#161310 60%,#221c12);border-radius:18px;padding:22px;color:#fff;position:relative;overflow:hidden;box-shadow:var(--shadowLg)}
+.glow{position:absolute;right:-40px;top:-40px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(245,168,0,.18),transparent 70%)}
+.execTop{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;position:relative}
+.execT{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#cdbd98}
+.execP{font-size:12px;color:#9b9280;font-family:var(--mono)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;position:relative}
+.kpi{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.09);border-radius:13px;padding:15px 16px}
+.kpiLab{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#a89e88}
+.kpiVal{font-size:34px;font-weight:900;line-height:1.05;margin-top:7px;letter-spacing:-.02em}
+.kpiFoot{display:flex;align-items:center;gap:8px;margin-top:9px}
+.delta{font-size:11.5px;font-weight:900;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.d-good{background:rgba(46,125,70,.22);color:#7fdca0}
+.d-bad{background:rgba(176,58,46,.22);color:#f0a79c}
+.kpiCtx{font-size:11px;color:#8f8672}
+/* insights */
+.insights{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.ins{background:#fff;border:1px solid var(--line);border-radius:13px;padding:14px 16px;box-shadow:var(--shadow)}
+.ins.good{border-left:4px solid var(--pass)}.ins.bad{border-left:4px solid var(--fail)}.ins.trend{border-left:4px solid var(--gold)}
+.insH{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--mute)}
+.insB{font-size:13.5px;margin-top:6px;line-height:1.42}
+/* cards */
+.pad{padding:18px}
+.sec{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px}
+.secTtl{font-size:13px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;display:flex;gap:9px;align-items:center}
+.dot{width:10px;height:10px;background:var(--gold);border-radius:3px}
+.note{font-size:11px;color:var(--mute);font-weight:700}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+/* donut legend */
+.legend{display:grid;gap:9px;flex:1;min-width:130px}
+.lg{display:flex;align-items:center;gap:9px;font-size:13px}
+.sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+/* leaderboard */
+.lb{display:grid;gap:11px}
+.row{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:center}
+.rk{font-size:11px;font-weight:900;color:#b6ab93;font-family:var(--mono);text-align:center}
+.rowTop{display:flex;justify-content:space-between;gap:8px;font-size:12.5px;margin-bottom:4px}
+.rowTop span{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{height:7px;background:#EFECE4;border-radius:5px;overflow:hidden}
+.fill{height:100%;border-radius:5px}
+.pct{font-size:11px;color:var(--mute);font-weight:700;width:34px;text-align:right}
+/* table */
+.tbl{min-width:680px;border:1px solid var(--line);border-radius:11px;overflow:hidden}
+.trow{display:grid;grid-template-columns:120px 1.5fr 130px 1.3fr 100px}
+.thead{background:var(--coal);color:#fff}
+.thc{padding:9px 12px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center}
+.tc{padding:9px 12px;display:flex;align-items:center;font-size:12.5px}
+.flag{font-size:10.5px;font-weight:900;color:#fff;background:var(--fail);padding:3px 8px;border-radius:5px;letter-spacing:.03em}
+.serial{font-family:var(--mono);font-size:11px;color:#8a6d00;font-weight:700}
+</style></head><body><div class="wrap">
+
+<!-- toolbar -->
+<div class="bar">
+  <div>
+    <div class="eyebrow">Analytics · Project Manager</div>
+    <div class="h1" style="margin-top:2px">Maintenance Management Report</div>
+    <div class="subline">128 reports · <b>27 Jun – 27 Jul</b> · compared to previous period</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end">
+    <div class="segs">
+      <button class="seg">7 days</button><button class="seg on">30 days</button><button class="seg">Quarter</button><button class="seg">Year</button><button class="seg">All time</button><button class="seg">Custom</button>
+    </div>
+    <div class="btns"><a class="btn">⬇ Excel</a><a class="btn dark">⬇ PDF report</a></div>
+  </div>
+</div>
+
+<!-- exec band -->
+<div class="exec">
+  <div class="glow"></div>
+  <div class="execTop"><span class="execT">Executive summary</span><span class="execP">Generated 28 Jul · Grace Wanjiru</span></div>
+  <div class="kpis">
+    <div class="kpi"><div class="kpiLab">Reports filed</div><div class="kpiVal">128</div><div class="kpiFoot"><span class="delta d-good">▲ 14</span></div></div>
+    <div class="kpi"><div class="kpiLab">Approval rate</div><div class="kpiVal" style="color:#7fdca0">75%</div><div class="kpiFoot"><span class="delta d-good">▲ 6 pts</span><span class="kpiCtx">96 approved</span></div></div>
+    <div class="kpi"><div class="kpiLab">Open findings</div><div class="kpiVal" style="color:#f0a79c">14</div><div class="kpiFoot"><span class="delta d-good">▼ 3</span><span class="kpiCtx">0.41 / report</span></div></div>
+    <div class="kpi"><div class="kpiLab">Avg. approval time</div><div class="kpiVal">18.6h</div><div class="kpiFoot"><span class="delta d-good">▼ 2.1 h</span><span class="kpiCtx">submit → sign-off</span></div></div>
+  </div>
+</div>
+
+<!-- insights -->
+<div class="insights">
+  <div class="ins good"><div class="insH">✓ What's working</div><div class="insB">Approvals are up 6 points — 75% of reports cleared this period.</div></div>
+  <div class="ins bad"><div class="insH">⚠ Needs attention</div><div class="insB">WB-KSM-03 logged the most findings (8) — mostly load cell drift outside tolerance.</div></div>
+  <div class="ins trend"><div class="insH">◆ Trend</div><div class="insB">Busiest day was 18 Jul with 12 submissions. Volume up 16 vs previous period.</div></div>
+</div>
+
+<!-- status + trend -->
+<div class="grid2">
+  <div class="card pad">
+    <div class="sec"><span class="secTtl"><span class="dot"></span>Status distribution</span></div>
+    <div style="display:flex;gap:18px;align-items:center">
+      <svg width="150" height="150" viewBox="0 0 150 150" style="flex-shrink:0">
+        <circle cx="75" cy="75" r="64" fill="none" stroke="#F0EADD" stroke-width="22"></circle>
+        <circle cx="75" cy="75" r="64" fill="none" stroke="#2E7D46" stroke-width="22" stroke-dasharray="301 101" stroke-dashoffset="0" transform="rotate(-90 75 75)"></circle>
+        <circle cx="75" cy="75" r="64" fill="none" stroke="#946B00" stroke-width="22" stroke-dasharray="44 358" stroke-dashoffset="-301" transform="rotate(-90 75 75)"></circle>
+        <circle cx="75" cy="75" r="64" fill="none" stroke="#C79A2B" stroke-width="22" stroke-dasharray="28 374" stroke-dashoffset="-345" transform="rotate(-90 75 75)"></circle>
+        <circle cx="75" cy="75" r="64" fill="none" stroke="#B03A2E" stroke-width="22" stroke-dasharray="28 374" stroke-dashoffset="-373" transform="rotate(-90 75 75)"></circle>
+        <text x="75" y="73" text-anchor="middle" style="font-size:28px;font-weight:900;fill:#26221C">128</text>
+        <text x="75" y="90" text-anchor="middle" style="font-size:9px;fill:#6B6355;letter-spacing:.08em">REPORTS</text>
+      </svg>
+      <div class="legend">
+        <div class="lg"><span class="sw" style="background:#2E7D46"></span><span style="flex:1">Approved</span><b>96</b><span class="pct">75%</span></div>
+        <div class="lg"><span class="sw" style="background:#C79A2B"></span><span style="flex:1">Supervisor review</span><b>14</b><span class="pct">11%</span></div>
+        <div class="lg"><span class="sw" style="background:#946B00"></span><span style="flex:1">Manager approval</span><b>9</b><span class="pct">7%</span></div>
+        <div class="lg"><span class="sw" style="background:#B03A2E"></span><span style="flex:1">Rejected</span><b>9</b><span class="pct">7%</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="card pad">
+    <div class="sec"><span class="secTtl"><span class="dot"></span>Submissions over time</span><span class="note">this period vs previous</span></div>
+    <div style="display:flex;gap:16px;font-size:11.5px;color:var(--mute);font-weight:700;margin-bottom:6px">
+      <span><i style="display:inline-block;width:14px;height:3px;border-radius:2px;background:var(--gold);vertical-align:middle;margin-right:5px"></i>This period</span>
+      <span><i style="display:inline-block;width:14px;height:3px;border-radius:2px;background:#C9BFA8;vertical-align:middle;margin-right:5px"></i>Previous</span>
+    </div>
+    <svg viewBox="0 0 560 150" width="100%" height="150" preserveAspectRatio="none" style="display:block">
+      <defs><linearGradient id="tr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#F5A800" stop-opacity="0.32"/><stop offset="100%" stop-color="#F5A800" stop-opacity="0.02"/></linearGradient></defs>
+      <line x1="6" y1="40" x2="554" y2="40" stroke="#F0EADD"/><line x1="6" y1="80" x2="554" y2="80" stroke="#F0EADD"/><line x1="6" y1="120" x2="554" y2="120" stroke="#F0EADD"/>
+      <path d="M6 108 L60 96 L114 70 L168 100 L222 60 L276 112 L330 66 L384 40 L438 78 L492 92 L554 120" fill="none" stroke="#C9BFA8" stroke-width="2" stroke-dasharray="4 4"/>
+      <path d="M6 96 L60 78 L114 52 L168 84 L222 42 L276 96 L330 48 L384 26 L438 62 L492 74 L554 104 L554 144 L6 144 Z" fill="url(#tr)"/>
+      <path d="M6 96 L60 78 L114 52 L168 84 L222 42 L276 96 L330 48 L384 26 L438 62 L492 74 L554 104" fill="none" stroke="#F5A800" stroke-width="2.6" stroke-linejoin="round"/>
+    </svg>
+    <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--mute);margin-top:4px;font-family:var(--mono)"><span>27 Jun</span><span>205 submissions · peak 12 on 18 Jul</span><span>27 Jul</span></div>
+  </div>
+</div>
+
+<!-- breakdowns -->
+<div class="grid2">
+  <div class="card pad">
+    <div class="sec"><span class="secTtl"><span class="dot"></span>By weighbridge</span><span class="note">top 6 of 11</span></div>
+    <div class="lb" id="wb"></div>
+  </div>
+  <div class="card pad">
+    <div class="sec"><span class="secTtl"><span class="dot"></span>By client &amp; site</span><span class="note">18 sites</span></div>
+    <div class="lb" id="cl"></div>
+  </div>
+</div>
+<div class="grid2">
+  <div class="card pad">
+    <div class="sec"><span class="secTtl"><span class="dot"></span>By report type</span><span class="note">4 templates</span></div>
+    <div class="lb" id="tp"></div>
+  </div>
+  <div class="card pad">
+    <div class="sec"><span class="secTtl"><span class="dot"></span>Filed by · top people</span><span class="note">9 people</span></div>
+    <div class="lb" id="au"></div>
+  </div>
+</div>
+
+<!-- health + findings -->
+<div class="grid2">
+  <div class="card pad">
+    <div class="sec"><span class="secTtl"><span class="dot"></span>Equipment health</span></div>
+    <div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px">
+      <svg width="200" height="116" viewBox="0 0 200 116">
+        <path d="M 18 100 A 82 82 0 0 1 182 100" fill="none" stroke="#F0EADD" stroke-width="15" stroke-linecap="round"/>
+        <path d="M 18 100 A 82 82 0 0 1 159.5 44.6" fill="none" stroke="#2E7D46" stroke-width="15" stroke-linecap="round"/>
+        <text x="100" y="90" text-anchor="middle" style="font-size:36px;font-weight:900;fill:#26221C">86%</text>
+        <text x="100" y="108" text-anchor="middle" style="font-size:10px;fill:#6B6355">checks passed</text>
+      </svg>
+      <div style="font-size:12px;color:var(--mute);max-width:230px">1,204 of 1,398 checklist items passed. <b>14</b> flagged across the period.</div>
+    </div>
+  </div>
+  <div class="card pad">
+    <div class="sec"><span class="secTtl"><span class="dot"></span>Most common findings</span></div>
+    <div class="lb" id="fd"></div>
+  </div>
+</div>
+
+<!-- findings table -->
+<div class="card pad">
+  <div class="sec"><span class="secTtl"><span class="dot"></span>Flagged findings — needs attention</span><span class="note">14 items · newest first</span></div>
+  <div class="tbl">
+    <div class="trow thead"><span class="thc">Serial</span><span class="thc">Item</span><span class="thc">Result</span><span class="thc">Remark</span><span class="thc">WB / date</span></div>
+    <div class="trow" style="background:#fff"><span class="tc serial">QSL-2026-0133</span><span class="tc">Load cell drift outside tolerance</span><span class="tc"><span class="flag">NEEDS ATTENTION</span></span><span class="tc">Recalibration scheduled; parts on order.</span><span class="tc" style="font-size:11px;color:var(--mute);font-family:var(--mono);flex-direction:column;align-items:flex-start;gap:1px"><span>WB-KSM-03</span><span>26 Jul</span></span></div>
+    <div class="trow" style="background:#FBFAF6"><span class="tc serial">QSL-2026-0131</span><span class="tc">Junction box corrosion</span><span class="tc"><span class="flag">NEEDS ATTENTION</span></span><span class="tc">Flagged to site supervisor.</span><span class="tc" style="font-size:11px;color:var(--mute);font-family:var(--mono);flex-direction:column;align-items:flex-start;gap:1px"><span>WB-NRB-01</span><span>25 Jul</span></span></div>
+    <div class="trow" style="background:#fff"><span class="tc serial">QSL-2026-0128</span><span class="tc">Deck plate damage / debris</span><span class="tc"><span class="flag">NEEDS ATTENTION</span></span><span class="tc">Cleared debris; monitoring plate.</span><span class="tc" style="font-size:11px;color:var(--mute);font-family:var(--mono);flex-direction:column;align-items:flex-start;gap:1px"><span>WB-MSA-02</span><span>24 Jul</span></span></div>
+  </div>
+</div>
+
+</div>
+<script>
+const mk=(el,items,total,noShare)=>{const max=Math.max(...items.map(i=>i.v));document.getElementById(el).innerHTML=items.map((it,i)=>`<div class="row"><span class="rk">${i+1}</span><div style="min-width:0"><div class="rowTop"><span>${it.l}</span><b>${it.v}</b></div><div class="track"><div class="fill" style="width:${Math.max(3,it.v/max*100)}%;background:${it.c}"></div></div></div>${noShare?'<span style="width:0"></span>':`<span class="pct">${Math.round(it.v/total*100)}%</span>`}</div>`).join('')};
+const C=["#161310","#946B00","#2E7D46","#3B82C4","#7A5CCB","#0E7C86"];
+mk('wb',[["WB-NRB-01",34],["WB-MSA-02",28],["WB-KSM-03",22],["WB-NKR-04",19],["WB-ELD-05",15],["WB-THK-06",10]].map((r,i)=>({l:r[0],v:r[1],c:C[i]})),128);
+mk('cl',[["Kapa Oil — Nairobi",41],["Bidco Africa — Thika",33],["Mombasa Cement — Mombasa",27],["Devki Steel — Ruiru",17],["Unga Group — Eldoret",10]].map((r,i)=>({l:r[0],v:r[1],c:C[i]})),128);
+mk('tp',[["Daily Site Check",52],["Preventive Maintenance Visit",38],["Calibration Verification",24],["Corrective Repair",14]].map((r,i)=>({l:r[0],v:r[1],c:C[i]})),128);
+mk('au',[["P. Kamau",31],["T. Otieno",27],["S. Achieng",24],["J. Mwangi",24],["A. Njoroge",22]].map((r,i)=>({l:r[0],v:r[1],c:C[i]})),128);
+mk('fd',[["Load cell drift outside tolerance",12],["Junction box corrosion",9],["Deck plate damage / debris",7],["Indicator display fault",5],["Foundation cracking",4],["Cable insulation wear",3]].map((r,i)=>({l:r[0],v:r[1],c:i<2?"#B03A2E":i<4?"#C2711C":"#946B00"})),128,true);
+</script>
+</body></html>
