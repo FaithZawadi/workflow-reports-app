@@ -40,7 +40,17 @@ const s = StyleSheet.create({
   kpiBox: { borderWidth: 1, borderColor: "#E4DCCB", borderRadius: 3, padding: 8, alignItems: "center" },
   kpiNum: { fontSize: 18, fontFamily: "Helvetica-Bold" },
   kpiLabel: { fontSize: 6.5, color: MUTE, textTransform: "uppercase", marginTop: 2, textAlign: "center", letterSpacing: 0.3 },
+  kpiDelta: { fontSize: 6.5, fontFamily: "Helvetica-Bold", marginTop: 2, textAlign: "center" },
   kpiSub: { fontSize: 6, color: MUTE, marginTop: 1, textAlign: "center" },
+  insRow: { flexDirection: "row", marginTop: 8 },
+  insCell: { flex: 1, borderLeftWidth: 3, paddingLeft: 7, paddingRight: 7, paddingVertical: 3, marginRight: 7 },
+  insTitle: { fontSize: 6.5, fontFamily: "Helvetica-Bold", textTransform: "uppercase", letterSpacing: 0.3, color: MUTE },
+  insBody: { fontSize: 8, marginTop: 2, lineHeight: 1.3 },
+  healthRow: { flexDirection: "row", alignItems: "center", marginTop: 6 },
+  healthNum: { fontSize: 26, fontFamily: "Helvetica-Bold", width: 70 },
+  healthBarTrack: { flex: 1, height: 12, backgroundColor: "#F0EADD", borderRadius: 3, overflow: "hidden", marginHorizontal: 8 },
+  healthBarFill: { height: 12, borderRadius: 3 },
+  healthNote: { fontSize: 7.5, color: MUTE, width: 150 },
   rateRow: { flexDirection: "row", marginTop: 6 },
   rateCell: { flex: 1, paddingVertical: 6, paddingHorizontal: 8, borderLeftWidth: 3, marginRight: 6, backgroundColor: "#FAF7F0" },
   rateNum: { fontSize: 13, fontFamily: "Helvetica-Bold" },
@@ -71,12 +81,22 @@ function fmtDate(d) {
   }
 }
 
-function Kpi({ num, label, sub, color }) {
+function deltaText(delta) {
+  if (!delta) return null;
+  if (delta.diff === 0) return { txt: "no change", color: MUTE };
+  const sign = delta.diff > 0 ? "+" : "-";
+  const color = delta.trend === "good" ? PASS : delta.trend === "bad" ? FAIL : MUTE;
+  return { txt: `${sign}${delta.abs}${delta.unit ? " " + delta.unit : ""} vs prev`, color };
+}
+
+function Kpi({ num, label, sub, color, delta }) {
+  const dt = deltaText(delta);
   return (
     <View style={s.kpi}>
       <View style={s.kpiBox}>
         <Text style={[s.kpiNum, color ? { color } : {}]}>{num}</Text>
         <Text style={s.kpiLabel}>{label}</Text>
+        {dt ? <Text style={[s.kpiDelta, { color: dt.color }]}>{dt.txt}</Text> : null}
         {sub ? <Text style={s.kpiSub}>{sub}</Text> : null}
       </View>
     </View>
@@ -165,15 +185,31 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         <Text style={s.title}>Maintenance Management Report</Text>
         <Text style={s.sub}>Period: {rangeLabel} · {d.total || 0} report{d.total === 1 ? "" : "s"} in scope</Text>
 
+        {d.compareRange ? (
+          <Text style={[s.sub, { marginTop: 1 }]}>Compared to previous period ({fmtDate(d.compareRange.from)} — {fmtDate(d.compareRange.to)})</Text>
+        ) : null}
+
         {/* Summary KPIs */}
         <View style={s.kpiRow}>
-          <Kpi num={d.total || 0} label="Total reports" />
+          <Kpi num={d.total || 0} label="Total reports" delta={d.deltas?.total} />
           <Kpi num={d.pending || 0} label="Pending" color={WAIT} />
           <Kpi num={d.approved || 0} label="Approved" sub={`${d.approvalRate || 0}% of total`} color={PASS} />
-          <Kpi num={d.rejected || 0} label="Rejected" sub={`${d.rejectionRate || 0}% of total`} color={FAIL} />
-          <Kpi num={d.findingsCount || 0} label="Findings" sub={`${d.findingsRate || 0} / report`} color={FAIL} />
-          <Kpi num={d.avgTurnaroundHours != null ? `${d.avgTurnaroundHours}h` : "—"} label="Avg approval" sub="submit → approved" />
+          <Kpi num={d.rejected || 0} label="Rejected" sub={`${d.rejectionRate || 0}% of total`} color={FAIL} delta={d.deltas?.rejectionRate} />
+          <Kpi num={d.findingsCount || 0} label="Findings" sub={`${d.findingsRate || 0} / report`} color={FAIL} delta={d.deltas?.findingsCount} />
+          <Kpi num={d.avgTurnaroundHours != null ? `${d.avgTurnaroundHours}h` : "—"} label="Avg approval" sub="submit → approved" delta={d.deltas?.avgTurnaroundHours} />
         </View>
+
+        {/* Auto insights */}
+        {d.insights && d.insights.length ? (
+          <View style={s.insRow}>
+            {d.insights.map((it, i) => (
+              <View key={i} style={[s.insCell, { borderLeftColor: it.kind === "good" ? PASS : it.kind === "bad" ? FAIL : GOLD, marginRight: i === d.insights.length - 1 ? 0 : 7 }]}>
+                <Text style={s.insTitle}>{it.title}</Text>
+                <Text style={s.insBody}>{it.body}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         {/* Key rates */}
         <View style={s.rateRow}>
@@ -194,6 +230,20 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
             <Text style={s.rateLabel}>Avg time to approve</Text>
           </View>
         </View>
+
+        {/* Equipment health */}
+        {d.passRate != null ? (
+          <>
+            <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Equipment health</Text></View>
+            <View style={s.healthRow}>
+              <Text style={[s.healthNum, { color: d.passRate >= 90 ? PASS : d.passRate >= 75 ? "#5C8A2E" : d.passRate >= 50 ? WAIT : FAIL }]}>{d.passRate}%</Text>
+              <View style={s.healthBarTrack}>
+                <View style={[s.healthBarFill, { width: `${d.passRate}%`, backgroundColor: d.passRate >= 90 ? PASS : d.passRate >= 75 ? "#5C8A2E" : d.passRate >= 50 ? WAIT : FAIL }]} />
+              </View>
+              <Text style={s.healthNote}>{d.checklistPassed} of {d.checklistTotal} checklist items passed · {d.findingsCount} flagged</Text>
+            </View>
+          </>
+        ) : null}
 
         {/* Submissions trend */}
         <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Submissions over time</Text></View>

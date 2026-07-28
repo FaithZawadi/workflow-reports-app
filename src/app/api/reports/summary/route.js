@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth";
-import { canGenerateReports } from "@/lib/roles";
+import { canGenerateReports, rolesOf } from "@/lib/roles";
 import { buildManagementReport } from "@/lib/managementReport";
+import { ROLE_LABEL } from "@/lib/theme";
 
 export const dynamic = "force-dynamic";
 
@@ -20,5 +21,10 @@ export async function GET(req) {
   const to = (searchParams.get("to") || "").trim();
 
   const data = await buildManagementReport(user, { from, to });
-  return Response.json({ ...data, generatedByName: user.name || user.email });
+  const role = rolesOf(user)[0] || "";
+  return Response.json({
+    ...data,
+    generatedByName: user.name || user.email,
+    generatedByRole: ROLE_LABEL[role] || role.replace(/_/g, " "),
+  });
 }
