@@ -241,7 +241,7 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
         {checklistSections.map(({ sec, idx }) => {
           const states = sec.states || [
             { key: "ok", label: sec.yes || "OK" },
-            { key: "problem", label: sec.no || "ATTN" },
+            { key: "problem", label: sec.no || "NO" },
           ];
           // The Item column is wide enough to keep each check on a single line;
           // result columns stay narrow; Remarks takes the rest (it wraps freely).

@@ -82,7 +82,7 @@ export const TEMPLATES = [
         type: "checklist",
         title: "Cleaning",
         yes: "DONE",
-        no: "NEEDS ATTENTION",
+        no: "NO",
         items: [
           "Washed the deck top - removed mud, stones, spillage",
           "Cleared under the deck (water kept away from load cells / junction box)",
@@ -105,7 +105,7 @@ export const TEMPLATES = [
         type: "checklist",
         title: "Do",
         yes: "DONE",
-        no: "NEEDS ATTENTION",
+        no: "NO",
         items: [
           "Pressed ZERO with deck empty and clean",
           "Did the weekly accuracy test (submit WB02 too)",

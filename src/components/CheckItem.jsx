@@ -3,7 +3,7 @@ import { PASS, FAIL, WAIT, MUTE, INK } from "@/lib/theme";
 
 // A checklist supports 2 or 3 result states. Default is the OK / problem pair;
 // engineer forms pass explicit states such as OK / ATTN / N/A or PASS / ADJ / FAIL.
-export function defaultStates(yes = "OK", no = "NEEDS ATTENTION") {
+export function defaultStates(yes = "OK", no = "NO") {
   return [
     { key: "ok", label: yes, color: PASS },
     { key: "problem", label: no, color: FAIL },
