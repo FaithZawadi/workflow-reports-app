@@ -1,5 +1,6 @@
 import { prisma } from "./db";
-import { reportScope } from "./rbac";
+import { reportScope, assignedClientIds } from "./rbac";
+import { rolesOf } from "./roles";
 import { templateByCode } from "./templates";
 
 // The states for a checklist section: an explicit list, or the yes/no pair.
@@ -234,6 +235,198 @@ function buildInsights(cur, prev, ranked) {
   return out;
 }
 
+const now = () => Date.now();
+const DAYS = (n) => n * DAY;
+
+// A compact status tally { KEY: count, total }.
+function tally(rows, key) {
+  const out = { total: rows.length };
+  for (const r of rows) {
+    const k = r[key] || "UNKNOWN";
+    out[k] = (out[k] || 0) + 1;
+  }
+  return out;
+}
+
+// The wider operational picture beyond service reports — calibration requests,
+// the quotation pipeline (with value), customer & training satisfaction, task
+// workload, and overdue maintenance / upcoming service contracts. Admins and the
+// two report-generating managers see everything; other generators (supervisor /
+// manager) are scoped to the clients whose weighbridges they are assigned to.
+// Every source is guarded so a gap in one never breaks the whole report.
+async function buildOperations(user, from, to) {
+  const roles = rolesOf(user);
+  const isAll = roles.includes("ADMIN") || roles.includes("PROJECT_MANAGER") || roles.includes("TECHNICAL_MANAGER");
+
+  let clientIds = null;
+  if (!isAll) {
+    clientIds = await assignedClientIds(user);
+    if (!clientIds.length) clientIds = ["__no_match__"]; // scoped user with no clients → empty
+  }
+  const byClient = clientIds ? { clientId: { in: clientIds } } : {};
+
+  const created = {};
+  if (from) created.gte = dayStart(from);
+  if (to) created.lte = dayEnd(to);
+  const dateWhere = from || to ? { createdAt: created } : {};
+  const t = now();
+
+  const safe = async (fn, fallback) => {
+    try {
+      return await fn();
+    } catch {
+      return fallback;
+    }
+  };
+
+  // ---- Calibration requests (CRF) ----
+  const crf = await safe(async () => {
+    const rows = await prisma.calibrationRequest.findMany({
+      where: { ...byClient, ...dateWhere },
+      select: { status: true, calibrationType: true, serial: true, clientName: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    });
+    const st = tally(rows, "status");
+    return {
+      total: rows.length,
+      submitted: st.SUBMITTED || 0,
+      accepted: st.ACCEPTED || 0,
+      rejected: st.REJECTED || 0,
+      inSitu: rows.filter((r) => r.calibrationType === "IN_SITU").length,
+      lab: rows.filter((r) => r.calibrationType === "LAB").length,
+      recent: rows.slice(0, 5).map((r) => ({ serial: r.serial, clientName: r.clientName, status: r.status, createdAt: r.createdAt })),
+    };
+  }, null);
+
+  // ---- Quotation pipeline (with value) ----
+  const quotes = await safe(async () => {
+    const rows = await prisma.quotation.findMany({
+      where: { ...byClient, ...dateWhere },
+      select: { status: true, grandTotal: true, currency: true },
+    });
+    const st = tally(rows, "status");
+    const requested = st.REQUESTED || 0;
+    const quoted = st.QUOTED || 0;
+    const accepted = st.ACCEPTED || 0;
+    const declined = st.DECLINED || 0;
+    const decided = accepted + declined;
+    const cur = {};
+    for (const r of rows) cur[r.currency || "KES"] = (cur[r.currency || "KES"] || 0) + 1;
+    const currency = Object.entries(cur).sort((a, b) => b[1] - a[1])[0]?.[0] || "KES";
+    const sumWhere = (fn) => rows.filter(fn).reduce((a, r) => a + (r.grandTotal || 0), 0);
+    return {
+      total: rows.length,
+      requested, quoted, accepted, declined,
+      currency,
+      pipelineValue: Math.round(sumWhere((r) => r.status === "QUOTED" || r.status === "ACCEPTED")),
+      wonValue: Math.round(sumWhere((r) => r.status === "ACCEPTED")),
+      winRate: decided ? Math.round((accepted / decided) * 100) : null,
+    };
+  }, null);
+
+  // ---- Task workload (current state) ----
+  const tasks = await safe(async () => {
+    const rows = await prisma.task.findMany({
+      where: clientIds ? { clientId: { in: clientIds } } : {},
+      select: { status: true, dueAt: true, doneAt: true, priority: true, createdAt: true, title: true, assignedName: true },
+    });
+    const st = tally(rows, "status");
+    const open = (st.OPEN || 0) + (st.IN_PROGRESS || 0) + (st.BLOCKED || 0);
+    const overdueRows = rows.filter((r) => r.status !== "DONE" && r.dueAt && new Date(r.dueAt).getTime() < t);
+    const filedInPeriod = rows.filter((r) => {
+      const c = new Date(r.createdAt).getTime();
+      return (!from || c >= dayStart(from).getTime()) && (!to || c <= dayEnd(to).getTime());
+    }).length;
+    return {
+      total: rows.length,
+      open,
+      done: st.DONE || 0,
+      blocked: st.BLOCKED || 0,
+      inProgress: st.IN_PROGRESS || 0,
+      openNew: st.OPEN || 0,
+      overdue: overdueRows.length,
+      highPriorityOpen: rows.filter((r) => r.status !== "DONE" && r.priority === "HIGH").length,
+      filedInPeriod,
+      overdueList: overdueRows
+        .sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt))
+        .slice(0, 5)
+        .map((r) => ({ title: r.title, assignedName: r.assignedName || "—", dueAt: r.dueAt })),
+    };
+  }, null);
+
+  // ---- Overdue maintenance obligations (schedules, as of today) ----
+  const schedules = await safe(async () => {
+    const rows = await prisma.schedule.findMany({
+      where: { active: true, ...(clientIds ? { clientId: { in: clientIds } } : {}) },
+      select: { nextDueAt: true, templateName: true, clientName: true, weighbridgeId: true },
+    });
+    const overdue = rows.filter((r) => new Date(r.nextDueAt).getTime() < t);
+    const dueSoon = rows.filter((r) => {
+      const d = new Date(r.nextDueAt).getTime();
+      return d >= t && d < t + DAYS(7);
+    });
+    return {
+      active: rows.length,
+      overdue: overdue.length,
+      dueSoon: dueSoon.length,
+      overdueList: overdue
+        .sort((a, b) => new Date(a.nextDueAt) - new Date(b.nextDueAt))
+        .slice(0, 5)
+        .map((r) => ({ label: `${r.templateName} · ${r.clientName}`, weighbridgeId: r.weighbridgeId || "—", dueAt: r.nextDueAt })),
+    };
+  }, null);
+
+  // ---- Service contracts (upcoming / overdue, as of today) ----
+  const contracts = await safe(async () => {
+    const rows = await prisma.contract.findMany({
+      where: { active: true, ...(clientIds ? { clientId: { in: clientIds } } : {}) },
+      select: { nextServiceAt: true, clientName: true, name: true },
+    });
+    const overdue = rows.filter((r) => new Date(r.nextServiceAt).getTime() < t);
+    const dueSoon = rows.filter((r) => {
+      const d = new Date(r.nextServiceAt).getTime();
+      return d >= t && d < t + DAYS(30);
+    });
+    return {
+      active: rows.length,
+      overdue: overdue.length,
+      dueSoon: dueSoon.length,
+      upcomingList: [...overdue, ...dueSoon]
+        .sort((a, b) => new Date(a.nextServiceAt) - new Date(b.nextServiceAt))
+        .slice(0, 5)
+        .map((r) => ({ label: `${r.name} · ${r.clientName}`, dueAt: r.nextServiceAt, overdue: new Date(r.nextServiceAt).getTime() < t })),
+    };
+  }, null);
+
+  // ---- Active weighbridge fleet ----
+  const fleet = await safe(
+    () => prisma.weighbridge.count({ where: { active: true, ...(clientIds ? { clientId: { in: clientIds } } : {}) } }),
+    null
+  );
+
+  // ---- Customer & training satisfaction (all-viewers only) ----
+  let satisfaction = null;
+  let training = null;
+  if (isAll) {
+    satisfaction = await safe(async () => {
+      const rows = await prisma.serviceFeedback.findMany({ where: dateWhere, select: { overall: true, rating: true, recommend: true } });
+      const scores = rows.map((r) => r.overall ?? r.rating).filter((v) => typeof v === "number");
+      const avg = scores.length ? Number((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)) : null;
+      const withRec = rows.filter((r) => r.recommend).length;
+      const recYes = rows.filter((r) => r.recommend === "YES").length;
+      return { count: rows.length, avg, recommendRate: withRec ? Math.round((recYes / withRec) * 100) : null };
+    }, null);
+    training = await safe(async () => {
+      const rows = await prisma.trainingFeedback.findMany({ where: dateWhere, select: { overall: true, recommend: true } });
+      const scores = rows.map((r) => r.overall).filter((v) => typeof v === "number");
+      const avg = scores.length ? Number((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1)) : null;
+      return { count: rows.length, avg };
+    }, null);
+  }
+
+  return { scope: isAll ? "all" : "assigned", crf, quotes, tasks, schedules, contracts, fleet, satisfaction, training };
+}
+
 // Build the role-scoped management report for a date range. Returns a plain
 // object with the summary, every segmented breakdown, period-over-period deltas,
 // auto insights and the flagged findings. Reused by the JSON API and the PDF.
@@ -283,9 +476,24 @@ export async function buildManagementReport(user, { from, to } = {}) {
         : null,
   };
 
+  const operations = await buildOperations(user, from, to);
+
   const insights = buildInsights(cur, prev, { byWeighbridge, topFindings });
+  // Fold the most pressing operational risk into the insight strip.
+  const ops = operations || {};
+  const overdueMaint = ops.schedules?.overdue || 0;
+  const overdueTasks = ops.tasks?.overdue || 0;
+  if (overdueMaint > 0) {
+    insights.push({ kind: "bad", title: "Overdue maintenance", body: `${overdueMaint} scheduled maintenance obligation${overdueMaint === 1 ? " is" : "s are"} past due — plus ${ops.schedules?.dueSoon || 0} due within 7 days.` });
+  } else if (overdueTasks > 0) {
+    insights.push({ kind: "bad", title: "Overdue tasks", body: `${overdueTasks} assigned task${overdueTasks === 1 ? " is" : "s are"} past their due date.` });
+  }
+  if (ops.quotes && (ops.quotes.pipelineValue || 0) > 0) {
+    insights.push({ kind: "trend", title: "Sales pipeline", body: `${ops.quotes.currency} ${ops.quotes.pipelineValue.toLocaleString()} in open quotations${ops.quotes.winRate != null ? ` · ${ops.quotes.winRate}% win rate` : ""}.` });
+  }
 
   return {
+    operations,
     range: { from: from || null, to: to || null },
     compareRange: prevWin ? { from: prevWin.from.toISOString().slice(0, 10), to: prevWin.to.toISOString().slice(0, 10) } : null,
     generatedAt: new Date().toISOString(),

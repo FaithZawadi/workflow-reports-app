@@ -170,6 +170,9 @@ function Analytics({ data, loading }) {
         </section>
       ) : null}
 
+      {/* Operations pulse — system-wide secondary KPIs */}
+      {d.operations ? <OpsPulse ops={d.operations} /> : null}
+
       {/* Status + trend */}
       <div style={S.grid2}>
         <Card title="Status distribution">
@@ -209,6 +212,9 @@ function Analytics({ data, loading }) {
           )}
         </Card>
       </div>
+
+      {/* Across the business — the wider operational picture */}
+      {d.operations ? <OperationsRegion ops={d.operations} /> : null}
 
       {/* Findings table */}
       <Card title="Flagged findings — needs attention" note={`${d.findingsCount} item${d.findingsCount === 1 ? "" : "s"} · newest first`}>
@@ -413,6 +419,216 @@ function Empty() {
   return <div style={{ fontSize: 13, color: MUTE, fontStyle: "italic", padding: "10px 0" }}>No data in this period.</div>;
 }
 
+/* ---------- operations (system-wide) ---------- */
+
+const okStyle = { fontSize: 13, color: MUTE, fontStyle: "italic" };
+const CRF_COLOR = { SUBMITTED: WAIT, ACCEPTED: PASS, REJECTED: FAIL };
+const shortMoney = (cur, n) => {
+  if (n == null) return "—";
+  const a = Math.abs(n);
+  if (a >= 1e6) return `${cur} ${(n / 1e6).toFixed(1)}M`;
+  if (a >= 1e3) return `${cur} ${(n / 1e3).toFixed(0)}K`;
+  return `${cur} ${n}`;
+};
+
+function OpsPulse({ ops }) {
+  const tiles = [];
+  if (ops.crf) tiles.push({ label: "Calibration requests", value: ops.crf.total, sub: `${ops.crf.submitted} pending · ${ops.crf.accepted} accepted`, color: "#8a6d00" });
+  if (ops.quotes) tiles.push({ label: "Open pipeline", value: shortMoney(ops.quotes.currency, ops.quotes.pipelineValue), sub: ops.quotes.winRate != null ? `${ops.quotes.winRate}% win rate` : `${ops.quotes.total} quotes`, color: PASS });
+  if (ops.satisfaction && ops.satisfaction.avg != null) tiles.push({ label: "Customer satisfaction", value: `${ops.satisfaction.avg}/5`, sub: ops.satisfaction.recommendRate != null ? `${ops.satisfaction.recommendRate}% recommend` : `${ops.satisfaction.count} responses`, color: WAIT });
+  if (ops.tasks) tiles.push({ label: "Open tasks", value: ops.tasks.open, sub: `${ops.tasks.overdue} overdue`, color: ops.tasks.overdue ? FAIL : INK });
+  if (ops.schedules) tiles.push({ label: "Overdue maintenance", value: ops.schedules.overdue, sub: `${ops.schedules.dueSoon} due this week`, color: ops.schedules.overdue ? FAIL : PASS });
+  if (typeof ops.fleet === "number") tiles.push({ label: "Active weighbridges", value: ops.fleet, sub: "in service", color: INK });
+  if (!tiles.length) return null;
+  return (
+    <section style={S.pulse}>
+      {tiles.map((t, i) => (
+        <div key={i} style={S.pulseTile}>
+          <div style={S.pulseLab}>{t.label}</div>
+          <div style={{ ...S.pulseVal, color: t.color }}>{t.value}</div>
+          <div style={S.pulseSub}>{t.sub}</div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function OperationsRegion({ ops }) {
+  const hasDue = (ops.schedules?.overdueList?.length || 0) + (ops.contracts?.upcomingList?.length || 0) > 0 || ops.schedules || ops.contracts;
+  return (
+    <>
+      <div style={S.divider}><span style={S.divLine} /><span style={S.divTxt}>Across the business</span><span style={S.divLine} /></div>
+      <div style={S.grid2}>
+        {ops.quotes ? <Card title="Quotation pipeline" note={`${ops.quotes.total} quote${ops.quotes.total === 1 ? "" : "s"}`}><Funnel q={ops.quotes} /></Card> : null}
+        {ops.crf ? <Card title="Calibration requests" note={`${ops.crf.total} in period`}><Calib crf={ops.crf} /></Card> : null}
+      </div>
+      <div style={S.grid2}>
+        {ops.satisfaction || ops.training ? <Card title="Satisfaction" note="rated out of 5">{<Satis s={ops.satisfaction} tr={ops.training} />}</Card> : null}
+        {ops.tasks ? <Card title="Task workload" note={`${ops.tasks.total} task${ops.tasks.total === 1 ? "" : "s"}`}><Workload t={ops.tasks} /></Card> : null}
+      </div>
+      {hasDue ? (
+        <div style={S.grid2}>
+          {ops.schedules ? (
+            <Card title="Overdue maintenance" note={`${ops.schedules.overdue} overdue · ${ops.schedules.dueSoon} this week`}>
+              {ops.schedules.overdueList?.length ? <DueList items={ops.schedules.overdueList} allOverdue /> : <div style={okStyle}>No overdue maintenance obligations. 🎉</div>}
+            </Card>
+          ) : null}
+          {ops.contracts ? (
+            <Card title="Service contracts — upcoming" note={`${ops.contracts.overdue} overdue · ${ops.contracts.dueSoon} within 30 days`}>
+              {ops.contracts.upcomingList?.length ? <DueList items={ops.contracts.upcomingList} /> : <div style={okStyle}>No services due soon.</div>}
+            </Card>
+          ) : null}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function StackBar({ segments }) {
+  const sum = segments.reduce((a, s) => a + s.value, 0) || 1;
+  if (!segments.length) return <div style={okStyle}>Nothing recorded in this period.</div>;
+  return (
+    <div>
+      <div style={{ display: "flex", height: 14, borderRadius: 7, overflow: "hidden", background: "#F0EADD" }}>
+        {segments.map((s, i) => <div key={i} style={{ width: `${(s.value / sum) * 100}%`, background: s.color }} title={`${s.label}: ${s.value}`} />)}
+      </div>
+      <div style={{ display: "flex", gap: 14, marginTop: 9, flexWrap: "wrap" }}>
+        {segments.map((s, i) => (
+          <span key={i} style={{ fontSize: 12, color: INK, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color }} />{s.label} <b>{s.value}</b>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Funnel({ q }) {
+  const stages = [
+    { label: "Requested", value: q.requested, color: "#3B82C4" },
+    { label: "Quoted", value: q.quoted, color: GOLD },
+    { label: "Accepted", value: q.accepted, color: PASS },
+    { label: "Declined", value: q.declined, color: FAIL },
+  ];
+  const max = Math.max(1, ...stages.map((s) => s.value));
+  return (
+    <div>
+      <div style={{ display: "grid", gap: 9 }}>
+        {stages.map((s, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ width: 78, fontSize: 12, color: MUTE, fontWeight: 700 }}>{s.label}</span>
+            <div style={{ flex: 1, height: 20, background: "#F0EADD", borderRadius: 6, overflow: "hidden" }}>
+              <div style={{ width: `${Math.max(4, (s.value / max) * 100)}%`, height: "100%", background: s.color, borderRadius: 6 }} />
+            </div>
+            <b style={{ width: 26, textAlign: "right" }}>{s.value}</b>
+          </div>
+        ))}
+      </div>
+      <div style={S.moneyRow}>
+        <div><div style={S.moneyLab}>Open pipeline</div><div style={S.moneyVal}>{q.currency} {q.pipelineValue.toLocaleString()}</div></div>
+        <div><div style={S.moneyLab}>Won</div><div style={{ ...S.moneyVal, color: PASS }}>{q.currency} {q.wonValue.toLocaleString()}</div></div>
+        <div><div style={S.moneyLab}>Win rate</div><div style={S.moneyVal}>{q.winRate != null ? `${q.winRate}%` : "—"}</div></div>
+      </div>
+    </div>
+  );
+}
+
+function Calib({ crf }) {
+  const segs = [
+    { label: "Submitted", value: crf.submitted, color: WAIT },
+    { label: "Accepted", value: crf.accepted, color: PASS },
+    { label: "Rejected", value: crf.rejected, color: FAIL },
+  ].filter((s) => s.value > 0);
+  return (
+    <div>
+      {segs.length ? <StackBar segments={segs} /> : <div style={okStyle}>No calibration requests in this period.</div>}
+      {crf.total > 0 ? (
+        <div style={{ display: "flex", gap: 16, marginTop: 10, fontSize: 12, color: MUTE }}>
+          <span><b style={{ color: INK }}>{crf.inSitu}</b> in-situ</span>
+          <span><b style={{ color: INK }}>{crf.lab}</b> laboratory</span>
+        </div>
+      ) : null}
+      {crf.recent?.length ? (
+        <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
+          {crf.recent.map((r, i) => (
+            <div key={i} style={S.miniRow}>
+              <span style={S.miniSerial}>{r.serial}</span>
+              <span style={{ flex: 1, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.clientName}</span>
+              <span style={{ ...S.chip, background: CRF_COLOR[r.status] || MUTE }}>{r.status}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Satis({ s, tr }) {
+  const items = [];
+  if (s && s.avg != null) items.push({ label: "Customer service (CSSF)", avg: s.avg, sub: `${s.count} response${s.count === 1 ? "" : "s"}${s.recommendRate != null ? ` · ${s.recommendRate}% would recommend` : ""}` });
+  if (tr && tr.avg != null) items.push({ label: "Training", avg: tr.avg, sub: `${tr.count} response${tr.count === 1 ? "" : "s"}` });
+  if (!items.length) return <div style={okStyle}>No feedback recorded in this period.</div>;
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      {items.map((it, i) => (
+        <div key={i}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 5 }}><span style={{ fontWeight: 700 }}>{it.label}</span><b>{it.avg} / 5</b></div>
+          <div style={{ height: 10, background: "#F0EADD", borderRadius: 6, overflow: "hidden" }}>
+            <div style={{ width: `${(it.avg / 5) * 100}%`, height: "100%", background: it.avg >= 4 ? PASS : it.avg >= 3 ? WAIT : FAIL, borderRadius: 6 }} />
+          </div>
+          <div style={{ fontSize: 11.5, color: MUTE, marginTop: 4 }}>{it.sub}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Workload({ t }) {
+  const segs = [
+    { label: "Open", value: t.openNew, color: "#3B82C4" },
+    { label: "In progress", value: t.inProgress, color: GOLD },
+    { label: "Blocked", value: t.blocked, color: FAIL },
+    { label: "Done", value: t.done, color: PASS },
+  ].filter((s) => s.value > 0);
+  return (
+    <div>
+      {segs.length ? <StackBar segments={segs} /> : <div style={okStyle}>No tasks recorded.</div>}
+      <div style={{ display: "flex", gap: 16, marginTop: 10, fontSize: 12, color: MUTE }}>
+        <span><b style={{ color: t.overdue ? FAIL : INK }}>{t.overdue}</b> overdue</span>
+        <span><b style={{ color: INK }}>{t.highPriorityOpen}</b> high priority open</span>
+      </div>
+      {t.overdueList?.length ? (
+        <div style={{ marginTop: 12, display: "grid", gap: 6 }}>
+          {t.overdueList.map((r, i) => (
+            <div key={i} style={S.miniRow}>
+              <span style={{ flex: 1, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.title}</span>
+              <span style={{ fontSize: 11, color: MUTE }}>{r.assignedName}</span>
+              <span style={{ ...S.chip, background: FAIL }}>{fmtDay(r.dueAt)}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DueList({ items, allOverdue }) {
+  return (
+    <div style={{ display: "grid", gap: 8 }}>
+      {items.map((r, i) => {
+        const overdue = allOverdue || r.overdue;
+        return (
+          <div key={i} style={S.miniRow}>
+            <span style={{ flex: 1, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label}</span>
+            {r.weighbridgeId ? <span style={{ fontSize: 11, color: MUTE, fontFamily: "var(--mono)" }}>{r.weighbridgeId}</span> : null}
+            <span style={{ ...S.chip, background: overdue ? FAIL : WAIT }}>{fmtDay(r.dueAt)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ---------- styles ---------- */
 const SHADOW = "0 1px 2px rgba(20,16,10,.04), 0 4px 16px rgba(20,16,10,.06)";
 const SHADOW_LG = "0 2px 8px rgba(20,16,10,.10), 0 12px 34px rgba(20,16,10,.14)";
@@ -448,6 +664,21 @@ const S = {
   secNote: { fontSize: 11, color: MUTE, fontWeight: 700 },
   grid2: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 },
   grid2b: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 },
+
+  pulse: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(158px,1fr))", gap: 12 },
+  pulseTile: { background: "#fff", border: "1px solid var(--line)", borderRadius: 14, boxShadow: SHADOW, padding: "14px 16px" },
+  pulseLab: { fontSize: 10.5, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", color: MUTE },
+  pulseVal: { fontSize: 26, fontWeight: 900, marginTop: 6, letterSpacing: "-.02em", lineHeight: 1.05 },
+  pulseSub: { fontSize: 11, color: MUTE, marginTop: 4 },
+  divider: { display: "flex", alignItems: "center", gap: 14, margin: "8px 2px 0" },
+  divLine: { flex: 1, height: 1, background: "var(--line)" },
+  divTxt: { fontSize: 12, fontWeight: 900, textTransform: "uppercase", letterSpacing: ".12em", color: "#8a6d00" },
+  moneyRow: { display: "flex", justifyContent: "space-between", gap: 10, marginTop: 16, paddingTop: 14, borderTop: "1px solid var(--line)" },
+  moneyLab: { fontSize: 10.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".05em", color: MUTE },
+  moneyVal: { fontSize: 18, fontWeight: 900, marginTop: 3 },
+  miniRow: { display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 },
+  miniSerial: { fontFamily: "var(--mono)", fontSize: 10.5, color: "#8a6d00", fontWeight: 700 },
+  chip: { fontSize: 10, fontWeight: 800, color: "#fff", padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap" },
 
   trow: { display: "grid", gridTemplateColumns: "120px 1.5fr 130px 1.3fr 100px" },
   thead: { background: COAL, color: "#fff" },

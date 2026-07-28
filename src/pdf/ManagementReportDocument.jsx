@@ -55,6 +55,15 @@ const s = StyleSheet.create({
   rateCell: { flex: 1, paddingVertical: 6, paddingHorizontal: 8, borderLeftWidth: 3, marginRight: 6, backgroundColor: "#FAF7F0" },
   rateNum: { fontSize: 13, fontFamily: "Helvetica-Bold" },
   rateLabel: { fontSize: 6.5, color: MUTE, textTransform: "uppercase", marginTop: 1, letterSpacing: 0.3 },
+  opsMoneyRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4, paddingHorizontal: 2 },
+  opsMoney: { fontSize: 8, color: MUTE },
+  opsLine: { flexDirection: "row", marginTop: 5, alignItems: "baseline" },
+  opsLineLabel: { fontSize: 7.5, fontFamily: "Helvetica-Bold", textTransform: "uppercase", color: MUTE, width: 110, letterSpacing: 0.3 },
+  opsLineVal: { fontSize: 8.5, flex: 1 },
+  opsDueRow: { flexDirection: "row", marginTop: 3, alignItems: "center" },
+  opsDueLabel: { fontSize: 8, flex: 1 },
+  opsDueWb: { fontSize: 7, fontFamily: "Courier", color: MUTE, width: 70 },
+  opsDueDate: { fontSize: 7.5, fontFamily: "Helvetica-Bold", width: 60, textAlign: "right" },
   row: { flexDirection: "row" },
   th: { backgroundColor: COAL, color: "#fff", fontSize: 7.5, padding: 4, fontFamily: "Helvetica-Bold", borderRightWidth: 0.5, borderColor: "#2c2720" },
   td: { fontSize: 8, padding: 4, borderWidth: 0.5, borderColor: "#E4DCCB" },
@@ -118,6 +127,110 @@ function BarChart({ items, color }) {
           <Text style={s.barVal}>{it.value}</Text>
         </View>
       ))}
+    </View>
+  );
+}
+
+const money = (cur, n) => `${cur || "KES"} ${Number(n || 0).toLocaleString()}`;
+
+// The wider operational picture — quotation pipeline (with value), calibration
+// requests, satisfaction, task workload and overdue maintenance / contracts.
+function OperationsBlock({ ops }) {
+  const q = ops.quotes;
+  const crf = ops.crf;
+  const tasks = ops.tasks;
+  const sat = ops.satisfaction;
+  const sch = ops.schedules;
+  const con = ops.contracts;
+
+  const pulse = [];
+  if (crf) pulse.push({ num: crf.total, label: "Calibration reqs", color: WAIT });
+  if (q) pulse.push({ num: q.winRate != null ? `${q.winRate}%` : "—", label: "Quote win rate", color: PASS });
+  if (sat && sat.avg != null) pulse.push({ num: `${sat.avg}/5`, label: "Cust. satisfaction", color: WAIT });
+  if (tasks) pulse.push({ num: tasks.open, label: "Open tasks", color: tasks.overdue ? FAIL : INK });
+  if (sch) pulse.push({ num: sch.overdue, label: "Overdue maint.", color: sch.overdue ? FAIL : PASS });
+  if (typeof ops.fleet === "number") pulse.push({ num: ops.fleet, label: "Weighbridges", color: INK });
+
+  const qBars = q
+    ? [
+        { label: "Requested", value: q.requested, color: "#3B82C4" },
+        { label: "Quoted", value: q.quoted, color: GOLD },
+        { label: "Accepted", value: q.accepted, color: PASS },
+        { label: "Declined", value: q.declined, color: FAIL },
+      ]
+    : [];
+
+  return (
+    <View break>
+      <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Across the business</Text></View>
+
+      {pulse.length ? (
+        <View style={s.rateRow}>
+          {pulse.map((p, i) => (
+            <View key={i} style={[s.rateCell, { borderLeftColor: p.color, marginRight: i === pulse.length - 1 ? 0 : 6 }]}>
+              <Text style={[s.rateNum, { color: p.color }]}>{p.num}</Text>
+              <Text style={s.rateLabel}>{p.label}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+
+      {q ? (
+        <>
+          <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Quotation pipeline</Text><Text style={s.sectionNote}>{q.total} quotes</Text></View>
+          <BarChart items={qBars} />
+          <View style={s.opsMoneyRow}>
+            <Text style={s.opsMoney}>Open pipeline: <Text style={{ fontFamily: "Helvetica-Bold", color: INK }}>{money(q.currency, q.pipelineValue)}</Text></Text>
+            <Text style={s.opsMoney}>Won: <Text style={{ fontFamily: "Helvetica-Bold", color: PASS }}>{money(q.currency, q.wonValue)}</Text></Text>
+          </View>
+        </>
+      ) : null}
+
+      {crf ? (
+        <View style={s.opsLine}>
+          <Text style={s.opsLineLabel}>Calibration requests</Text>
+          <Text style={s.opsLineVal}>{crf.total} total · {crf.submitted} submitted · {crf.accepted} accepted · {crf.rejected} rejected · {crf.inSitu} in-situ / {crf.lab} lab</Text>
+        </View>
+      ) : null}
+
+      {tasks ? (
+        <View style={s.opsLine}>
+          <Text style={s.opsLineLabel}>Task workload</Text>
+          <Text style={s.opsLineVal}>{tasks.open} open · {tasks.inProgress} in progress · {tasks.blocked} blocked · {tasks.done} done · <Text style={{ color: tasks.overdue ? FAIL : MUTE, fontFamily: "Helvetica-Bold" }}>{tasks.overdue} overdue</Text></Text>
+        </View>
+      ) : null}
+
+      {sat && sat.avg != null ? (
+        <View style={s.opsLine}>
+          <Text style={s.opsLineLabel}>Customer satisfaction</Text>
+          <Text style={s.opsLineVal}>{sat.avg} / 5 from {sat.count} response{sat.count === 1 ? "" : "s"}{sat.recommendRate != null ? ` · ${sat.recommendRate}% would recommend` : ""}{ops.training && ops.training.avg != null ? ` · training ${ops.training.avg}/5` : ""}</Text>
+        </View>
+      ) : null}
+
+      {sch && sch.overdueList && sch.overdueList.length ? (
+        <>
+          <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Overdue maintenance</Text><Text style={s.sectionNote}>{sch.overdue} overdue · {sch.dueSoon} due this week</Text></View>
+          {sch.overdueList.map((r, i) => (
+            <View style={s.opsDueRow} key={i} wrap={false}>
+              <Text style={s.opsDueLabel}>{r.label}</Text>
+              <Text style={s.opsDueWb}>{r.weighbridgeId}</Text>
+              <Text style={[s.opsDueDate, { color: FAIL }]}>{fmtDate(r.dueAt)}</Text>
+            </View>
+          ))}
+        </>
+      ) : null}
+
+      {con && con.upcomingList && con.upcomingList.length ? (
+        <>
+          <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Service contracts — upcoming</Text><Text style={s.sectionNote}>{con.overdue} overdue · {con.dueSoon} within 30 days</Text></View>
+          {con.upcomingList.map((r, i) => (
+            <View style={s.opsDueRow} key={i} wrap={false}>
+              <Text style={s.opsDueLabel}>{r.label}</Text>
+              <Text style={[s.opsDueDate, { color: r.overdue ? FAIL : WAIT }]}>{fmtDate(r.dueAt)}</Text>
+            </View>
+          ))}
+        </>
+      ) : null}
     </View>
   );
 }
@@ -276,6 +389,9 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         {/* Most common findings */}
         <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Most common findings</Text></View>
         {findingBars.length ? <BarChart items={findingBars} color={FAIL} /> : <Text style={s.empty}>No items needed attention in this period.</Text>}
+
+        {/* Across the business — the wider operational picture */}
+        {d.operations ? <OperationsBlock ops={d.operations} /> : null}
 
         {/* Findings detail */}
         <View style={s.sectionBar} break><View style={s.swatch} /><Text style={s.sectionTitle}>Flagged findings — needs attention ({d.findingsCount || 0})</Text></View>

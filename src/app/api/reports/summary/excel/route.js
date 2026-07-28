@@ -110,6 +110,68 @@ export async function GET(req) {
   fs.getColumn(8).width = 34;
   fs.views = [{ state: "frozen", ySplit: 1 }];
 
+  /* ---- Operations (system-wide) ---- */
+  const ops = d.operations;
+  if (ops) {
+    const os = wb.addWorksheet("Operations", { properties: { defaultColWidth: 22 } });
+    os.addRow(["Across the business"]).font = { bold: true, size: 13 };
+    os.addRow([]);
+    if (ops.quotes) {
+      os.addRow(["Quotation pipeline"]).font = { bold: true, size: 11 };
+      headerRow(os, ["Stage", "Count"]);
+      os.addRow(["Requested", ops.quotes.requested]);
+      os.addRow(["Quoted", ops.quotes.quoted]);
+      os.addRow(["Accepted", ops.quotes.accepted]);
+      os.addRow(["Declined", ops.quotes.declined]);
+      os.addRow([`Open pipeline (${ops.quotes.currency})`, ops.quotes.pipelineValue]);
+      os.addRow([`Won value (${ops.quotes.currency})`, ops.quotes.wonValue]);
+      os.addRow(["Win rate (%)", ops.quotes.winRate ?? "—"]);
+      os.addRow([]);
+    }
+    if (ops.crf) {
+      os.addRow(["Calibration requests"]).font = { bold: true, size: 11 };
+      headerRow(os, ["Metric", "Value"]);
+      os.addRow(["Total", ops.crf.total]);
+      os.addRow(["Submitted", ops.crf.submitted]);
+      os.addRow(["Accepted", ops.crf.accepted]);
+      os.addRow(["Rejected", ops.crf.rejected]);
+      os.addRow(["In-situ", ops.crf.inSitu]);
+      os.addRow(["Laboratory", ops.crf.lab]);
+      os.addRow([]);
+    }
+    if (ops.tasks) {
+      os.addRow(["Task workload"]).font = { bold: true, size: 11 };
+      headerRow(os, ["Metric", "Value"]);
+      os.addRow(["Total", ops.tasks.total]);
+      os.addRow(["Open", ops.tasks.openNew]);
+      os.addRow(["In progress", ops.tasks.inProgress]);
+      os.addRow(["Blocked", ops.tasks.blocked]);
+      os.addRow(["Done", ops.tasks.done]);
+      os.addRow(["Overdue", ops.tasks.overdue]);
+      os.addRow(["High priority open", ops.tasks.highPriorityOpen]);
+      os.addRow([]);
+    }
+    if (ops.satisfaction || ops.training) {
+      os.addRow(["Satisfaction"]).font = { bold: true, size: 11 };
+      headerRow(os, ["Source", "Avg / 5", "Responses", "Recommend %"]);
+      if (ops.satisfaction) os.addRow(["Customer (CSSF)", ops.satisfaction.avg ?? "—", ops.satisfaction.count, ops.satisfaction.recommendRate ?? "—"]);
+      if (ops.training) os.addRow(["Training", ops.training.avg ?? "—", ops.training.count, "—"]);
+      os.addRow([]);
+    }
+    if (ops.schedules?.overdueList?.length) {
+      os.addRow(["Overdue maintenance"]).font = { bold: true, size: 11 };
+      headerRow(os, ["Obligation", "Weighbridge", "Due"]);
+      ops.schedules.overdueList.forEach((r) => os.addRow([r.label, r.weighbridgeId, new Date(r.dueAt).toLocaleDateString("en-GB")]));
+      os.addRow([]);
+    }
+    if (ops.contracts?.upcomingList?.length) {
+      os.addRow(["Service contracts — upcoming"]).font = { bold: true, size: 11 };
+      headerRow(os, ["Contract", "Due", "Overdue"]);
+      ops.contracts.upcomingList.forEach((r) => os.addRow([r.label, new Date(r.dueAt).toLocaleDateString("en-GB"), r.overdue ? "YES" : ""]));
+    }
+    os.getColumn(1).width = 34;
+  }
+
   /* ---- Trend ---- */
   const tr = wb.addWorksheet("Trend");
   headerRow(tr, d.compareRange ? ["Date", "This period", "Previous period"] : ["Date", "Submissions"]);
