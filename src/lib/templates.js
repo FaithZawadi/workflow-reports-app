@@ -256,10 +256,8 @@ export const TEMPLATES = [
         type: "choices",
         k: "outcome",
         title: "Outcome",
-        options: [
-          "Calibrated within tolerance - certificate issued",
-          "Submitted to Weights & Measures for stamping",
-        ],
+        dropdown: true,
+        options: ["Certificate issued", "Certificate not issued", "Pending"],
       },
     ],
   },

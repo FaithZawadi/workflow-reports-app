@@ -386,6 +386,24 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
               );
             if (sec.type === "textarea")
               return <div key={si}><SectionBar>{sec.label}</SectionBar><Textarea label="" value={values[sec.k]} onChange={(v) => setV(sec.k, v)} /></div>;
+            if (sec.type === "choices" && sec.dropdown)
+              return (
+                <div key={si}>
+                  <SectionBar>{sec.title}</SectionBar>
+                  <select
+                    className="input"
+                    value={values[sec.k] || ""}
+                    onChange={(e) => setV(sec.k, e.target.value)}
+                    style={{ maxWidth: 420 }}
+                  >
+                    <option value="">Select…</option>
+                    {sec.options.map((o) => (
+                      <option key={o} value={o}>{o}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+
             if (sec.type === "choices")
               return (
                 <div key={si}>

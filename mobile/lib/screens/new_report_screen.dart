@@ -247,6 +247,20 @@ class _NewReportScreenState extends State<NewReportScreen> {
 
   Widget _choices(Map<String, dynamic> sec) {
     final options = (sec['options'] as List?) ?? [];
+    final k = '${sec['k']}';
+    if (sec['dropdown'] == true) {
+      final current = _values[k];
+      return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SectionBar('${sec['title'] ?? ''}'),
+        DropdownButtonFormField<String>(
+          value: options.contains(current) ? current as String : null,
+          isExpanded: true,
+          decoration: const InputDecoration(isDense: true, hintText: 'Select…'),
+          items: [for (final o in options) DropdownMenuItem<String>(value: '$o', child: Text('$o'))],
+          onChanged: (v) => setState(() => _values[k] = v),
+        ),
+      ]);
+    }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       SectionBar('${sec['title'] ?? ''}'),
       for (final o in options)
