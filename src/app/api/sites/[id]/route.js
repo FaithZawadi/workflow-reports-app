@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { resolveClientByName } from "@/lib/clientResolve";
 
 // PATCH /api/sites/[id] — administrators edit a site / location.
 export async function PATCH(req, { params }) {
@@ -23,7 +24,7 @@ export async function PATCH(req, { params }) {
   if (b.clientName !== undefined) {
     const cn = String(b.clientName).trim();
     if (cn) {
-      const c = await prisma.client.upsert({ where: { name: cn }, create: { name: cn }, update: {} });
+      const c = await resolveClientByName(cn);
       data.clientId = c.id;
     } else {
       data.clientId = null;

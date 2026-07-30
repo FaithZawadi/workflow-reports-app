@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { reportScope } from "@/lib/rbac";
 import { nextSerial } from "@/lib/serial";
 import { templateByCode, templatesForRoles, isSingleApproval } from "@/lib/templates";
+import { resolveClientByName } from "@/lib/clientResolve";
 import { sendMail, reviewRequestEmail, failureAlertEmail } from "@/lib/email";
 import { createApprovalLinks } from "@/lib/approvalToken";
 import { addCycle } from "@/lib/schedule";
@@ -144,12 +145,11 @@ export async function POST(req) {
   }
   if (!clientName) return Response.json({ error: "Choose the client (plant)." }, { status: 400 });
   if (!clientId) {
-    const client = await prisma.client.upsert({
-      where: { name: clientName },
-      create: { name: clientName },
-      update: {},
-    });
+    // Resolve case-insensitively so a stray-cased name reuses the same client
+    // and the report's stored clientName matches the registry's canonical one.
+    const client = await resolveClientByName(clientName);
     clientId = client.id;
+    clientName = client.name;
   }
 
   const site = String(body.site || "").trim() || user.site || "";

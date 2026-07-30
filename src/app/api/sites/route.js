@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { rolesOf } from "@/lib/roles";
+import { resolveClientByName, resolveSiteByName } from "@/lib/clientResolve";
 
 export const dynamic = "force-dynamic";
 
@@ -62,17 +63,21 @@ export async function POST(req) {
   if (!name) return Response.json({ error: "Site / location name is required." }, { status: 400 });
 
   let clientId = null;
+  let clientLabel = null;
   if (clientName) {
-    const client = await prisma.client.upsert({ where: { name: clientName }, create: { name: clientName }, update: {} });
+    const client = await resolveClientByName(clientName);
     clientId = client.id;
+    clientLabel = client.name; // canonical stored casing
   }
-  const s = await prisma.site.create({ data: { name, clientId } });
+  // Case-insensitive dedup: reuse an existing site with the same name for this
+  // client instead of creating "Magadi" alongside "magadi".
+  const s = await resolveSiteByName(clientId, name);
   await recordAudit({
     actor: user,
     action: "CREATE",
     entity: "SITE",
     entityId: s.id,
-    summary: `Registered site ${name}${clientName ? " at " + clientName : ""}`,
+    summary: `Registered site ${s.name}${clientLabel ? " at " + clientLabel : ""}`,
   });
-  return Response.json({ site: shape({ ...s, client: clientName ? { name: clientName } : null }) });
+  return Response.json({ site: shape({ ...s, client: clientLabel ? { name: clientLabel } : null }) });
 }
