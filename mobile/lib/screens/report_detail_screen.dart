@@ -169,6 +169,9 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     final photos = (r['photos'] as List?) ?? [];
     final trail = (r['trailEvents'] as List?) ?? [];
     final pending = r['status'] == 'PENDING_SUPERVISOR' || r['status'] == 'PENDING_MANAGER';
+    // Daily / weekly / monthly forms are single-stage: one "Client" approver,
+    // no separate manager stage.
+    final single = const ['WB01', 'WB02', 'WB03'].contains(r['template']);
     final sections = (_template?['sections'] as List?) ?? [];
 
     // Proper field labels (from the template) so a value key like "stampExpiry"
@@ -207,9 +210,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('APPROVAL ROUTE', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: kInk, letterSpacing: 0.4)),
             const SizedBox(height: 8),
-            ..._supervisorRows(d, '${r['status']}'),
-            _reviewer('Client/Manager (final approval)', d.reviewers.managerName, d.reviewers.managerEmail,
-                r['status'] == 'PENDING_MANAGER' ? 'current' : (r['status'] == 'PENDING_SUPERVISOR' ? 'waiting' : 'done')),
+            ..._supervisorRows(d, '${r['status']}', single),
+            if (!single)
+              _reviewer('Client/Manager (final approval)', d.reviewers.managerName, d.reviewers.managerEmail,
+                  r['status'] == 'PENDING_MANAGER' ? 'current' : (r['status'] == 'PENDING_SUPERVISOR' ? 'waiting' : 'done')),
           ]),
         ),
       ],
@@ -221,7 +225,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(color: const Color(0xFFFDF6E3), borderRadius: BorderRadius.circular(8), border: Border.all(color: kGold)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(d.actAs == 'SUPERVISOR' ? 'YOUR REVIEW' : 'YOUR APPROVAL', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: kInk)),
+            Text(d.actAs == 'SUPERVISOR' && !single ? 'YOUR REVIEW' : 'YOUR APPROVAL', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, color: kInk)),
             const SizedBox(height: 4),
             const Text('Your decision is recorded with your name and the time.', style: TextStyle(color: kMute, fontSize: 12)),
             const SizedBox(height: 10),
@@ -246,7 +250,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       if (pending && d.actAs == null)
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Text('Only the routed ${r['status'] == 'PENDING_SUPERVISOR' ? "Equipment User" : "Client/Manager"} can approve or reject this report.',
+          child: Text('Only the routed ${r['status'] == 'PENDING_SUPERVISOR' ? (single ? "Client" : "Equipment User") : "Client/Manager"} can approve or reject this report.',
               style: const TextStyle(color: kMute, fontSize: 12, fontStyle: FontStyle.italic)),
         ),
 
@@ -339,12 +343,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     ]);
   }
 
-  // Every Equipment User the report is routed to — any one may review.
-  List<Widget> _supervisorRows(ReportDetail d, String status) {
+  // Every approver the report is routed to — any one may act. On single-stage
+  // (daily/weekly/monthly) forms they are the "Client" and their sign-off is final.
+  List<Widget> _supervisorRows(ReportDetail d, String status, [bool single = false]) {
     final sups = d.reviewers.supervisors.isNotEmpty
         ? d.reviewers.supervisors
         : [{'email': d.reviewers.supervisorEmail ?? '', 'name': d.reviewers.supervisorName ?? ''}];
-    final label = sups.length > 1 ? 'Equipment Users (any one reviews)' : 'Equipment User (reviews first)';
+    final label = single
+        ? (sups.length > 1 ? 'Clients (any one approves)' : 'Client (approves)')
+        : (sups.length > 1 ? 'Equipment Users (any one reviews)' : 'Equipment User (reviews first)');
     final rows = <Widget>[];
     for (int i = 0; i < sups.length; i++) {
       rows.add(_reviewer(i == 0 ? label : '', sups[i]['name'], sups[i]['email'],
