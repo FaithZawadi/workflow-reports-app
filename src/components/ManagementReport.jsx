@@ -206,7 +206,7 @@ export default function ManagementReport() {
           {tab === "overview" && <Analytics data={data} loading={loading} />}
           {tab === "staff" && <StaffReport data={data} />}
           {tab === "weighbridges" && <WeighbridgeReport data={data} />}
-          {tab === "clients" && <ClientReport data={data} />}
+          {tab === "clients" && <ClientReport data={data} qs={qs} />}
           {tab === "compliance" && <ComplianceReport data={data} />}
         </div>
       ) : null}
@@ -604,11 +604,32 @@ function WeighbridgeReport({ data }) {
   );
 }
 
-function ClientReport({ data }) {
+function ClientReport({ data, qs }) {
   const rows = data.clients || [];
   const detail = data.clientLabel ? rows[0] : null;
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      {/* Month-end statement call-to-action */}
+      <div style={S.stmtBar}>
+        <div>
+          <div style={{ fontWeight: 900, fontSize: 14, color: INK }}>Monthly service statement</div>
+          <div style={{ fontSize: 12.5, color: MUTE, marginTop: 2 }}>
+            {data.clientLabel
+              ? <>A client-facing statement of everything delivered for <b style={{ color: "#8a6d00" }}>{data.clientLabel}</b> this period — for month-end usage invoicing.</>
+              : "Pick a client above (and a month range), then generate their branded statement to hand over at month-end."}
+          </div>
+        </div>
+        <a
+          className="btn"
+          href={data.clientLabel ? `/api/reports/statement/pdf?${qs}` : undefined}
+          target="_blank"
+          rel="noreferrer"
+          style={{ ...S.btn, ...S.btnDark, whiteSpace: "nowrap", pointerEvents: data.clientLabel ? "auto" : "none", opacity: data.clientLabel ? 1 : 0.5 }}
+        >
+          ⬇ Download statement (PDF)
+        </a>
+      </div>
+
       <Card
         title={data.clientLabel ? `Account statement · ${data.clientLabel}` : "Client account statements"}
         note={data.clientLabel ? "showing one client — choose 'All clients' above to compare" : `${rows.length} client${rows.length === 1 ? "" : "s"} · pick one above for its full statement`}
@@ -1000,6 +1021,7 @@ const S = {
   grid2: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 },
   grid2b: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 },
 
+  stmtBar: { background: "linear-gradient(135deg,#fff,#FBF6EA)", border: "1px solid var(--line)", borderRadius: 14, boxShadow: SHADOW, padding: "15px 18px", display: "flex", gap: 14, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" },
   tabs: { display: "flex", gap: 4, background: "#F3EFE6", border: "1px solid var(--line)", borderRadius: 12, padding: 5, flexWrap: "wrap", boxShadow: SHADOW },
   tab: (on) => ({ fontSize: 12.5, fontWeight: 800, color: on ? GOLD : MUTE, padding: "9px 15px", borderRadius: 8, border: "none", background: on ? COAL : "transparent", cursor: "pointer" }),
   pulse: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(158px,1fr))", gap: 12 },
