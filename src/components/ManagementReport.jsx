@@ -68,6 +68,7 @@ export default function ManagementReport() {
   const [custom, setCustom] = useState(false);
   const [from, setFrom] = useState(presetRange("month").from);
   const [to, setTo] = useState(presetRange("month").to);
+  const [client, setClient] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,8 +79,9 @@ export default function ManagementReport() {
     const p = new URLSearchParams();
     if (from) p.set("from", from);
     if (to) p.set("to", to);
+    if (client) p.set("client", client);
     return p.toString();
-  }, [from, to]);
+  }, [from, to, client]);
 
   // Load the report. `silent` keeps the current view on screen while a background
   // refresh runs, so the dashboard autopopulates without flashing or scrolling.
@@ -145,15 +147,26 @@ export default function ManagementReport() {
           <div style={{ fontSize: 12.5, color: MUTE, marginTop: 3 }}>
             {data ? `${data.total} report${data.total === 1 ? "" : "s"} · ` : ""}
             <b>{rangeLabel}</b>
+            {data?.clientLabel ? <> · <b style={{ color: "#8a6d00" }}>{data.clientLabel}</b></> : ""}
             {data?.compareRange ? " · compared to previous period" : ""}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
-          <div style={S.segs}>
-            {PRESETS.map(([key, label]) => (
-              <button key={key} onClick={() => choose(key)} style={S.seg(!custom && preset === key)}>{label}</button>
-            ))}
-            <button onClick={() => setCustom(true)} style={S.seg(custom)}>Custom</button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            {data?.clientOptions?.length ? (
+              <select className="input" value={client} onChange={(e) => setClient(e.target.value)} style={{ padding: "7px 10px", fontSize: 12.5, fontWeight: 700, width: "auto", maxWidth: 220 }}>
+                <option value="">All clients</option>
+                {data.clientOptions.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            ) : null}
+            <div style={S.segs}>
+              {PRESETS.map(([key, label]) => (
+                <button key={key} onClick={() => choose(key)} style={S.seg(!custom && preset === key)}>{label}</button>
+              ))}
+              <button onClick={() => setCustom(true)} style={S.seg(custom)}>Custom</button>
+            </div>
           </div>
           {custom && (
             <div style={{ display: "inline-flex", gap: 6, alignItems: "center", fontSize: 12, color: MUTE }}>
@@ -226,6 +239,9 @@ function Analytics({ data, loading }) {
       {/* Operations pulse — system-wide secondary KPIs */}
       {d.operations ? <OpsPulse ops={d.operations} /> : null}
 
+      {/* Platform usage — everything the app captured this period */}
+      {d.usage ? <UsageStrip usage={d.usage} /> : null}
+
       {/* Status + trend */}
       <div style={S.grid2}>
         <Card title="Status distribution">
@@ -265,6 +281,9 @@ function Analytics({ data, loading }) {
           )}
         </Card>
       </div>
+
+      {/* Service register — the detailed, itemised log of every report filed */}
+      {d.register?.length ? <ServiceRegister rows={d.register} /> : null}
 
       {/* Across the business — the wider operational picture */}
       {d.operations ? <OperationsRegion ops={d.operations} /> : null}
@@ -515,6 +534,95 @@ function OpsPulse({ ops }) {
   );
 }
 
+function UsageStrip({ usage }) {
+  const items = [
+    { label: "Services delivered", value: usage.servicesDelivered },
+    { label: "Checklist items completed", value: usage.checklistItems.toLocaleString() },
+    { label: "Photos captured", value: usage.photos.toLocaleString() },
+    { label: "Weighbridges serviced", value: usage.weighbridgesServiced },
+    { label: "Sites covered", value: usage.sitesServiced },
+    { label: "Staff active", value: usage.staffActive },
+    { label: "Findings raised", value: usage.findingsRaised },
+    usage.calibrationRequests != null ? { label: "Calibration requests", value: usage.calibrationRequests } : null,
+    usage.quotations != null ? { label: "Quotations", value: usage.quotations } : null,
+    usage.tasksHandled != null ? { label: "Tasks handled", value: usage.tasksHandled } : null,
+  ].filter(Boolean);
+  return (
+    <section style={S.card}>
+      <div style={S.sec}>
+        <span style={S.secTtl}><span style={S.secDot} />Platform activity this period</span>
+        <span style={S.secNote}>everything the app captured</span>
+      </div>
+      <div style={S.usageGrid}>
+        {items.map((it, i) => (
+          <div key={i} style={S.usageCell}>
+            <div style={S.usageVal}>{it.value}</div>
+            <div style={S.usageLab}>{it.label}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const REG_STATUS = {
+  APPROVED: { label: "Approved", color: PASS },
+  PENDING_SUPERVISOR: { label: "In review", color: "#C79A2B" },
+  PENDING_MANAGER: { label: "Awaiting approval", color: WAIT },
+  REJECTED: { label: "Returned", color: FAIL },
+};
+
+function ServiceRegister({ rows }) {
+  const [limit, setLimit] = useState(60);
+  const shown = rows.slice(0, limit);
+  return (
+    <section style={S.card}>
+      <div style={S.sec}>
+        <span style={S.secTtl}><span style={S.secDot} />Service register — every report filed</span>
+        <span style={S.secNote}>{rows.length} record{rows.length === 1 ? "" : "s"} · newest first</span>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <div style={{ minWidth: 860, border: "1px solid var(--line)", borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ ...S.regRow, ...S.thead }}>
+            <span style={S.thcell}>Date</span>
+            <span style={S.thcell}>Serial</span>
+            <span style={S.thcell}>Service</span>
+            <span style={S.thcell}>Weighbridge</span>
+            <span style={S.thcell}>Site</span>
+            <span style={S.thcell}>Filed by</span>
+            <span style={{ ...S.thcell, justifyContent: "center" }}>Photos</span>
+            <span style={{ ...S.thcell, justifyContent: "center" }}>Findings</span>
+            <span style={S.thcell}>Status</span>
+          </div>
+          {shown.map((r, i) => {
+            const st = REG_STATUS[r.status] || { label: r.status, color: MUTE };
+            return (
+              <div key={i} style={{ ...S.regRow, background: i % 2 ? "#FBF9F4" : "#fff", borderTop: "1px solid #EFEAdd" }}>
+                <span style={{ ...S.rcell, fontFamily: "var(--mono)", fontSize: 11, color: MUTE }}>{fmtDay(r.createdAt)}</span>
+                <Link href={`/reports/${r.serial}`} style={{ ...S.rcell, fontFamily: "var(--mono)", fontSize: 11, color: "#8a6d00", fontWeight: 700, textDecoration: "none" }}>{r.serial}</Link>
+                <span style={{ ...S.rcell, color: INK }}>{r.templateName}</span>
+                <span style={{ ...S.rcell, fontFamily: "var(--mono)", fontSize: 11, color: INK }}>{r.weighbridgeId || "—"}</span>
+                <span style={{ ...S.rcell, color: INK }}>{r.site || r.clientName}</span>
+                <span style={{ ...S.rcell, color: INK }}>{r.authorName}</span>
+                <span style={{ ...S.rcell, justifyContent: "center", color: MUTE }}>{r.photos || 0}</span>
+                <span style={{ ...S.rcell, justifyContent: "center", fontWeight: 800, color: r.findings ? FAIL : "#b8af9e" }}>{r.findings || "—"}</span>
+                <span style={S.rcell}><span style={{ ...S.regPill, background: st.color }}>{st.label}</span></span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {rows.length > limit ? (
+        <button onClick={() => setLimit((n) => n + 100)} style={{ ...S.btn, marginTop: 10 }}>
+          Show more ({rows.length - limit} more) · full list in PDF & Excel
+        </button>
+      ) : rows.length > 60 ? (
+        <div style={{ fontSize: 12, color: MUTE, marginTop: 8 }}>Showing all {rows.length}. The full register is also in the PDF and Excel exports.</div>
+      ) : null}
+    </section>
+  );
+}
+
 function OperationsRegion({ ops }) {
   const hasDue = (ops.schedules?.overdueList?.length || 0) + (ops.contracts?.upcomingList?.length || 0) > 0 || ops.schedules || ops.contracts;
   return (
@@ -743,6 +851,14 @@ const S = {
   miniRow: { display: "flex", alignItems: "center", gap: 8, fontSize: 12.5 },
   miniSerial: { fontFamily: "var(--mono)", fontSize: 10.5, color: "#8a6d00", fontWeight: 700 },
   chip: { fontSize: 10, fontWeight: 800, color: "#fff", padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap" },
+
+  usageGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 1, background: "var(--line)", border: "1px solid var(--line)", borderRadius: 10, overflow: "hidden" },
+  usageCell: { background: "#fff", padding: "13px 14px", textAlign: "center" },
+  usageVal: { fontSize: 24, fontWeight: 900, color: INK, letterSpacing: "-.02em" },
+  usageLab: { fontSize: 10.5, fontWeight: 700, color: MUTE, marginTop: 4, textTransform: "uppercase", letterSpacing: ".03em", lineHeight: 1.25 },
+  regRow: { display: "grid", gridTemplateColumns: "70px 130px 1.4fr 96px 1.2fr 1fr 62px 70px 130px" },
+  rcell: { padding: "8px 10px", display: "flex", alignItems: "center", fontSize: 12, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  regPill: { fontSize: 10, fontWeight: 800, color: "#fff", padding: "2px 7px", borderRadius: 5, whiteSpace: "nowrap" },
 
   trow: { display: "grid", gridTemplateColumns: "120px 1.5fr 130px 1.3fr 100px" },
   thead: { background: COAL, color: "#fff" },

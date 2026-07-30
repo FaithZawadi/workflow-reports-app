@@ -39,7 +39,8 @@ export async function GET(req) {
   const { searchParams } = new URL(req.url);
   const from = (searchParams.get("from") || "").trim();
   const to = (searchParams.get("to") || "").trim();
-  const d = await buildManagementReport(user, { from, to });
+  const client = (searchParams.get("client") || "").trim() || null;
+  const d = await buildManagementReport(user, { from, to, client });
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "Qalibrated Systems";
@@ -109,6 +110,23 @@ export async function GET(req) {
   fs.getColumn(6).width = 34;
   fs.getColumn(8).width = 34;
   fs.views = [{ state: "frozen", ySplit: 1 }];
+
+  /* ---- Service register (itemised log of every report) ---- */
+  if (d.register?.length) {
+    const reg = wb.addWorksheet("Service register", { properties: { defaultColWidth: 16 } });
+    headerRow(reg, ["Date", "Serial", "Service", "Weighbridge", "Client", "Site", "Filed by", "Approved by", "Turnaround (h)", "Findings", "Photos", "Status", "Outcome"]);
+    d.register.forEach((r) =>
+      reg.addRow([
+        new Date(r.createdAt).toLocaleDateString("en-GB"),
+        r.serial, r.templateName, r.weighbridgeId || "", r.clientName, r.site || "",
+        r.authorName, r.approverName || "", r.turnaroundHours ?? "", r.findings || 0, r.photos || 0,
+        STATUS_LABEL[r.status] || r.status, r.outcome || "",
+      ])
+    );
+    reg.getColumn(3).width = 26;
+    reg.getColumn(13).width = 26;
+    reg.views = [{ state: "frozen", ySplit: 1 }];
+  }
 
   /* ---- Operations (system-wide) ---- */
   const ops = d.operations;

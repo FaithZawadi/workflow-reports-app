@@ -89,13 +89,16 @@ function aggregate(reports) {
   const tpl = new Map(); // template code -> { name, count }
   const author = new Map(); // authorName -> count
   const findings = [];
+  const register = []; // one detailed row per report (the itemised service log)
   let turnaroundSum = 0;
   let turnaroundN = 0;
   let checkTotal = 0;
   let checkPassed = 0;
+  let photosTotal = 0;
   const dayCounts = new Map(); // yyyy-mm-dd -> count (for "busiest day")
 
   for (const r of reports) {
+    const findingsBefore = findings.length;
     byStatus[r.status] = (byStatus[r.status] || 0) + 1;
 
     const dk = new Date(r.createdAt).toISOString().slice(0, 10);
@@ -116,14 +119,20 @@ function aggregate(reports) {
     const aKey = r.authorName || "—";
     author.set(aKey, (author.get(aKey) || 0) + 1);
 
+    let approverName = null;
+    let turnaroundHours = null;
     if (r.status === "APPROVED" && r.trailEvents && r.trailEvents.length) {
       const last = r.trailEvents[r.trailEvents.length - 1];
+      approverName = last.byName || null;
       const ms = new Date(last.at).getTime() - new Date(r.createdAt).getTime();
       if (ms > 0) {
+        turnaroundHours = Number((ms / 3.6e6).toFixed(1));
         turnaroundSum += ms;
         turnaroundN += 1;
       }
     }
+    const photos = r._count?.photos || 0;
+    photosTotal += photos;
 
     const t = templateByCode(r.template);
     const sections = t?.sections || [];
@@ -154,6 +163,24 @@ function aggregate(reports) {
       const wbe2 = wb.get(wbKey);
       if (wbe2) wbe2.findings += 1;
     }
+
+    register.push({
+      serial: r.serial,
+      createdAt: r.createdAt,
+      template: r.template,
+      templateName: r.templateName,
+      cadence: t?.cadence || "",
+      weighbridgeId: r.weighbridgeId || null,
+      clientName: r.clientName,
+      site: r.site || null,
+      authorName: r.authorName || "—",
+      status: r.status,
+      approverName,
+      turnaroundHours,
+      findings: findings.length - findingsBefore,
+      photos,
+      outcome: (r.data && r.data.values && r.data.values.outcome) || null,
+    });
   }
 
   const total = reports.length;
@@ -163,7 +190,7 @@ function aggregate(reports) {
 
   return {
     total, byStatus, approved, rejected, pending,
-    wb, client, tpl, author, findings,
+    wb, client, tpl, author, findings, register, photosTotal,
     turnaroundSum, turnaroundN, checkTotal, checkPassed, dayCounts,
     approvalRate: total ? Math.round((approved / total) * 100) : 0,
     rejectionRate: total ? Math.round((rejected / total) * 100) : 0,
@@ -172,13 +199,14 @@ function aggregate(reports) {
   };
 }
 
-function whereFor(user, from, to) {
+function whereFor(user, from, to, client) {
   const where = { ...reportScope(user) };
   if (from || to) {
     where.createdAt = {};
     if (from) where.createdAt.gte = from instanceof Date ? from : dayStart(from);
     if (to) where.createdAt.lte = to instanceof Date ? to : dayEnd(to);
   }
+  if (client) where.clientId = client;
   return where;
 }
 
@@ -254,7 +282,7 @@ function tally(rows, key) {
 // two report-generating managers see everything; other generators (supervisor /
 // manager) are scoped to the clients whose weighbridges they are assigned to.
 // Every source is guarded so a gap in one never breaks the whole report.
-async function buildOperations(user, from, to) {
+async function buildOperations(user, from, to, clientFilter) {
   const roles = rolesOf(user);
   const isAll = roles.includes("ADMIN") || roles.includes("PROJECT_MANAGER") || roles.includes("TECHNICAL_MANAGER");
 
@@ -263,6 +291,8 @@ async function buildOperations(user, from, to) {
     clientIds = await assignedClientIds(user);
     if (!clientIds.length) clientIds = ["__no_match__"]; // scoped user with no clients → empty
   }
+  // A specific client selected in the report narrows every source to that client.
+  if (clientFilter) clientIds = clientIds ? clientIds.filter((id) => id === clientFilter) : [clientFilter];
   const byClient = clientIds ? { clientId: { in: clientIds } } : {};
 
   const created = {};
@@ -430,22 +460,34 @@ async function buildOperations(user, from, to) {
 // Build the role-scoped management report for a date range. Returns a plain
 // object with the summary, every segmented breakdown, period-over-period deltas,
 // auto insights and the flagged findings. Reused by the JSON API and the PDF.
-export async function buildManagementReport(user, { from, to } = {}) {
+export async function buildManagementReport(user, { from, to, client } = {}) {
   const reports = await prisma.report.findMany({
-    where: whereFor(user, from, to),
+    where: whereFor(user, from, to, client),
     orderBy: { createdAt: "desc" },
-    include: { trailEvents: { orderBy: { at: "asc" } } },
+    include: { trailEvents: { orderBy: { at: "asc" } }, _count: { select: { photos: true } } },
   });
 
   const prevWin = previousWindow(from, to);
   let prevReports = [];
   if (prevWin) {
     prevReports = await prisma.report.findMany({
-      where: whereFor(user, prevWin.from, prevWin.to),
+      where: whereFor(user, prevWin.from, prevWin.to, client),
       orderBy: { createdAt: "desc" },
-      include: { trailEvents: { orderBy: { at: "asc" } } },
+      include: { trailEvents: { orderBy: { at: "asc" } }, _count: { select: { photos: true } } },
     });
   }
+
+  // The list of clients this user can report on — powers the client filter.
+  const clientOptions = await prisma.report
+    .findMany({
+      where: reportScope(user),
+      distinct: ["clientId"],
+      select: { clientId: true, clientName: true },
+      orderBy: { clientName: "asc" },
+    })
+    .then((rows) => rows.filter((r) => r.clientId).map((r) => ({ id: r.clientId, name: r.clientName })))
+    .catch(() => []);
+  const clientLabel = client ? clientOptions.find((c) => c.id === client)?.name || null : null;
 
   const cur = aggregate(reports);
   const prev = prevWin ? aggregate(prevReports) : null;
@@ -476,7 +518,29 @@ export async function buildManagementReport(user, { from, to } = {}) {
         : null,
   };
 
-  const operations = await buildOperations(user, from, to);
+  const operations = await buildOperations(user, from, to, client || null);
+
+  // Services delivered by type — the itemised "what was done" for the period.
+  const servicesDelivered = byTemplate.map((t) => ({ code: t.code, name: t.name, count: t.count }));
+
+  // Platform-usage / ease-of-work metrics — everything the app captured.
+  const usage = {
+    reports: cur.total,
+    servicesDelivered: cur.total,
+    checklistItems: cur.checkTotal,
+    photos: cur.photosTotal,
+    findingsRaised: cur.findingsCount,
+    approvals: cur.approved,
+    weighbridgesServiced: byWeighbridge.length,
+    sitesServiced: byClient.length,
+    staffActive: byAuthor.length,
+    avgPhotosPerReport: cur.total ? Number((cur.photosTotal / cur.total).toFixed(1)) : 0,
+    avgTurnaroundHours: cur.avgTurnaroundHours,
+    calibrationRequests: operations?.crf?.total ?? null,
+    quotations: operations?.quotes?.total ?? null,
+    tasksHandled: operations?.tasks?.total ?? null,
+    trainingSessions: operations?.training?.count ?? null,
+  };
 
   const insights = buildInsights(cur, prev, { byWeighbridge, topFindings });
   // Fold the most pressing operational risk into the insight strip.
@@ -519,5 +583,11 @@ export async function buildManagementReport(user, { from, to } = {}) {
     topFindings,
     findings: cur.findings,
     findingsCount: cur.findingsCount,
+    register: cur.register,
+    servicesDelivered,
+    usage,
+    clientOptions,
+    client: client || null,
+    clientLabel,
   };
 }

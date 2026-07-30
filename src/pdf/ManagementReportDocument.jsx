@@ -235,6 +235,74 @@ function OperationsBlock({ ops }) {
   );
 }
 
+const REG_STATUS = {
+  APPROVED: { label: "Approved", color: PASS },
+  PENDING_SUPERVISOR: { label: "In review", color: WAIT },
+  PENDING_MANAGER: { label: "Awaiting", color: WAIT },
+  REJECTED: { label: "Returned", color: FAIL },
+};
+
+// Platform-usage tiles — the "everything the app did" summary.
+function UsageBlock({ usage }) {
+  const tiles = [
+    { num: usage.servicesDelivered, label: "Services delivered" },
+    { num: usage.checklistItems, label: "Checks completed" },
+    { num: usage.photos, label: "Photos captured" },
+    { num: usage.weighbridgesServiced, label: "Weighbridges" },
+    { num: usage.sitesServiced, label: "Sites" },
+    { num: usage.staffActive, label: "Staff active" },
+  ];
+  return (
+    <View>
+      <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Platform activity this period</Text></View>
+      <View style={s.kpiRow}>
+        {tiles.map((t, i) => (
+          <View style={s.kpi} key={i}>
+            <View style={s.kpiBox}>
+              <Text style={s.kpiNum}>{Number(t.num || 0).toLocaleString()}</Text>
+              <Text style={s.kpiLabel}>{t.label}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// The full itemised service register — one row per report, wraps across pages.
+function RegisterBlock({ rows }) {
+  return (
+    <View break>
+      <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Service register — every report filed ({rows.length})</Text></View>
+      <View style={s.row} fixed>
+        <Text style={[s.th, { width: "11%" }]}>Date</Text>
+        <Text style={[s.th, { width: "16%" }]}>Serial</Text>
+        <Text style={[s.th, { width: "20%" }]}>Service</Text>
+        <Text style={[s.th, { width: "13%" }]}>Weighbridge</Text>
+        <Text style={[s.th, { width: "17%" }]}>Site</Text>
+        <Text style={[s.th, { width: "13%" }]}>Filed by</Text>
+        <Text style={[s.th, { width: "5%", textAlign: "center" }]}>Fnd</Text>
+        <Text style={[s.th, { width: "5%", textAlign: "center" }]}>Ph</Text>
+      </View>
+      {rows.map((r, i) => {
+        const st = REG_STATUS[r.status] || { label: r.status, color: MUTE };
+        return (
+          <View style={s.row} key={i} wrap={false}>
+            <Text style={[s.td, { width: "11%", fontSize: 7 }]}>{fmtDate(r.createdAt)}</Text>
+            <Text style={[s.td, { width: "16%", fontFamily: "Courier", fontSize: 7 }]}>{r.serial}{"\n"}<Text style={{ color: st.color, fontFamily: "Helvetica-Bold", fontSize: 6 }}>{st.label.toUpperCase()}</Text></Text>
+            <Text style={[s.td, { width: "20%" }]}>{r.templateName}</Text>
+            <Text style={[s.td, { width: "13%", fontFamily: "Courier", fontSize: 7 }]}>{r.weighbridgeId || "—"}</Text>
+            <Text style={[s.td, { width: "17%" }]}>{r.site || r.clientName}</Text>
+            <Text style={[s.td, { width: "13%" }]}>{r.authorName}</Text>
+            <Text style={[s.td, { width: "5%", textAlign: "center", color: r.findings ? FAIL : MUTE, fontFamily: r.findings ? "Helvetica-Bold" : "Helvetica" }]}>{r.findings || "—"}</Text>
+            <Text style={[s.td, { width: "5%", textAlign: "center" }]}>{r.photos || "—"}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 // Compact submissions sparkline drawn as vertical bars.
 function TrendBars({ points }) {
   if (!points || !points.length) return <Text style={s.empty}>No submissions in this period.</Text>;
@@ -296,7 +364,7 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         <View style={s.rule} />
 
         <Text style={s.title}>Maintenance Management Report</Text>
-        <Text style={s.sub}>Period: {rangeLabel} · {d.total || 0} report{d.total === 1 ? "" : "s"} in scope</Text>
+        <Text style={s.sub}>Period: {rangeLabel} · {d.total || 0} report{d.total === 1 ? "" : "s"} in scope{d.clientLabel ? ` · ${d.clientLabel}` : ""}</Text>
 
         {d.compareRange ? (
           <Text style={[s.sub, { marginTop: 1 }]}>Compared to previous period ({fmtDate(d.compareRange.from)} — {fmtDate(d.compareRange.to)})</Text>
@@ -389,6 +457,12 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         {/* Most common findings */}
         <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Most common findings</Text></View>
         {findingBars.length ? <BarChart items={findingBars} color={FAIL} /> : <Text style={s.empty}>No items needed attention in this period.</Text>}
+
+        {/* Platform activity — everything the app captured */}
+        {d.usage ? <UsageBlock usage={d.usage} /> : null}
+
+        {/* Service register — the itemised log of every report filed */}
+        {d.register && d.register.length ? <RegisterBlock rows={d.register} /> : null}
 
         {/* Across the business — the wider operational picture */}
         {d.operations ? <OperationsBlock ops={d.operations} /> : null}

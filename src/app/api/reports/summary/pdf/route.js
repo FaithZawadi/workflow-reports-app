@@ -23,7 +23,9 @@ export async function GET(req) {
   const from = (searchParams.get("from") || "").trim();
   const to = (searchParams.get("to") || "").trim();
 
-  const data = await buildManagementReport(user, { from, to });
+  const client = (searchParams.get("client") || "").trim() || null;
+
+  const data = await buildManagementReport(user, { from, to, client });
   const buffer = await renderToBuffer(
     React.createElement(ManagementReportDocument, {
       data,
