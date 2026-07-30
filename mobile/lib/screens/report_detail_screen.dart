@@ -311,7 +311,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     final states = (sec['states'] as List?) ??
         [
           {'key': 'ok', 'label': sec['yes'] ?? 'OK'},
-          {'key': 'problem', 'label': sec['no'] ?? 'ATTN'}
+          {'key': 'problem', 'label': sec['no'] ?? 'NO'}
         ];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       SectionBar('${sec['title'] ?? 'Checklist'}'),

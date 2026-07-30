@@ -69,6 +69,7 @@ export default function ManagementReport() {
   const [from, setFrom] = useState(presetRange("month").from);
   const [to, setTo] = useState(presetRange("month").to);
   const [client, setClient] = useState("");
+  const [tab, setTab] = useState("overview");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -187,16 +188,39 @@ export default function ManagementReport() {
         </div>
       </section>
 
+      {/* Report tabs */}
+      {data ? (
+        <div style={S.tabs}>
+          {TABS.map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)} style={S.tab(tab === key)}>{label}</button>
+          ))}
+        </div>
+      ) : null}
+
       {err && <div className="err">{err}</div>}
 
       {loading && !data ? (
         <div className="muted">Building analytics…</div>
       ) : data ? (
-        <Analytics data={data} loading={loading} />
+        <div style={{ opacity: loading && tab !== "overview" ? 0.55 : 1, transition: "opacity .2s" }}>
+          {tab === "overview" && <Analytics data={data} loading={loading} />}
+          {tab === "staff" && <StaffReport data={data} />}
+          {tab === "weighbridges" && <WeighbridgeReport data={data} />}
+          {tab === "clients" && <ClientReport data={data} />}
+          {tab === "compliance" && <ComplianceReport data={data} />}
+        </div>
       ) : null}
     </div>
   );
 }
+
+const TABS = [
+  ["overview", "Overview"],
+  ["staff", "Staff productivity"],
+  ["weighbridges", "Weighbridge history"],
+  ["clients", "Client statements"],
+  ["compliance", "Compliance"],
+];
 
 function Analytics({ data, loading }) {
   const d = data;
@@ -498,6 +522,184 @@ function HealthGauge({ passRate, passed, total, findings }) {
 
 function Empty() {
   return <div style={{ fontSize: 13, color: MUTE, fontStyle: "italic", padding: "10px 0" }}>No data in this period.</div>;
+}
+
+/* ---------- report tabs (staff / weighbridge / client / compliance) ---------- */
+
+function Table({ cols, rows }) {
+  const grid = cols.map((c) => (c.w ? `${c.w}px` : "minmax(120px,1fr)")).join(" ");
+  const min = cols.reduce((a, c) => a + (c.w || 140), 0);
+  const just = (a) => (a === "center" ? "center" : a === "right" ? "flex-end" : "flex-start");
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <div style={{ minWidth: min, border: "1px solid var(--line)", borderRadius: 10, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: grid, background: COAL, color: "#fff" }}>
+          {cols.map((c, i) => <span key={i} style={{ ...S.thcell, justifyContent: just(c.align) }}>{c.label}</span>)}
+        </div>
+        {rows.map((r, ri) => (
+          <div key={ri} style={{ display: "grid", gridTemplateColumns: grid, background: ri % 2 ? "#FBF9F4" : "#fff", borderTop: "1px solid #EFEAdd" }}>
+            {cols.map((c, ci) => (
+              <span key={ci} style={{ ...S.rcell, justifyContent: just(c.align), color: INK, ...(c.cellStyle ? c.cellStyle(r) : {}) }}>
+                {c.render ? c.render(r) : r[c.key]}
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatLine({ label, value }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, fontSize: 13, borderBottom: "1px dashed var(--line)", paddingBottom: 7 }}>
+      <span style={{ color: MUTE }}>{label}</span>
+      <b style={{ fontSize: 15 }}>{value}</b>
+    </div>
+  );
+}
+
+function StaffReport({ data }) {
+  const rows = data.staff || [];
+  return (
+    <Card title="Staff productivity" note={`${rows.length} ${rows.length === 1 ? "person" : "people"} · reports filed & approvals given`}>
+      {rows.length ? (
+        <Table
+          rows={rows}
+          cols={[
+            { label: "Person", render: (r) => <Link href={registryHref({ q: r.name })} style={{ color: INK, fontWeight: 600, textDecoration: "none" }}>{r.name}</Link> },
+            { label: "Filed", w: 70, align: "center", cellStyle: () => ({ fontWeight: 800 }), key: "filed" },
+            { label: "Approvals", w: 92, align: "center", key: "approvals" },
+            { label: "Rejections", w: 92, align: "center", key: "rejections" },
+            { label: "Findings", w: 82, align: "center", render: (r) => r.findings || "—", cellStyle: (r) => ({ color: r.findings ? FAIL : MUTE }) },
+            { label: "Photos", w: 72, align: "center", key: "photos" },
+            { label: "Avg approval", w: 104, align: "center", render: (r) => (r.avgTurnaround != null ? `${r.avgTurnaround}h` : "—") },
+          ]}
+        />
+      ) : <Empty />}
+    </Card>
+  );
+}
+
+function WeighbridgeReport({ data }) {
+  const rows = data.weighbridgeHistory || [];
+  return (
+    <Card title="Weighbridge history" note={`${rows.length} weighbridge${rows.length === 1 ? "" : "s"} serviced · click one for its reports`}>
+      {rows.length ? (
+        <Table
+          rows={rows}
+          cols={[
+            { label: "Weighbridge", w: 122, render: (r) => <Link href={registryHref({ q: r.id })} style={{ color: "#8a6d00", fontWeight: 700, fontFamily: "var(--mono)", fontSize: 11, textDecoration: "none" }}>{r.id}</Link> },
+            { label: "Client / site", render: (r) => (r.site ? `${r.clientName} — ${r.site}` : r.clientName) },
+            { label: "Reports", w: 76, align: "center", cellStyle: () => ({ fontWeight: 800 }), key: "reports" },
+            { label: "Approved", w: 84, align: "center", key: "approved" },
+            { label: "Pending", w: 76, align: "center", key: "pending" },
+            { label: "Findings", w: 82, align: "center", render: (r) => r.findings || "—", cellStyle: (r) => ({ color: r.findings ? FAIL : MUTE, fontWeight: r.findings ? 800 : 400 }) },
+            { label: "Last service", w: 100, align: "center", render: (r) => fmtDay(r.lastDate) },
+            { label: "Top service", render: (r) => r.services[0]?.name || "—" },
+          ]}
+        />
+      ) : <Empty />}
+    </Card>
+  );
+}
+
+function ClientReport({ data }) {
+  const rows = data.clients || [];
+  const detail = data.clientLabel ? rows[0] : null;
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      <Card
+        title={data.clientLabel ? `Account statement · ${data.clientLabel}` : "Client account statements"}
+        note={data.clientLabel ? "showing one client — choose 'All clients' above to compare" : `${rows.length} client${rows.length === 1 ? "" : "s"} · pick one above for its full statement`}
+      >
+        {rows.length ? (
+          <Table
+            rows={rows}
+            cols={[
+              { label: "Client", render: (r) => <Link href={registryHref({ q: r.name })} style={{ color: INK, fontWeight: 600, textDecoration: "none" }}>{r.name}</Link> },
+              { label: "Reports", w: 76, align: "center", cellStyle: () => ({ fontWeight: 800 }), key: "reports" },
+              { label: "Services", w: 82, align: "center", render: (r) => r.services.length },
+              { label: "Sites", w: 62, align: "center", key: "sites" },
+              { label: "WBs", w: 60, align: "center", key: "weighbridges" },
+              { label: "Findings", w: 82, align: "center", render: (r) => r.findings || "—", cellStyle: (r) => ({ color: r.findings ? FAIL : MUTE }) },
+              { label: "Approved", w: 84, align: "center", key: "approved" },
+              { label: "Pending", w: 76, align: "center", key: "pending" },
+              { label: "Last activity", w: 104, align: "center", render: (r) => fmtDay(r.lastDate) },
+            ]}
+          />
+        ) : <Empty />}
+      </Card>
+
+      {detail ? (
+        <div style={S.grid2}>
+          <Card title="Services delivered">
+            {data.servicesDelivered?.length ? (
+              <Leaderboard items={data.servicesDelivered.map((s, i) => ({ label: s.name, value: s.count, color: BAR_COLORS[i % BAR_COLORS.length] }))} total={data.total} />
+            ) : <Empty />}
+          </Card>
+          <Card title="Account activity">
+            <div style={{ display: "grid", gap: 9 }}>
+              <StatLine label="Reports delivered" value={data.total} />
+              <StatLine label="Findings raised" value={data.findingsCount} />
+              <StatLine label="Checklist items completed" value={(data.usage?.checklistItems || 0).toLocaleString()} />
+              <StatLine label="Photos captured" value={(data.usage?.photos || 0).toLocaleString()} />
+              <StatLine label="Calibration requests" value={data.operations?.crf?.total ?? "—"} />
+              <StatLine label="Quotations" value={data.operations?.quotes?.total ?? "—"} />
+              <StatLine label="Weighbridges serviced" value={detail.weighbridges} />
+            </div>
+          </Card>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ComplianceReport({ data }) {
+  const c = data.compliance || {};
+  const tone = (v, good = 90, ok = 75) => (v == null ? INK : v >= good ? PASS : v >= ok ? "#5C8A2E" : v >= 50 ? WAIT : FAIL);
+  const tiles = [
+    { label: "Checklist pass rate", value: c.checklistPassRate != null ? `${c.checklistPassRate}%` : "—", color: tone(c.checklistPassRate) },
+    { label: "Schedule adherence", value: c.scheduleAdherence != null ? `${c.scheduleAdherence}%` : "—", color: tone(c.scheduleAdherence) },
+    { label: "Approval rate", value: `${c.approvalRate}%`, color: tone(c.approvalRate, 70, 50) },
+    { label: "Avg approval time", value: c.avgTurnaroundHours != null ? `${c.avgTurnaroundHours}h` : "—", color: INK },
+    { label: "Overdue maintenance", value: c.schedulesOverdue ?? "—", color: c.schedulesOverdue ? FAIL : PASS },
+    { label: "Contracts overdue", value: c.contractsOverdue ?? "—", color: c.contractsOverdue ? FAIL : PASS },
+  ];
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      <section style={S.pulse}>
+        {tiles.map((t, i) => (
+          <div key={i} style={S.pulseTile}>
+            <div style={S.pulseLab}>{t.label}</div>
+            <div style={{ ...S.pulseVal, color: t.color }}>{t.value}</div>
+          </div>
+        ))}
+      </section>
+      <div style={S.grid2}>
+        <Card title="Overdue maintenance" note={`${c.schedulesOverdue || 0} overdue · ${c.schedulesDueSoon || 0} due this week`}>
+          {c.scheduleOverdueList?.length ? <DueList items={c.scheduleOverdueList} allOverdue /> : <div style={okStyle}>No overdue maintenance. 🎉</div>}
+        </Card>
+        <Card title="Service contracts — upcoming" note={`${c.contractsOverdue || 0} overdue · ${c.contractsDueSoon || 0} within 30 days`}>
+          {c.contractUpcomingList?.length ? <DueList items={c.contractUpcomingList} /> : <div style={okStyle}>No services due soon.</div>}
+        </Card>
+      </div>
+      <Card title="Report outcomes & quality" note="this period">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gap: 9 }}>
+            <StatLine label="Approved" value={c.reportsApproved} />
+            <StatLine label="Pending" value={c.reportsPending} />
+            <StatLine label="Rejected / returned" value={c.reportsRejected} />
+          </div>
+          <div style={{ display: "grid", gap: 9 }}>
+            <StatLine label="Checklist items passed" value={`${(c.checklistPassed || 0).toLocaleString()} / ${(c.checklistItems || 0).toLocaleString()}`} />
+            <StatLine label="Open findings" value={c.findingsOpen} />
+            <StatLine label="Rejection rate" value={`${c.rejectionRate || 0}%`} />
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
 }
 
 /* ---------- operations (system-wide) ---------- */
@@ -837,6 +1039,8 @@ const S = {
   grid2: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 },
   grid2b: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 },
 
+  tabs: { display: "flex", gap: 4, background: "#F3EFE6", border: "1px solid var(--line)", borderRadius: 12, padding: 5, flexWrap: "wrap", boxShadow: SHADOW },
+  tab: (on) => ({ fontSize: 12.5, fontWeight: 800, color: on ? GOLD : MUTE, padding: "9px 15px", borderRadius: 8, border: "none", background: on ? COAL : "transparent", cursor: "pointer" }),
   pulse: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(158px,1fr))", gap: 12 },
   pulseTile: { background: "#fff", border: "1px solid var(--line)", borderRadius: 14, boxShadow: SHADOW, padding: "14px 16px" },
   pulseLab: { fontSize: 10.5, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", color: MUTE },

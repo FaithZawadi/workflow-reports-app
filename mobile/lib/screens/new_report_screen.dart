@@ -212,7 +212,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
     final states = (sec['states'] as List?) ??
         [
           {'key': 'ok', 'label': sec['yes'] ?? 'OK'},
-          {'key': 'problem', 'label': sec['no'] ?? 'NEEDS ATTENTION'}
+          {'key': 'problem', 'label': sec['no'] ?? 'NO'}
         ];
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       SectionBar('${sec['title'] ?? 'Checklist'}'),

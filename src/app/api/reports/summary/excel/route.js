@@ -196,6 +196,70 @@ export async function GET(req) {
   d.trend.forEach((p) => tr.addRow(d.compareRange ? [p.date, p.count, p.prev ?? 0] : [p.date, p.count]));
   tr.getColumn(1).width = 16;
 
+  /* ---- Staff productivity ---- */
+  if (d.staff?.length) {
+    const st = wb.addWorksheet("Staff", { properties: { defaultColWidth: 16 } });
+    headerRow(st, ["Person", "Reports filed", "Approvals given", "Rejections", "Findings raised", "Photos", "Avg approval (h)"]);
+    d.staff.forEach((s) => st.addRow([s.name, s.filed, s.approvals, s.rejections, s.findings, s.photos, s.avgTurnaround ?? ""]));
+    st.getColumn(1).width = 26;
+    st.views = [{ state: "frozen", ySplit: 1 }];
+  }
+
+  /* ---- Weighbridge history ---- */
+  if (d.weighbridgeHistory?.length) {
+    const wh = wb.addWorksheet("Weighbridge history", { properties: { defaultColWidth: 16 } });
+    headerRow(wh, ["Weighbridge", "Client", "Site", "Reports", "Approved", "Pending", "Rejected", "Findings", "Photos", "Last service", "Services (type × count)"]);
+    d.weighbridgeHistory.forEach((w) =>
+      wh.addRow([
+        w.id, w.clientName, w.site || "", w.reports, w.approved, w.pending, w.rejected, w.findings, w.photos,
+        w.lastDate ? new Date(w.lastDate).toLocaleDateString("en-GB") : "",
+        w.services.map((s) => `${s.name} ×${s.count}`).join("; "),
+      ])
+    );
+    wh.getColumn(11).width = 40;
+    wh.views = [{ state: "frozen", ySplit: 1 }];
+  }
+
+  /* ---- Client statements ---- */
+  if (d.clients?.length) {
+    const cl = wb.addWorksheet("Clients", { properties: { defaultColWidth: 16 } });
+    headerRow(cl, ["Client", "Reports", "Service types", "Sites", "Weighbridges", "Findings", "Approved", "Pending", "Rejected", "Photos", "Last activity"]);
+    d.clients.forEach((c) =>
+      cl.addRow([
+        c.name, c.reports, c.services.length, c.sites, c.weighbridges, c.findings, c.approved, c.pending, c.rejected, c.photos,
+        c.lastDate ? new Date(c.lastDate).toLocaleDateString("en-GB") : "",
+      ])
+    );
+    cl.getColumn(1).width = 30;
+    cl.views = [{ state: "frozen", ySplit: 1 }];
+  }
+
+  /* ---- Compliance ---- */
+  if (d.compliance) {
+    const c = d.compliance;
+    const co = wb.addWorksheet("Compliance", { properties: { defaultColWidth: 26 } });
+    headerRow(co, ["Metric", "Value"]);
+    const rowsC = [
+      ["Checklist pass rate (%)", c.checklistPassRate ?? "—"],
+      ["Checklist items passed", `${c.checklistPassed ?? 0} / ${c.checklistItems ?? 0}`],
+      ["Schedule adherence (%)", c.scheduleAdherence ?? "—"],
+      ["Schedules active", c.schedulesActive ?? "—"],
+      ["Schedules overdue", c.schedulesOverdue ?? "—"],
+      ["Schedules due this week", c.schedulesDueSoon ?? "—"],
+      ["Contracts overdue", c.contractsOverdue ?? "—"],
+      ["Contracts due within 30 days", c.contractsDueSoon ?? "—"],
+      ["Approval rate (%)", c.approvalRate],
+      ["Rejection rate (%)", c.rejectionRate],
+      ["Avg approval time (h)", c.avgTurnaroundHours ?? "—"],
+      ["Reports approved", c.reportsApproved],
+      ["Reports pending", c.reportsPending],
+      ["Reports rejected", c.reportsRejected],
+      ["Open findings", c.findingsOpen],
+    ];
+    rowsC.forEach((r) => co.addRow(r));
+    co.getColumn(1).width = 30;
+  }
+
   const buffer = await wb.xlsx.writeBuffer();
   const stamp = new Date().toISOString().slice(0, 10);
   return new Response(buffer, {

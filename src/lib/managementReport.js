@@ -457,6 +457,94 @@ async function buildOperations(user, from, to, clientFilter) {
   return { scope: isAll ? "all" : "assigned", crf, quotes, tasks, schedules, contracts, fleet, satisfaction, training };
 }
 
+// The deeper, per-dimension report tabs — staff productivity, weighbridge
+// (equipment) history, client account statements and compliance/adherence — all
+// derived from the reports already loaded plus the operations snapshot.
+function buildDimensions(reports, cur, operations) {
+  const staff = new Map();
+  const wbh = new Map();
+  const clients = new Map();
+
+  const ensureStaff = (name) => {
+    const k = name || "—";
+    if (!staff.has(k)) staff.set(k, { name: k, filed: 0, approvals: 0, rejections: 0, findings: 0, photos: 0, tSum: 0, tN: 0 });
+    return staff.get(k);
+  };
+
+  for (const r of cur.register) {
+    const sf = ensureStaff(r.authorName);
+    sf.filed += 1;
+    sf.findings += r.findings || 0;
+    sf.photos += r.photos || 0;
+    if (r.turnaroundHours != null) { sf.tSum += r.turnaroundHours; sf.tN += 1; }
+
+    const wid = r.weighbridgeId || "—";
+    const w = wbh.get(wid) || { id: wid, clientName: r.clientName, site: r.site, reports: 0, findings: 0, photos: 0, approved: 0, pending: 0, rejected: 0, byType: new Map(), lastDate: null };
+    w.reports += 1; w.findings += r.findings || 0; w.photos += r.photos || 0;
+    if (r.status === "APPROVED") w.approved += 1; else if (r.status === "REJECTED") w.rejected += 1; else w.pending += 1;
+    w.byType.set(r.templateName, (w.byType.get(r.templateName) || 0) + 1);
+    if (!w.lastDate || new Date(r.createdAt) > new Date(w.lastDate)) w.lastDate = r.createdAt;
+    wbh.set(wid, w);
+
+    const cname = r.clientName || "—";
+    const c = clients.get(cname) || { name: cname, reports: 0, findings: 0, approved: 0, pending: 0, rejected: 0, photos: 0, byType: new Map(), sites: new Set(), weighbridges: new Set(), lastDate: null };
+    c.reports += 1; c.findings += r.findings || 0; c.photos += r.photos || 0;
+    if (r.status === "APPROVED") c.approved += 1; else if (r.status === "REJECTED") c.rejected += 1; else c.pending += 1;
+    c.byType.set(r.templateName, (c.byType.get(r.templateName) || 0) + 1);
+    if (r.site) c.sites.add(r.site);
+    if (r.weighbridgeId) c.weighbridges.add(r.weighbridgeId);
+    if (!c.lastDate || new Date(r.createdAt) > new Date(c.lastDate)) c.lastDate = r.createdAt;
+    clients.set(cname, c);
+  }
+
+  // Reviews / approvals given — who signed reports off, from the trail.
+  for (const r of reports) {
+    for (const ev of r.trailEvents || []) {
+      const a = (ev.action || "").toLowerCase();
+      if (a.includes("approved")) ensureStaff(ev.byName).approvals += 1;
+      else if (a.includes("rejected")) ensureStaff(ev.byName).rejections += 1;
+    }
+  }
+
+  const staffArr = [...staff.values()]
+    .map((s) => ({ name: s.name, filed: s.filed, approvals: s.approvals, rejections: s.rejections, findings: s.findings, photos: s.photos, avgTurnaround: s.tN ? Number((s.tSum / s.tN).toFixed(1)) : null }))
+    .sort((a, b) => b.filed + b.approvals - (a.filed + a.approvals));
+
+  const svc = (m) => [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  const weighbridgeHistory = [...wbh.values()]
+    .map((w) => ({ id: w.id, clientName: w.clientName, site: w.site, reports: w.reports, findings: w.findings, photos: w.photos, approved: w.approved, pending: w.pending, rejected: w.rejected, lastDate: w.lastDate, services: svc(w.byType) }))
+    .sort((a, b) => b.reports - a.reports);
+  const clientsArr = [...clients.values()]
+    .map((c) => ({ name: c.name, reports: c.reports, findings: c.findings, approved: c.approved, pending: c.pending, rejected: c.rejected, photos: c.photos, sites: c.sites.size, weighbridges: c.weighbridges.size, lastDate: c.lastDate, services: svc(c.byType) }))
+    .sort((a, b) => b.reports - a.reports);
+
+  const sch = operations?.schedules;
+  const con = operations?.contracts;
+  const scheduleAdherence = sch && sch.active ? Math.round(((sch.active - sch.overdue) / sch.active) * 100) : null;
+  const compliance = {
+    checklistPassRate: cur.checkTotal ? Math.round((cur.checkPassed / cur.checkTotal) * 100) : null,
+    checklistItems: cur.checkTotal,
+    checklistPassed: cur.checkPassed,
+    approvalRate: cur.total ? Math.round((cur.approved / cur.total) * 100) : 0,
+    rejectionRate: cur.rejectionRate,
+    avgTurnaroundHours: cur.avgTurnaroundHours,
+    reportsApproved: cur.approved,
+    reportsRejected: cur.rejected,
+    reportsPending: cur.pending,
+    findingsOpen: cur.findingsCount,
+    schedulesActive: sch?.active ?? null,
+    schedulesOverdue: sch?.overdue ?? null,
+    schedulesDueSoon: sch?.dueSoon ?? null,
+    scheduleAdherence,
+    scheduleOverdueList: sch?.overdueList || [],
+    contractsOverdue: con?.overdue ?? null,
+    contractsDueSoon: con?.dueSoon ?? null,
+    contractUpcomingList: con?.upcomingList || [],
+  };
+
+  return { staff: staffArr, weighbridgeHistory, clients: clientsArr, compliance };
+}
+
 // Build the role-scoped management report for a date range. Returns a plain
 // object with the summary, every segmented breakdown, period-over-period deltas,
 // auto insights and the flagged findings. Reused by the JSON API and the PDF.
@@ -519,6 +607,7 @@ export async function buildManagementReport(user, { from, to, client } = {}) {
   };
 
   const operations = await buildOperations(user, from, to, client || null);
+  const dimensions = buildDimensions(reports, cur, operations);
 
   // Services delivered by type — the itemised "what was done" for the period.
   const servicesDelivered = byTemplate.map((t) => ({ code: t.code, name: t.name, count: t.count }));
@@ -589,5 +678,9 @@ export async function buildManagementReport(user, { from, to, client } = {}) {
     clientOptions,
     client: client || null,
     clientLabel,
+    staff: dimensions.staff,
+    weighbridgeHistory: dimensions.weighbridgeHistory,
+    clients: dimensions.clients,
+    compliance: dimensions.compliance,
   };
 }
