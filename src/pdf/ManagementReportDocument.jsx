@@ -131,8 +131,6 @@ function BarChart({ items, color }) {
   );
 }
 
-const money = (cur, n) => `${cur || "KES"} ${Number(n || 0).toLocaleString()}`;
-
 // The wider operational picture — quotation pipeline (with value), calibration
 // requests, satisfaction, task workload and overdue maintenance / contracts.
 function OperationsBlock({ ops }) {
@@ -145,23 +143,13 @@ function OperationsBlock({ ops }) {
 
   const pulse = [];
   if (crf) pulse.push({ num: crf.total, label: "Calibration reqs", color: WAIT });
-  if (q) pulse.push({ num: q.winRate != null ? `${q.winRate}%` : "—", label: "Quote win rate", color: PASS });
   if (sat && sat.avg != null) pulse.push({ num: `${sat.avg}/5`, label: "Cust. satisfaction", color: WAIT });
   if (tasks) pulse.push({ num: tasks.open, label: "Open tasks", color: tasks.overdue ? FAIL : INK });
   if (sch) pulse.push({ num: sch.overdue, label: "Overdue maint.", color: sch.overdue ? FAIL : PASS });
   if (typeof ops.fleet === "number") pulse.push({ num: ops.fleet, label: "Weighbridges", color: INK });
 
-  const qBars = q
-    ? [
-        { label: "Requested", value: q.requested, color: "#3B82C4" },
-        { label: "Quoted", value: q.quoted, color: GOLD },
-        { label: "Accepted", value: q.accepted, color: PASS },
-        { label: "Declined", value: q.declined, color: FAIL },
-      ]
-    : [];
-
   return (
-    <View break>
+    <View>
       <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Across the business</Text></View>
 
       {pulse.length ? (
@@ -173,17 +161,6 @@ function OperationsBlock({ ops }) {
             </View>
           ))}
         </View>
-      ) : null}
-
-      {q ? (
-        <>
-          <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Quotation pipeline</Text><Text style={s.sectionNote}>{q.total} quotes</Text></View>
-          <BarChart items={qBars} />
-          <View style={s.opsMoneyRow}>
-            <Text style={s.opsMoney}>Open pipeline: <Text style={{ fontFamily: "Helvetica-Bold", color: INK }}>{money(q.currency, q.pipelineValue)}</Text></Text>
-            <Text style={s.opsMoney}>Won: <Text style={{ fontFamily: "Helvetica-Bold", color: PASS }}>{money(q.currency, q.wonValue)}</Text></Text>
-          </View>
-        </>
       ) : null}
 
       {crf ? (
@@ -272,8 +249,8 @@ function UsageBlock({ usage }) {
 // The full itemised service register — one row per report, wraps across pages.
 function RegisterBlock({ rows }) {
   return (
-    <View break>
-      <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Service register — every report filed ({rows.length})</Text></View>
+    <View>
+      <View style={s.sectionBar} wrap={false}><View style={s.swatch} /><Text style={s.sectionTitle}>Service register — every report filed ({rows.length})</Text></View>
       <View style={s.row} fixed>
         <Text style={[s.th, { width: "11%" }]}>Date</Text>
         <Text style={[s.th, { width: "16%" }]}>Serial</Text>
@@ -447,7 +424,7 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         <BarChart items={tplBars} />
 
         {/* By client / site */}
-        <View style={s.sectionBar} break><View style={s.swatch} /><Text style={s.sectionTitle}>By client &amp; site</Text><Text style={s.sectionNote}>top {clientBars.length}</Text></View>
+        <View style={s.sectionBar} wrap={false}><View style={s.swatch} /><Text style={s.sectionTitle}>By client &amp; site</Text><Text style={s.sectionNote}>top {clientBars.length}</Text></View>
         <BarChart items={clientBars} />
 
         {/* By author */}
@@ -468,7 +445,7 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         {d.operations ? <OperationsBlock ops={d.operations} /> : null}
 
         {/* Findings detail */}
-        <View style={s.sectionBar} break><View style={s.swatch} /><Text style={s.sectionTitle}>Flagged findings — needs attention ({d.findingsCount || 0})</Text></View>
+        <View style={s.sectionBar} wrap={false}><View style={s.swatch} /><Text style={s.sectionTitle}>Flagged findings — needs attention ({d.findingsCount || 0})</Text></View>
         {(!d.findings || !d.findings.length) ? (
           <Text style={s.empty}>No items needed attention in this period.</Text>
         ) : (

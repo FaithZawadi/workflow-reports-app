@@ -641,9 +641,6 @@ export async function buildManagementReport(user, { from, to, client } = {}) {
   } else if (overdueTasks > 0) {
     insights.push({ kind: "bad", title: "Overdue tasks", body: `${overdueTasks} assigned task${overdueTasks === 1 ? " is" : "s are"} past their due date.` });
   }
-  if (ops.quotes && (ops.quotes.pipelineValue || 0) > 0) {
-    insights.push({ kind: "trend", title: "Sales pipeline", body: `${ops.quotes.currency} ${ops.quotes.pipelineValue.toLocaleString()} in open quotations${ops.quotes.winRate != null ? ` · ${ops.quotes.winRate}% win rate` : ""}.` });
-  }
 
   return {
     operations,

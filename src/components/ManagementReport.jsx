@@ -706,18 +706,10 @@ function ComplianceReport({ data }) {
 
 const okStyle = { fontSize: 13, color: MUTE, fontStyle: "italic" };
 const CRF_COLOR = { SUBMITTED: WAIT, ACCEPTED: PASS, REJECTED: FAIL };
-const shortMoney = (cur, n) => {
-  if (n == null) return "—";
-  const a = Math.abs(n);
-  if (a >= 1e6) return `${cur} ${(n / 1e6).toFixed(1)}M`;
-  if (a >= 1e3) return `${cur} ${(n / 1e3).toFixed(0)}K`;
-  return `${cur} ${n}`;
-};
 
 function OpsPulse({ ops }) {
   const tiles = [];
   if (ops.crf) tiles.push({ label: "Calibration requests", value: ops.crf.total, sub: `${ops.crf.submitted} pending · ${ops.crf.accepted} accepted`, color: "#8a6d00" });
-  if (ops.quotes) tiles.push({ label: "Open pipeline", value: shortMoney(ops.quotes.currency, ops.quotes.pipelineValue), sub: ops.quotes.winRate != null ? `${ops.quotes.winRate}% win rate` : `${ops.quotes.total} quotes`, color: PASS });
   if (ops.satisfaction && ops.satisfaction.avg != null) tiles.push({ label: "Customer satisfaction", value: `${ops.satisfaction.avg}/5`, sub: ops.satisfaction.recommendRate != null ? `${ops.satisfaction.recommendRate}% recommend` : `${ops.satisfaction.count} responses`, color: WAIT });
   if (ops.tasks) tiles.push({ label: "Open tasks", value: ops.tasks.open, sub: `${ops.tasks.overdue} overdue`, color: ops.tasks.overdue ? FAIL : INK });
   if (ops.schedules) tiles.push({ label: "Overdue maintenance", value: ops.schedules.overdue, sub: `${ops.schedules.dueSoon} due this week`, color: ops.schedules.overdue ? FAIL : PASS });
@@ -831,11 +823,10 @@ function OperationsRegion({ ops }) {
     <>
       <div style={S.divider}><span style={S.divLine} /><span style={S.divTxt}>Across the business</span><span style={S.divLine} /></div>
       <div style={S.grid2}>
-        {ops.quotes ? <Card title="Quotation pipeline" note={`${ops.quotes.total} quote${ops.quotes.total === 1 ? "" : "s"}`}><Funnel q={ops.quotes} /></Card> : null}
         {ops.crf ? <Card title="Calibration requests" note={`${ops.crf.total} in period`}><Calib crf={ops.crf} /></Card> : null}
+        {ops.satisfaction || ops.training ? <Card title="Satisfaction" note="rated out of 5">{<Satis s={ops.satisfaction} tr={ops.training} />}</Card> : null}
       </div>
       <div style={S.grid2}>
-        {ops.satisfaction || ops.training ? <Card title="Satisfaction" note="rated out of 5">{<Satis s={ops.satisfaction} tr={ops.training} />}</Card> : null}
         {ops.tasks ? <Card title="Task workload" note={`${ops.tasks.total} task${ops.tasks.total === 1 ? "" : "s"}`}><Workload t={ops.tasks} /></Card> : null}
       </div>
       {hasDue ? (
@@ -870,36 +861,6 @@ function StackBar({ segments }) {
             <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color }} />{s.label} <b>{s.value}</b>
           </span>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function Funnel({ q }) {
-  const stages = [
-    { label: "Requested", value: q.requested, color: "#3B82C4" },
-    { label: "Quoted", value: q.quoted, color: GOLD },
-    { label: "Accepted", value: q.accepted, color: PASS },
-    { label: "Declined", value: q.declined, color: FAIL },
-  ];
-  const max = Math.max(1, ...stages.map((s) => s.value));
-  return (
-    <div>
-      <div style={{ display: "grid", gap: 9 }}>
-        {stages.map((s, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ width: 78, fontSize: 12, color: MUTE, fontWeight: 700 }}>{s.label}</span>
-            <div style={{ flex: 1, height: 20, background: "#F0EADD", borderRadius: 6, overflow: "hidden" }}>
-              <div style={{ width: `${Math.max(4, (s.value / max) * 100)}%`, height: "100%", background: s.color, borderRadius: 6 }} />
-            </div>
-            <b style={{ width: 26, textAlign: "right" }}>{s.value}</b>
-          </div>
-        ))}
-      </div>
-      <div style={S.moneyRow}>
-        <div><div style={S.moneyLab}>Open pipeline</div><div style={S.moneyVal}>{q.currency} {q.pipelineValue.toLocaleString()}</div></div>
-        <div><div style={S.moneyLab}>Won</div><div style={{ ...S.moneyVal, color: PASS }}>{q.currency} {q.wonValue.toLocaleString()}</div></div>
-        <div><div style={S.moneyLab}>Win rate</div><div style={S.moneyVal}>{q.winRate != null ? `${q.winRate}%` : "—"}</div></div>
       </div>
     </div>
   );

@@ -134,18 +134,6 @@ export async function GET(req) {
     const os = wb.addWorksheet("Operations", { properties: { defaultColWidth: 22 } });
     os.addRow(["Across the business"]).font = { bold: true, size: 13 };
     os.addRow([]);
-    if (ops.quotes) {
-      os.addRow(["Quotation pipeline"]).font = { bold: true, size: 11 };
-      headerRow(os, ["Stage", "Count"]);
-      os.addRow(["Requested", ops.quotes.requested]);
-      os.addRow(["Quoted", ops.quotes.quoted]);
-      os.addRow(["Accepted", ops.quotes.accepted]);
-      os.addRow(["Declined", ops.quotes.declined]);
-      os.addRow([`Open pipeline (${ops.quotes.currency})`, ops.quotes.pipelineValue]);
-      os.addRow([`Won value (${ops.quotes.currency})`, ops.quotes.wonValue]);
-      os.addRow(["Win rate (%)", ops.quotes.winRate ?? "—"]);
-      os.addRow([]);
-    }
     if (ops.crf) {
       os.addRow(["Calibration requests"]).font = { bold: true, size: 11 };
       headerRow(os, ["Metric", "Value"]);
