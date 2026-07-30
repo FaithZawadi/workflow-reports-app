@@ -604,6 +604,21 @@ function WeighbridgeReport({ data }) {
   );
 }
 
+function SiteBreakdown({ register, total }) {
+  const map = new Map();
+  for (const r of register || []) {
+    const key = r.site || "(no site)";
+    const e = map.get(key) || { site: key, count: 0, findings: 0 };
+    e.count += 1;
+    e.findings += r.findings || 0;
+    map.set(key, e);
+  }
+  const rows = [...map.values()].sort((a, b) => b.count - a.count);
+  if (!rows.length) return <Empty />;
+  const items = rows.map((r, i) => ({ label: r.findings ? `${r.site} · ${r.findings} finding${r.findings === 1 ? "" : "s"}` : r.site, value: r.count, color: BAR_COLORS[i % BAR_COLORS.length] }));
+  return <Leaderboard items={items} total={total} />;
+}
+
 function ClientReport({ data, qs }) {
   const rows = data.clients || [];
   const detail = data.clientLabel ? rows[0] : null;
@@ -654,6 +669,9 @@ function ClientReport({ data, qs }) {
 
       {detail ? (
         <div style={S.grid2}>
+          <Card title="By site" note="reports per location">
+            <SiteBreakdown register={data.register} total={data.total} />
+          </Card>
           <Card title="Services delivered">
             {data.servicesDelivered?.length ? (
               <Leaderboard items={data.servicesDelivered.map((s, i) => ({ label: s.name, value: s.count, color: BAR_COLORS[i % BAR_COLORS.length] }))} total={data.total} />

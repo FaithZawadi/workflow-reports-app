@@ -330,9 +330,30 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
           {/* Same Client/Site fields for every role. Technicians arrive with
               their assigned plant/site pre-filled. */}
           <div className="grid md-2">
-            <Field label="Client (plant)" value={clientName} onChange={setClientName} suggestions={clients.map((c) => c.name)} listId="clients-dl" placeholder="e.g. TATA Chemicals Magadi" />
-            <Field label="Site / location of this job" value={site} onChange={setSite} suggestions={siteOptions} listId="sites-dl" placeholder={siteOptions.length ? "Pick a site or type one" : "e.g. Main plant weighbridge"} />
+            <label className="field">
+              <span className="label">Client (company)</span>
+              <select className="input" value={clientName} onChange={(e) => { setClientName(e.target.value); setSite(""); }}>
+                <option value="">— select client —</option>
+                {clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                {clientName && !clients.some((c) => c.name === clientName) && <option value={clientName}>{clientName}</option>}
+              </select>
+            </label>
+            <label className="field">
+              <span className="label">Site / location of this job</span>
+              {siteOptions.length || (site && !siteOptions.includes(site)) ? (
+                <select className="input" value={site} onChange={(e) => setSite(e.target.value)}>
+                  <option value="">— select site —</option>
+                  {siteOptions.map((sName) => <option key={sName} value={sName}>{sName}</option>)}
+                  {site && !siteOptions.includes(site) && <option value={site}>{site}</option>}
+                </select>
+              ) : (
+                <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="e.g. Magadi plant" />
+              )}
+            </label>
           </div>
+          {clientName && !siteOptions.length && (
+            <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No sites registered for {clientName} yet — an admin can add them in the Clients registry.</div>
+          )}
 
           <div style={{ maxWidth: 460 }}>
             <WeighbridgePicker

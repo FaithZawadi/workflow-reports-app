@@ -41,6 +41,17 @@ export function ClientStatementDocument({ data, logoSrc, clientName, periodLabel
 
   const totalServices = u.servicesDelivered ?? d.total ?? 0;
 
+  // Per-site rollup from the itemised log.
+  const siteMap = new Map();
+  for (const r of register) {
+    const key = r.site || "(no site)";
+    const e = siteMap.get(key) || { site: key, count: 0, findings: 0 };
+    e.count += 1;
+    e.findings += r.findings || 0;
+    siteMap.set(key, e);
+  }
+  const bySite = [...siteMap.values()].sort((a, b) => b.count - a.count);
+
   const Header = () => (
     <View style={s.topRow} fixed>
       <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -162,6 +173,26 @@ export function ClientStatementDocument({ data, logoSrc, clientName, periodLabel
           {(c.reportsApproved ?? 0) === 1 ? "" : "s"} approved, {c.reportsPending ?? 0} in progress
           {(c.findingsOpen ?? 0) > 0 ? `, and ${c.findingsOpen} finding${c.findingsOpen === 1 ? "" : "s"} raised for attention` : ""}.
         </Text>
+
+        {bySite.length > 1 || (bySite.length === 1 && bySite[0].site !== "(no site)") ? (
+          <>
+            <Section title="Services by site" note={`${bySite.length} site${bySite.length === 1 ? "" : "s"}`} />
+            <View>
+              <View style={[s.row, s.rowHead]}>
+                <Text style={[s.th, { width: "58%" }]}>Site</Text>
+                <Text style={[s.th, { width: "21%", textAlign: "center" }]}>Services</Text>
+                <Text style={[s.th, { width: "21%", textAlign: "center" }]}>Findings</Text>
+              </View>
+              {bySite.map((r, i) => (
+                <View style={[s.row, { backgroundColor: i % 2 ? "#FBF8F1" : "#fff" }]} key={i} wrap={false}>
+                  <Text style={[s.td, { width: "58%", fontFamily: "Helvetica-Bold" }]}>{r.site}</Text>
+                  <Text style={[s.td, { width: "21%", textAlign: "center", fontFamily: "Helvetica-Bold" }]}>{r.count}</Text>
+                  <Text style={[s.td, { width: "21%", textAlign: "center", color: r.findings ? FAIL : MUTE }]}>{r.findings || "—"}</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        ) : null}
 
         <Section title="Equipment maintained" note={`${wbs.length} weighbridge${wbs.length === 1 ? "" : "s"}`} />
         {wbs.length ? (

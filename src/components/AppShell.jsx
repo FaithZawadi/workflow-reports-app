@@ -83,6 +83,7 @@ export default function AppShell({ user, children }) {
         showTraining && { href: "/training-feedback", label: "Training feedback", icon: "training" },
         showUsers && { href: "/users", label: "Users", icon: "users" },
         showWeighbridges && { href: "/weighbridges", label: "Weighbridges", icon: "scale" },
+        isAdmin && { href: "/clients", label: "Clients", icon: "building" },
         isAdmin && { href: "/sites", label: "Sites", icon: "pin" },
         isAdmin && { href: "/feedback", label: "Feedback", icon: "star" },
         isAdmin && { href: "/audit", label: "Audit log", icon: "audit" },
@@ -288,6 +289,8 @@ function NavIcon({ name }) {
       return (<svg {...p}><path d="M12 4v16M6 20h12" /><path d="M12 6l-6 2 3 5a3 3 0 0 1-6 0l3-5M12 6l6 2-3 5a3 3 0 0 0 6 0l-3-5" /></svg>);
     case "pin":
       return (<svg {...p}><path d="M12 21s6-5.2 6-10a6 6 0 0 0-12 0c0 4.8 6 10 6 10z" /><circle cx="12" cy="11" r="2.2" /></svg>);
+    case "building":
+      return (<svg {...p}><rect x="5" y="3" width="14" height="18" rx="1.4" /><path d="M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2" /><path d="M10 21v-3h4v3" /></svg>);
     case "star":
       return (<svg {...p}><path d="M12 4l2.3 4.7 5.2.8-3.8 3.7.9 5.1L12 16.9 7.4 18.3l.9-5.1L4.5 9.5l5.2-.8z" /></svg>);
     case "audit":
