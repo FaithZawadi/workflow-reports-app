@@ -225,6 +225,39 @@ export default function ReportDetail({ serial, profile }) {
           ) : null
         )}
 
+        {/* row grids (e.g. Technical Report job-time / mileage, engineer test grids) */}
+        {(tpl?.sections || []).map((sec, si) => {
+          if (sec.type !== "rows") return null;
+          const g = data.grids || {};
+          const nRows = sec.rows || 4;
+          const cells = [];
+          for (let ri = 0; ri < nRows; ri++) {
+            const row = sec.cols.map((_, ci) => g[`${sec.key}:${ri}:${ci}`] ?? "");
+            if (row.some((v) => String(v).trim() !== "")) cells.push(row);
+          }
+          return (
+            <div key={`rows-${si}`}>
+              <SectionBar>{sec.title}</SectionBar>
+              {cells.length ? (
+                <div style={{ overflowX: "auto" }}>
+                  <div style={{ minWidth: sec.cols.length * 110, border: "1px solid #e6e0d2", borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: `repeat(${sec.cols.length}, minmax(100px,1fr))`, background: COAL, color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
+                      {sec.cols.map((c, ci) => <span key={ci} style={{ padding: "6px 10px", borderRight: ci < sec.cols.length - 1 ? "1px solid #2c2720" : "none" }}>{c}</span>)}
+                    </div>
+                    {cells.map((row, ri) => (
+                      <div key={ri} style={{ display: "grid", gridTemplateColumns: `repeat(${sec.cols.length}, minmax(100px,1fr))`, fontSize: 13.5, borderTop: "1px solid #eae4d6", background: ri % 2 ? "#FBF9F4" : "#fff" }}>
+                        {row.map((v, ci) => <span key={ci} style={{ padding: "8px 10px", borderRight: ci < sec.cols.length - 1 ? "1px solid #eae4d6" : "none", color: INK }}>{String(v) || "—"}</span>)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: MUTE, fontStyle: "italic" }}>Not recorded.</div>
+              )}
+            </div>
+          );
+        })}
+
         {/* weekly */}
         {data.weekly && data.weekly.pass !== null && (
           <div style={{ padding: 10, marginTop: 12, borderRadius: 2, fontSize: 14, fontWeight: 700, color: "#fff", background: data.weekly.pass ? PASS : FAIL }}>

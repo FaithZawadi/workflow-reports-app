@@ -1,8 +1,8 @@
 // The QSL weighbridge maintenance form catalogue.
 // Codes and content mirror the printed QSL/F/WB-01..06 sheets.
 
-export const TECH_TEMPLATES = ["WB01", "WB02", "WB03", "WB07"];
-export const ENGINEER_TEMPLATES = ["WB04", "WB05", "WB06", "WB07", "SI01"];
+export const TECH_TEMPLATES = ["WB01", "WB02", "WB03", "WB07", "TR01"];
+export const ENGINEER_TEMPLATES = ["WB04", "WB05", "WB06", "WB07", "SI01", "TR01"];
 
 // Result-state sets for engineer checklists.
 const OK_ATTN_NA = [
@@ -312,6 +312,46 @@ export const TEMPLATES = [
           "This instruction is deemed to be included in the contract works",
           "No further works to proceed until the site instructions are fully executed and approved",
         ],
+      },
+    ],
+  },
+  {
+    code: "TR01",
+    name: "Technical Report",
+    cadence: "Field service / calibration visit",
+    who: "Technician (approved by Project Manager)",
+    desc: "In-house field service report: nature of visit, machine details, fault, findings, correction, result, parts and job-time / mileage (QSL Technical Report).",
+    sections: [
+      {
+        type: "fields",
+        fields: [
+          { k: "vehicleNo", label: "Vehicle no." },
+          { k: "contactPerson", label: "Contact person" },
+          { k: "telNo", label: "Tel. no." },
+          { k: "machineModel", label: "Machine model" },
+          { k: "machineCapacity", label: "Capacity" },
+          { k: "machineSerial", label: "Machine serial no." },
+        ],
+      },
+      {
+        type: "choices",
+        k: "natureOfVisit",
+        title: "Nature of visit",
+        dropdown: true,
+        options: ["Planned maintenance", "Service", "Repairs", "Normal customer visit"],
+      },
+      { type: "textarea", k: "faultReported", label: "Fault reported" },
+      { type: "textarea", k: "findings", label: "Findings" },
+      { type: "textarea", k: "correction", label: "Correction" },
+      { type: "textarea", k: "finalResult", label: "Final result" },
+      { type: "textarea", k: "partsToOrder", label: "Parts to order" },
+      { type: "textarea", k: "customerComments", label: "Customer comments" },
+      {
+        type: "rows",
+        key: "jobTime",
+        title: "Field job time — mileage details",
+        cols: ["MV/EV/DN/LPO no.", "Time in", "Time out", "Time spent", "KM out", "KM in", "KM covered"],
+        rows: 4,
       },
     ],
   },
