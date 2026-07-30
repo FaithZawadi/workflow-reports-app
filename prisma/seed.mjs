@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { backfillSingleApproval } from "./backfill-single-approval.mjs";
 
 const prisma = new PrismaClient();
 const hash = (p) => bcrypt.hash(p, 10);
@@ -15,6 +16,12 @@ async function main() {
     update: {},
     create: { email: adminEmail, name: adminName, role: "ADMIN", roles: ["ADMIN"], passwordHash: await hash(adminPass) },
   });
+
+  // Bring existing daily/weekly/monthly reports in line with the single-stage
+  // approval change: any that already passed their approver (PENDING_MANAGER)
+  // become APPROVED. Idempotent — a no-op once there are none left.
+  const flipped = await backfillSingleApproval(prisma);
+  if (flipped) console.log(`Single-approval backfill: ${flipped} report(s) updated to APPROVED.`);
 
   // Demo/sample data is OPT-IN. By default the seed only ensures the admin
   // exists, so re-running it on every deploy never re-creates demo records —
