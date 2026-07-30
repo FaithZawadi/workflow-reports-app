@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { templateByCode } from "@/lib/templates";
+import { templateByCode, isSingleApproval } from "@/lib/templates";
 import { colorFor, defaultStates } from "./CheckItem";
 import Lightbox from "./Lightbox";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
@@ -96,7 +96,12 @@ export default function ApproveClient({ token, initialAction }) {
   const r = state.report;
   const tpl = templateByCode(r.template);
   const data = r.data || {};
-  const stageLabel = state.stage === "SUPERVISOR" ? "review (Equipment User)" : "final approval (Client/Manager)";
+  const stageLabel =
+    state.stage === "SUPERVISOR"
+      ? isSingleApproval(r.template)
+        ? "approval (Client)"
+        : "review (Equipment User)"
+      : "final approval (Client/Manager)";
   const freeFields = Object.entries(data.values || {}).filter(([k, v]) => k !== "weighbridgeId" && v);
   const photos = (r.photos || []).filter((p) => (p.dataUrl || "").startsWith("data:image"));
 

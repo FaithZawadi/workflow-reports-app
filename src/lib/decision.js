@@ -3,16 +3,25 @@ import { sendMail, approvalRequestEmail, decisionEmail } from "./email";
 import { createApprovalLinks } from "./approvalToken";
 import { recordAudit } from "./audit";
 import { notifyEmails, notifyUsers } from "./notify";
+import { isSingleApproval } from "./templates";
 
 // Apply an approve/reject decision to a report at a given stage. Shared by the
 // in-app decision route (a signed-in reviewer) and the one-click email approval
 // route (token-authenticated, no session). `actor` = { name, sub?, role? }.
 export async function applyDecision({ report, stage, decision, comment, actor }) {
+  // Daily / weekly / monthly forms are single-stage: the sole approver's
+  // sign-off fully approves the report — there is no manager stage after it.
+  const single = isSingleApproval(report.template);
   let nextStatus;
   let action;
   if (stage === "SUPERVISOR") {
-    nextStatus = decision === "approve" ? "PENDING_MANAGER" : "REJECTED";
-    action = decision === "approve" ? "Supervisor approved" : "Supervisor rejected";
+    if (decision === "approve") {
+      nextStatus = single ? "APPROVED" : "PENDING_MANAGER";
+      action = single ? "Approved" : "Supervisor approved";
+    } else {
+      nextStatus = "REJECTED";
+      action = "Supervisor rejected";
+    }
   } else {
     nextStatus = decision === "approve" ? "APPROVED" : "REJECTED";
     action = decision === "approve" ? "Manager approved" : "Manager rejected";
@@ -38,7 +47,7 @@ export async function applyDecision({ report, stage, decision, comment, actor })
 
   // Notifications (best-effort) — email + in-app.
   let mail = { sent: false, reason: "no notification needed" };
-  if (stage === "SUPERVISOR" && decision === "approve") {
+  if (stage === "SUPERVISOR" && decision === "approve" && !single) {
     // Passed to the Client/Manager for final approval — email them a one-click link too.
     const links = await createApprovalLinks(updated, "MANAGER");
     mail = await sendMail(approvalRequestEmail(updated, actor.name, links));

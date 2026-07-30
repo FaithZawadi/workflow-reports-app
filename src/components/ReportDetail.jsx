@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { PaperCard, SectionBar, Pill } from "./ui";
 import Lightbox from "./Lightbox";
-import { templateByCode } from "@/lib/templates";
+import { templateByCode, isSingleApproval } from "@/lib/templates";
 import { defaultStates, colorFor } from "./CheckItem";
 import { COAL, GOLD, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
@@ -59,6 +59,7 @@ export default function ReportDetail({ serial, profile }) {
   if (!rep) return <div className="muted" style={{ marginTop: 24 }}>Loading report…</div>;
 
   const tpl = templateByCode(rep.template);
+  const singleApproval = isSingleApproval(rep.template);
   const data = rep.data || {};
   const pending = rep.status === "PENDING_SUPERVISOR" || rep.status === "PENDING_MANAGER";
 
@@ -123,18 +124,30 @@ export default function ReportDetail({ serial, profile }) {
             ).map((s, i, arr) => (
               <ReviewerRow
                 key={s.email}
-                label={i === 0 ? (arr.length > 1 ? "Equipment Users (any one reviews)" : "Equipment User (reviews first)") : ""}
+                label={
+                  i === 0
+                    ? singleApproval
+                      ? arr.length > 1
+                        ? "Clients (any one approves)"
+                        : "Client (approves)"
+                      : arr.length > 1
+                      ? "Equipment Users (any one reviews)"
+                      : "Equipment User (reviews first)"
+                    : ""
+                }
                 name={s.name}
                 email={s.email}
                 state={rep.status === "PENDING_SUPERVISOR" ? "current" : "done"}
               />
             ))}
-            <ReviewerRow
-              label="Client/Manager (final approval)"
-              name={reviewers?.managerName}
-              email={reviewers?.managerEmail || rep.managerEmail}
-              state={rep.status === "PENDING_MANAGER" ? "current" : rep.status === "PENDING_SUPERVISOR" ? "waiting" : "done"}
-            />
+            {!singleApproval && (
+              <ReviewerRow
+                label="Client/Manager (final approval)"
+                name={reviewers?.managerName}
+                email={reviewers?.managerEmail || rep.managerEmail}
+                state={rep.status === "PENDING_MANAGER" ? "current" : rep.status === "PENDING_SUPERVISOR" ? "waiting" : "done"}
+              />
+            )}
           </div>
         )}
 
@@ -161,7 +174,7 @@ export default function ReportDetail({ serial, profile }) {
         )}
         {pending && !actAs && (
           <div className="muted" style={{ fontSize: 12, marginTop: 8, fontStyle: "italic" }}>
-            Only the routed {rep.status === "PENDING_SUPERVISOR" ? "Equipment User" : "Client/Manager"} above can approve or reject this report.
+            Only the routed {rep.status === "PENDING_SUPERVISOR" ? (singleApproval ? "Client" : "Equipment User") : "Client/Manager"} above can approve or reject this report.
           </div>
         )}
 

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar, Field, Textarea } from "./ui";
 import CheckItem, { CheckHeader, CHECK_TABLE_MINWIDTH, defaultStates } from "./CheckItem";
 import Photos from "./Photos";
-import { templatesForRoles, templateByCode } from "@/lib/templates";
+import { templatesForRoles, templateByCode, isSingleApproval } from "@/lib/templates";
 import { rolesOf } from "@/lib/roles";
 import { enqueueReport } from "@/lib/outbox";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
@@ -64,8 +64,9 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   // everything before it is sent.
   const review = () => {
     setMsg("");
-    if (!supervisorEmails.some((e) => /\S+@\S+\.\S+/.test(e))) return setMsg("Add at least one Equipment User.");
-    if (!/\S+@\S+\.\S+/.test(managerEmail)) return setMsg("Enter the Client/Manager's email.");
+    const single = tpl ? isSingleApproval(tpl.code) : false;
+    if (!supervisorEmails.some((e) => /\S+@\S+\.\S+/.test(e))) return setMsg(single ? "Add at least one Client." : "Add at least one Equipment User.");
+    if (!single && !/\S+@\S+\.\S+/.test(managerEmail)) return setMsg("Enter the Client/Manager's email.");
     if (!clientName.trim()) return setMsg("Choose the client (plant).");
     setConfirming(true);
   };
@@ -228,29 +229,36 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
     );
   }
 
+  const singleApproval = tpl ? isSingleApproval(tpl.code) : false;
   const approvalPanel = (
     <div className="card" style={{ borderColor: GOLD, padding: 16 }}>
       <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK }}>Approval route</div>
-      <div className="muted" style={{ margin: "4px 0 12px" }}>You → Equipment User reviews → Client/Manager approves. Each is emailed automatically.</div>
+      <div className="muted" style={{ margin: "4px 0 12px" }}>
+        {singleApproval
+          ? "You → Client approves. The Client is emailed automatically; their approval completes the report."
+          : "You → Equipment User reviews → Client/Manager approves. Each is emailed automatically."}
+      </div>
       <div style={{ fontSize: 12, fontWeight: 700, background: "#efe8d6", color: INK, padding: "8px 10px", borderRadius: 2, marginBottom: 12 }}>
         Submitting as {profile.name}
         {clientName ? " · " + clientName : ""}
         {site ? " - " + site : ""}
       </div>
       <MultiReviewerPicker
-        label="Equipment User(s) — reviews first"
+        label={singleApproval ? "Client(s) — approves" : "Equipment User(s) — reviews first"}
         people={supervisors}
         value={supervisorEmails}
         onChange={setSupervisorEmails}
-        placeholder="equipment.user@company.com"
+        placeholder={singleApproval ? "client@company.com" : "equipment.user@company.com"}
       />
-      <ReviewerPicker
-        label="Client/Manager (approves after review)"
-        people={managers}
-        value={managerEmail}
-        onChange={setManagerEmail}
-        placeholder="client.manager@company.com"
-      />
+      {!singleApproval && (
+        <ReviewerPicker
+          label="Client/Manager (approves after review)"
+          people={managers}
+          value={managerEmail}
+          onChange={setManagerEmail}
+          placeholder="client.manager@company.com"
+        />
+      )}
       {msg && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, margin: "8px 0" }}>{msg}</div>}
       <button className="btn btn-primary" style={{ width: "100%", padding: "13px" }} disabled={busy} onClick={review}>
         {busy ? "Working…" : isEdit ? "Review & save changes" : "Review & submit"}
@@ -278,6 +286,8 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
             <p className="muted" style={{ fontSize: 13, margin: "6px 0 12px" }}>
               {isEdit
                 ? "Your correction will be saved and stamped on the report's trail with your name and the time. Check the details below."
+                : singleApproval
+                ? "Once sent, this goes to your Client for approval. Check the details below are correct."
                 : "Once sent, this goes to your Equipment User for review. Check the details below are correct."}
             </p>
             <div style={{ fontSize: 13, color: INK, display: "grid", gap: 4 }}>
@@ -285,8 +295,8 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
               <div><b>Client:</b> {clientName || "—"}</div>
               <div><b>Site / location:</b> {site || "—"}</div>
               <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>
-              <div><b>Equipment User{supervisorEmails.length > 1 ? "s" : ""}:</b> {supervisorEmails.join(", ") || "—"}</div>
-              <div><b>Client/Manager:</b> {managerEmail}</div>
+              <div><b>{singleApproval ? "Client" : "Equipment User"}{supervisorEmails.length > 1 ? "s" : ""}:</b> {supervisorEmails.join(", ") || "—"}</div>
+              {!singleApproval && <div><b>Client/Manager:</b> {managerEmail}</div>}
               <div><b>Entries filled:</b> {filledCount} · <b>Photos:</b> {photos.length}</div>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 16 }}>

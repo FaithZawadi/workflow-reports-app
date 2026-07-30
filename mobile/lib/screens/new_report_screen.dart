@@ -29,6 +29,10 @@ class _NewReportScreenState extends State<NewReportScreen> {
   final _weighbridge = TextEditingController();
   final List<String> _supervisorEmails = [];
   String _managerEmail = '';
+
+  // Daily / weekly / monthly forms are single-stage: one approver ("Client")
+  // signs off and the report is Approved — no manager stage.
+  bool get _single => _tpl != null && const ['WB01', 'WB02', 'WB03'].contains(_tpl!['code']);
   final Map<String, dynamic> _values = {};
   final Map<String, Map<String, dynamic>> _checks = {};
   final Map<String, dynamic> _grids = {};
@@ -62,8 +66,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_supervisorEmails.any((e) => RegExp(r'\S+@\S+\.\S+').hasMatch(e))) return showError(context, "Add at least one Equipment User.");
-    if (!RegExp(r'\S+@\S+\.\S+').hasMatch(_managerEmail)) return showError(context, "Choose the Client/Manager's email.");
+    if (!_supervisorEmails.any((e) => RegExp(r'\S+@\S+\.\S+').hasMatch(e))) return showError(context, _single ? "Add at least one Client." : "Add at least one Equipment User.");
+    if (!_single && !RegExp(r'\S+@\S+\.\S+').hasMatch(_managerEmail)) return showError(context, "Choose the Client/Manager's email.");
     if (_client.text.trim().isEmpty) return showError(context, 'Choose the client (plant).');
     setState(() => _busy = true);
     try {
@@ -141,9 +145,11 @@ class _NewReportScreenState extends State<NewReportScreen> {
       _photosSection(),
 
       const SectionBar('Approval route'),
-      _multiReviewerPicker('Equipment User(s) — any one reviews', _supervisors, _supervisorEmails),
-      const SizedBox(height: 8),
-      _reviewerPicker('Client/Manager (approves)', _managers, _managerEmail, (v) => setState(() => _managerEmail = v)),
+      _multiReviewerPicker(_single ? 'Client(s) — approves' : 'Equipment User(s) — any one reviews', _supervisors, _supervisorEmails),
+      if (!_single) ...[
+        const SizedBox(height: 8),
+        _reviewerPicker('Client/Manager (approves)', _managers, _managerEmail, (v) => setState(() => _managerEmail = v)),
+      ],
       const SizedBox(height: 18),
       ElevatedButton(
         onPressed: _busy ? null : _submit,

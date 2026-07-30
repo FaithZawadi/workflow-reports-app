@@ -321,6 +321,12 @@ export function templateByCode(code) {
   return TEMPLATES.find((t) => t.code === code) || null;
 }
 
+// The daily / weekly / monthly technician forms use a single-stage approval:
+// one approver — labelled "Client" on these forms — signs off and the report is
+// fully Approved. There is no separate manager stage and no manager email.
+export const SINGLE_APPROVAL_TEMPLATES = ["WB01", "WB02", "WB03"];
+export const isSingleApproval = (code) => SINGLE_APPROVAL_TEMPLATES.includes(code);
+
 // Which forms a set of roles may file. Supervisors, managers and admins may file
 // any form. Technicians file WB01-03, engineers WB04-06; a user holding both
 // gets both. WB07 (Photo Evidence) is available to anyone. Pass an array of role

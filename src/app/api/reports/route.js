@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { reportScope } from "@/lib/rbac";
 import { nextSerial } from "@/lib/serial";
-import { templateByCode, templatesForRoles } from "@/lib/templates";
+import { templateByCode, templatesForRoles, isSingleApproval } from "@/lib/templates";
 import { sendMail, reviewRequestEmail, failureAlertEmail } from "@/lib/email";
 import { createApprovalLinks } from "@/lib/approvalToken";
 import { addCycle } from "@/lib/schedule";
@@ -125,8 +125,12 @@ export async function POST(req) {
     return Response.json({ error: "Add at least one Equipment User email." }, { status: 400 });
   const supervisorEmail = supervisorEmails[0]; // primary (for display / routing snapshots)
 
+  // Daily / weekly / monthly forms are single-stage: the one approver (labelled
+  // "Client") signs off and the report is Approved — no manager stage, so a
+  // manager email is not required.
+  const single = isSingleApproval(tpl.code);
   const managerEmail = String(body.managerEmail || "").trim();
-  if (!isEmail(managerEmail))
+  if (!single && !isEmail(managerEmail))
     return Response.json({ error: "Enter the manager's email." }, { status: 400 });
 
   // Client/site come from the form for every role (same fields for all). If a
