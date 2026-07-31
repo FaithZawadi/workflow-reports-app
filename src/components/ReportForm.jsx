@@ -93,13 +93,24 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       .catch(() => {});
   }, []);
 
-  // Site suggestions for the chosen client (plus any client-less "all" sites).
+  // Site options for the chosen client: registered sites PLUS the sites/labels
+  // carried by that client's weighbridges — so the dropdown is populated from the
+  // weighbridge register even when no sites were registered separately.
   const siteOptions = (() => {
     const c = (clientName || "").trim().toLowerCase();
-    return sites
+    const fromSites = sites
       .filter((s) => !s.client || !c || String(s.client).toLowerCase() === c)
       .map((s) => s.name);
+    const fromWbs = weighbridges
+      .filter((w) => !c || (w.client || "").toLowerCase() === c)
+      .flatMap((w) => [w.site, w.label])
+      .filter(Boolean);
+    return [...new Set([...fromSites, ...fromWbs].map((v) => String(v).trim()).filter(Boolean))];
   })();
+
+  // For daily / weekly / monthly checks the "site" IS the weighbridge — there's
+  // no separate location, so the weighbridge choice fills the site field.
+  const siteIsWeighbridge = !!tpl && isSingleApproval(tpl.code);
 
   const setV = (k, v) => setValues((s) => ({ ...s, [k]: v }));
 
@@ -338,20 +349,26 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
                 {clientName && !clients.some((c) => c.name === clientName) && <option value={clientName}>{clientName}</option>}
               </select>
             </label>
-            <label className="field">
-              <span className="label">Site / location of this job</span>
-              {siteOptions.length || (site && !siteOptions.includes(site)) ? (
-                <select className="input" value={site} onChange={(e) => setSite(e.target.value)}>
-                  <option value="">— select site —</option>
-                  {siteOptions.map((sName) => <option key={sName} value={sName}>{sName}</option>)}
-                  {site && !siteOptions.includes(site) && <option value={site}>{site}</option>}
-                </select>
-              ) : (
-                <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="e.g. Magadi plant" />
-              )}
-            </label>
+            {siteIsWeighbridge ? (
+              <div style={{ alignSelf: "end", fontSize: 11.5, color: "var(--mute)" }}>
+                The <b>weighbridge</b> below is the site for this check.
+              </div>
+            ) : (
+              <label className="field">
+                <span className="label">Site / location of this job</span>
+                {siteOptions.length || (site && !siteOptions.includes(site)) ? (
+                  <select className="input" value={site} onChange={(e) => setSite(e.target.value)}>
+                    <option value="">— select site —</option>
+                    {siteOptions.map((sName) => <option key={sName} value={sName}>{sName}</option>)}
+                    {site && !siteOptions.includes(site) && <option value={site}>{site}</option>}
+                  </select>
+                ) : (
+                  <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="e.g. Magadi plant" />
+                )}
+              </label>
+            )}
           </div>
-          {clientName && !siteOptions.length && (
+          {!siteIsWeighbridge && clientName && !siteOptions.length && (
             <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No sites registered for {clientName} yet — an admin can add them in the Clients registry.</div>
           )}
 
@@ -362,8 +379,9 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
                 return !c || (w.client || "").toLowerCase() === c;
               })}
               value={values.weighbridgeId}
-              onType={(v) => setV("weighbridgeId", v)}
+              onType={(v) => { setV("weighbridgeId", v); if (siteIsWeighbridge) setSite(v); }}
               onPick={(w) => {
+                if (siteIsWeighbridge) setSite(w.label);
                 const keys = new Set();
                 (tpl?.sections || []).forEach((sec) => { if (sec.type === "fields") sec.fields.forEach((f) => keys.add(f.k)); });
                 setValues((s) => {

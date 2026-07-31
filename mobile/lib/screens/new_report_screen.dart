@@ -75,7 +75,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
         'template': _tpl!['code'],
         'weighbridgeId': _weighbridge.text.trim(),
         'clientName': _client.text.trim(),
-        'site': _site.text.trim(),
+        'site': _single ? _weighbridge.text.trim() : _site.text.trim(),
         'supervisorEmails': _supervisorEmails.map((e) => e.trim()).toList(),
         'managerEmail': _managerEmail.trim(),
         'values': _values,
@@ -136,8 +136,10 @@ class _NewReportScreenState extends State<NewReportScreen> {
       const Text('Serial number is assigned when you submit.', style: TextStyle(color: kMute, fontSize: 12)),
       const SectionBar('Client & site'),
       _field('Client (plant)', _client),
-      _field('Site / location of this job', _site),
+      // Daily/weekly/monthly: the weighbridge is the site, so no separate field.
+      if (!_single) _field('Site / location of this job', _site),
       _field('Weighbridge', _weighbridge),
+      if (_single) const Padding(padding: EdgeInsets.only(bottom: 10), child: Text('The weighbridge above is the site for this check.', style: TextStyle(color: kMute, fontSize: 12))),
 
       for (int si = 0; si < sections.length; si++) ..._section(Map<String, dynamic>.from(sections[si]), si),
 
