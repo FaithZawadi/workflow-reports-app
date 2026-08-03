@@ -15,6 +15,10 @@ const GROUPS = [
     canonical: "Tata Chemicals Magadi",
     match: ["tata chemicals magadi", "tata chemical magadi", "tatachemical magadi"],
   },
+  {
+    canonical: "Tata Chemicals Kajiado",
+    match: ["tata chemicals kajiado", "tata chemical kajiado", "tatachemical kajiado"],
+  },
 ];
 
 const norm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
