@@ -39,20 +39,23 @@ export async function GET(req) {
   const from = (searchParams.get("from") || "").trim();
   const to = (searchParams.get("to") || "").trim();
   const client = (searchParams.get("client") || "").trim() || null;
+  const site = (searchParams.get("site") || "").trim() || null;
 
-  const data = await buildManagementReport(user, { from, to, client });
+  const data = await buildManagementReport(user, { from, to, client, site });
   const clientName = data.clientLabel || null;
+  // A branch statement names the branch alongside the company.
+  const statementName = clientName && site ? `${clientName} — ${site}` : clientName;
 
   // Statement reference, e.g. QSL-STMT-2026-07-KAP.
   const stampMonth = (to || from || new Date().toISOString().slice(0, 10)).slice(0, 7).replace("-", "-");
-  const slug = (clientName || "ALL").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase() || "ALL";
+  const slug = (statementName || "ALL").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase() || "ALL";
   const statementRef = `QSL-STMT-${stampMonth}-${slug}`;
 
   const buffer = await renderToBuffer(
     React.createElement(ClientStatementDocument, {
       data,
       logoSrc: logoDataUrl(),
-      clientName,
+      clientName: statementName,
       periodLabel: periodLabel(from, to),
       statementRef,
       generatedByName: user.name || user.email,
@@ -60,7 +63,7 @@ export async function GET(req) {
   );
 
   const stamp = new Date().toISOString().slice(0, 10);
-  const fileClient = (clientName || "all-clients").replace(/[^A-Za-z0-9]+/g, "-").toLowerCase();
+  const fileClient = (statementName || "all-clients").replace(/[^A-Za-z0-9]+/g, "-").toLowerCase();
   return new Response(buffer, {
     status: 200,
     headers: {

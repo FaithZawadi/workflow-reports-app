@@ -21,8 +21,9 @@ export async function GET(req) {
   const to = (searchParams.get("to") || "").trim();
 
   const client = (searchParams.get("client") || "").trim() || null;
+  const site = (searchParams.get("site") || "").trim() || null;
 
-  const data = await buildManagementReport(user, { from, to, client });
+  const data = await buildManagementReport(user, { from, to, client, site });
   const role = rolesOf(user)[0] || "";
   return Response.json({
     ...data,

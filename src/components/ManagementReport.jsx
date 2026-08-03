@@ -69,6 +69,7 @@ export default function ManagementReport() {
   const [from, setFrom] = useState(presetRange("month").from);
   const [to, setTo] = useState(presetRange("month").to);
   const [client, setClient] = useState("");
+  const [site, setSite] = useState("");
   const [tab, setTab] = useState("overview");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -81,8 +82,9 @@ export default function ManagementReport() {
     if (from) p.set("from", from);
     if (to) p.set("to", to);
     if (client) p.set("client", client);
+    if (client && site) p.set("site", site);
     return p.toString();
-  }, [from, to, client]);
+  }, [from, to, client, site]);
 
   // Load the report. `silent` keeps the current view on screen while a background
   // refresh runs, so the dashboard autopopulates without flashing or scrolling.
@@ -148,17 +150,25 @@ export default function ManagementReport() {
           <div style={{ fontSize: 12.5, color: MUTE, marginTop: 3 }}>
             {data ? `${data.total} report${data.total === 1 ? "" : "s"} · ` : ""}
             <b>{rangeLabel}</b>
-            {data?.clientLabel ? <> · <b style={{ color: "#8a6d00" }}>{data.clientLabel}</b></> : ""}
+            {data?.clientLabel ? <> · <b style={{ color: "#8a6d00" }}>{data.clientLabel}{data?.siteLabel ? ` — ${data.siteLabel}` : ""}</b></> : ""}
             {data?.compareRange ? " · compared to previous period" : ""}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
             {data?.clientOptions?.length ? (
-              <select className="input" value={client} onChange={(e) => setClient(e.target.value)} style={{ padding: "7px 10px", fontSize: 12.5, fontWeight: 700, width: "auto", maxWidth: 220 }}>
+              <select className="input" value={client} onChange={(e) => { setClient(e.target.value); setSite(""); }} style={{ padding: "7px 10px", fontSize: 12.5, fontWeight: 700, width: "auto", maxWidth: 220 }}>
                 <option value="">All clients</option>
                 {data.clientOptions.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            ) : null}
+            {client && data?.siteOptions?.length ? (
+              <select className="input" value={site} onChange={(e) => setSite(e.target.value)} title="Filter to one branch / site" style={{ padding: "7px 10px", fontSize: 12.5, fontWeight: 700, width: "auto", maxWidth: 200 }}>
+                <option value="">All branches</option>
+                {data.siteOptions.map((s) => (
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             ) : null}
@@ -630,7 +640,7 @@ function ClientReport({ data, qs }) {
           <div style={{ fontWeight: 900, fontSize: 14, color: INK }}>Monthly service statement</div>
           <div style={{ fontSize: 12.5, color: MUTE, marginTop: 2 }}>
             {data.clientLabel
-              ? <>A client-facing statement of everything delivered for <b style={{ color: "#8a6d00" }}>{data.clientLabel}</b> this period — for month-end usage invoicing.</>
+              ? <>A client-facing statement of everything delivered for <b style={{ color: "#8a6d00" }}>{data.clientLabel}{data.siteLabel ? ` — ${data.siteLabel}` : ""}</b> this period — for month-end usage invoicing.{data.siteLabel ? "" : " Choose a branch above for a per-branch statement."}</>
               : "Pick a client above (and a month range), then generate their branded statement to hand over at month-end."}
           </div>
         </div>

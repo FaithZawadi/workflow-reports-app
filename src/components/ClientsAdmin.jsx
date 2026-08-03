@@ -13,6 +13,8 @@ export default function ClientsAdmin() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [openId, setOpenId] = useState(null);
+  const [consolidating, setConsolidating] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const load = useCallback(async () => {
     setErr("");
@@ -38,6 +40,19 @@ export default function ClientsAdmin() {
     load();
   };
 
+  const consolidate = async () => {
+    if (!confirm('Consolidate duplicates?\n\nEvery "Tata Chemicals" spelling variant (Magadi, Kajiado, Mombasa) is folded into ONE "TATA Chemicals" client, and each report is tagged with its branch as the site. This can\'t be undone.')) return;
+    setConsolidating(true);
+    setErr("");
+    setNotice("");
+    const res = await fetch("/api/clients/consolidate", { method: "POST" });
+    setConsolidating(false);
+    if (!res.ok) return setErr((await res.json().catch(() => ({}))).error || "Could not consolidate.");
+    const d = await res.json();
+    setNotice(d.mergedClients || d.renamed ? `Done — ${d.mergedClients} duplicate client${d.mergedClients === 1 ? "" : "s"} merged, ${d.renamed} renamed.` : "Already consolidated — nothing to merge.");
+    load();
+  };
+
   const shown = (rows || []).filter((c) => {
     const t = q.trim().toLowerCase();
     if (!t) return true;
@@ -54,11 +69,13 @@ export default function ClientsAdmin() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn" onClick={load} style={{ fontSize: 12 }}>Refresh</button>
+          <button className="btn" onClick={consolidate} disabled={consolidating} style={{ fontSize: 12 }} title="Fold duplicate Tata Chemicals spellings into one client with branches as sites">{consolidating ? "Consolidating…" : "Consolidate duplicates"}</button>
           <button className="btn btn-dark" onClick={() => setAdding((v) => !v)} style={{ fontSize: 12 }}>{adding ? "Close" : "+ Add client"}</button>
         </div>
       </div>
 
       {err && <div className="err" style={{ margin: "10px 0" }}>{err}</div>}
+      {notice && <div className="card" style={{ margin: "10px 0", padding: "10px 12px", borderColor: GOLD, fontSize: 13, color: INK }}>{notice}</div>}
 
       {adding && (
         <div className="card" style={{ padding: 16, marginTop: 12, borderColor: GOLD }}>

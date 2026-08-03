@@ -1,7 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { backfillSingleApproval } from "./backfill-single-approval.mjs";
-import { backfillMergeClients } from "./backfill-merge-clients.mjs";
 
 const prisma = new PrismaClient();
 const hash = (p) => bcrypt.hash(p, 10);
@@ -23,11 +22,6 @@ async function main() {
   // become APPROVED. Idempotent — a no-op once there are none left.
   const flipped = await backfillSingleApproval(prisma);
   if (flipped) console.log(`Single-approval backfill: ${flipped} report(s) updated to APPROVED.`);
-
-  // Consolidate known duplicate client records (e.g. the "Tata Chemicals Magadi"
-  // spelling variants) into one canonical client. Idempotent.
-  const merged = await backfillMergeClients(prisma);
-  if (merged) console.log(`Client merge backfill: ${merged} duplicate client(s) merged.`);
 
   // Demo/sample data is OPT-IN. By default the seed only ensures the admin
   // exists, so re-running it on every deploy never re-creates demo records —

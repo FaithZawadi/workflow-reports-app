@@ -199,7 +199,7 @@ function aggregate(reports) {
   };
 }
 
-function whereFor(user, from, to, client) {
+function whereFor(user, from, to, client, site) {
   const where = { ...reportScope(user) };
   if (from || to) {
     where.createdAt = {};
@@ -207,6 +207,7 @@ function whereFor(user, from, to, client) {
     if (to) where.createdAt.lte = to instanceof Date ? to : dayEnd(to);
   }
   if (client) where.clientId = client;
+  if (site) where.site = { equals: site, mode: "insensitive" };
   return where;
 }
 
@@ -282,7 +283,7 @@ function tally(rows, key) {
 // two report-generating managers see everything; other generators (supervisor /
 // manager) are scoped to the clients whose weighbridges they are assigned to.
 // Every source is guarded so a gap in one never breaks the whole report.
-async function buildOperations(user, from, to, clientFilter) {
+async function buildOperations(user, from, to, clientFilter, siteFilter) {
   const roles = rolesOf(user);
   const isAll = roles.includes("ADMIN") || roles.includes("PROJECT_MANAGER") || roles.includes("TECHNICAL_MANAGER");
 
@@ -387,7 +388,11 @@ async function buildOperations(user, from, to, clientFilter) {
   // ---- Overdue maintenance obligations (schedules, as of today) ----
   const schedules = await safe(async () => {
     const rows = await prisma.schedule.findMany({
-      where: { active: true, ...(clientIds ? { clientId: { in: clientIds } } : {}) },
+      where: {
+        active: true,
+        ...(clientIds ? { clientId: { in: clientIds } } : {}),
+        ...(siteFilter ? { site: { equals: siteFilter, mode: "insensitive" } } : {}),
+      },
       select: { nextDueAt: true, templateName: true, clientName: true, weighbridgeId: true },
     });
     const overdue = rows.filter((r) => new Date(r.nextDueAt).getTime() < t);
@@ -548,9 +553,9 @@ function buildDimensions(reports, cur, operations) {
 // Build the role-scoped management report for a date range. Returns a plain
 // object with the summary, every segmented breakdown, period-over-period deltas,
 // auto insights and the flagged findings. Reused by the JSON API and the PDF.
-export async function buildManagementReport(user, { from, to, client } = {}) {
+export async function buildManagementReport(user, { from, to, client, site } = {}) {
   const reports = await prisma.report.findMany({
-    where: whereFor(user, from, to, client),
+    where: whereFor(user, from, to, client, site),
     orderBy: { createdAt: "desc" },
     include: { trailEvents: { orderBy: { at: "asc" } }, _count: { select: { photos: true } } },
   });
@@ -559,7 +564,7 @@ export async function buildManagementReport(user, { from, to, client } = {}) {
   let prevReports = [];
   if (prevWin) {
     prevReports = await prisma.report.findMany({
-      where: whereFor(user, prevWin.from, prevWin.to, client),
+      where: whereFor(user, prevWin.from, prevWin.to, client, site),
       orderBy: { createdAt: "desc" },
       include: { trailEvents: { orderBy: { at: "asc" } }, _count: { select: { photos: true } } },
     });
@@ -576,6 +581,30 @@ export async function buildManagementReport(user, { from, to, client } = {}) {
     .then((rows) => rows.filter((r) => r.clientId).map((r) => ({ id: r.clientId, name: r.clientName })))
     .catch(() => []);
   const clientLabel = client ? clientOptions.find((c) => c.id === client)?.name || null : null;
+
+  // The branches (sites) available for the selected client — powers the branch
+  // filter so a single client's report can be narrowed to one branch. Combines
+  // sites that appear on reports with any registered-but-not-yet-used sites.
+  let siteOptions = [];
+  if (client) {
+    const [fromReports, registered] = await Promise.all([
+      prisma.report
+        .findMany({ where: { ...reportScope(user), clientId: client }, distinct: ["site"], select: { site: true } })
+        .then((rows) => rows.map((r) => r.site).filter(Boolean))
+        .catch(() => []),
+      prisma.site
+        .findMany({ where: { clientId: client, active: true }, select: { name: true }, orderBy: { name: "asc" } })
+        .then((rows) => rows.map((s) => s.name))
+        .catch(() => []),
+    ]);
+    const seen = new Map();
+    for (const name of [...registered, ...fromReports]) {
+      const k = String(name).trim().toLowerCase();
+      if (k && !seen.has(k)) seen.set(k, String(name).trim());
+    }
+    siteOptions = [...seen.values()].sort((a, b) => a.localeCompare(b));
+  }
+  const siteLabel = site || null;
 
   const cur = aggregate(reports);
   const prev = prevWin ? aggregate(prevReports) : null;
@@ -606,7 +635,7 @@ export async function buildManagementReport(user, { from, to, client } = {}) {
         : null,
   };
 
-  const operations = await buildOperations(user, from, to, client || null);
+  const operations = await buildOperations(user, from, to, client || null, site || null);
   const dimensions = buildDimensions(reports, cur, operations);
 
   // Services delivered by type — the itemised "what was done" for the period.
@@ -675,6 +704,9 @@ export async function buildManagementReport(user, { from, to, client } = {}) {
     clientOptions,
     client: client || null,
     clientLabel,
+    siteOptions,
+    site: site || null,
+    siteLabel,
     staff: dimensions.staff,
     weighbridgeHistory: dimensions.weighbridgeHistory,
     clients: dimensions.clients,

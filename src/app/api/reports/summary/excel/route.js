@@ -40,7 +40,8 @@ export async function GET(req) {
   const from = (searchParams.get("from") || "").trim();
   const to = (searchParams.get("to") || "").trim();
   const client = (searchParams.get("client") || "").trim() || null;
-  const d = await buildManagementReport(user, { from, to, client });
+  const site = (searchParams.get("site") || "").trim() || null;
+  const d = await buildManagementReport(user, { from, to, client, site });
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "Qalibrated Systems";
