@@ -82,18 +82,33 @@ export default function ClientsAdmin() {
 
       <div className="grid" style={{ gridTemplateColumns: "1fr", gap: 10 }}>
         {shown.map((c) => (
-          <ClientCard key={c.id} client={c} open={openId === c.id} onToggle={() => setOpenId(openId === c.id ? null : c.id)} onChanged={load} />
+          <ClientCard key={c.id} client={c} allClients={rows || []} open={openId === c.id} onToggle={() => setOpenId(openId === c.id ? null : c.id)} onChanged={load} />
         ))}
       </div>
     </div>
   );
 }
 
-function ClientCard({ client: c, open, onToggle, onChanged }) {
+function ClientCard({ client: c, allClients = [], open, onToggle, onChanged }) {
   const [editing, setEditing] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [target, setTarget] = useState("");
   const [name, setName] = useState(c.name);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+
+  const doMerge = async () => {
+    if (!target) return;
+    const t = allClients.find((x) => x.id === target);
+    if (!confirm(`Merge "${c.name}" (${c.reportCount} report${c.reportCount === 1 ? "" : "s"}) into "${t?.name}"?\n\nEverything moves to "${t?.name}" and "${c.name}" is deleted. This can't be undone.`)) return;
+    setBusy(true);
+    setErr("");
+    const res = await fetch(`/api/clients/${c.id}/merge`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ into: target }) });
+    setBusy(false);
+    if (!res.ok) return setErr((await res.json()).error || "Could not merge.");
+    setMerging(false);
+    onChanged();
+  };
 
   const patch = async (body) => {
     setBusy(true);
@@ -144,11 +159,29 @@ function ClientCard({ client: c, open, onToggle, onChanged }) {
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button className="btn" style={btnSm} onClick={onToggle}>{open ? "Hide sites" : `Sites (${sites.length})`}</button>
             <button className="btn" style={btnSm} onClick={() => setEditing(true)}>Rename</button>
+            <button className="btn" style={btnSm} onClick={() => setMerging((v) => !v)}>Merge…</button>
             <button className="btn" style={btnSm} onClick={() => patch({ active: !c.active })} disabled={busy}>{c.active ? "Deactivate" : "Activate"}</button>
             <button className="btn" style={{ ...btnSm, color: "#B03A2E" }} onClick={del} disabled={busy}>Delete</button>
           </div>
         )}
       </div>
+
+      {merging && !editing && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${LINE}` }}>
+          <div className="label" style={{ marginBottom: 6 }}>Merge “{c.name}” into…</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <select className="input" value={target} onChange={(e) => setTarget(e.target.value)} style={{ flex: 1, minWidth: 220 }}>
+              <option value="">— choose the client to keep —</option>
+              {allClients.filter((x) => x.id !== c.id).map((x) => (
+                <option key={x.id} value={x.id}>{x.name}{x.reportCount ? ` (${x.reportCount} reports)` : ""}</option>
+              ))}
+            </select>
+            <button className="btn btn-dark" style={btnSm} disabled={busy || !target} onClick={doMerge}>{busy ? "Merging…" : "Merge"}</button>
+            <button className="btn" style={btnSm} onClick={() => { setMerging(false); setTarget(""); }}>Cancel</button>
+          </div>
+          <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>Moves all reports, weighbridges, schedules and records to the chosen client, renames them to match, then deletes “{c.name}”.</p>
+        </div>
+      )}
 
       {err && <div className="err" style={{ marginTop: 8, fontSize: 12 }}>{err}</div>}
 
