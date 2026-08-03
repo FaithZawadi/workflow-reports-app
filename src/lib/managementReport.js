@@ -2,6 +2,7 @@ import { prisma } from "./db";
 import { reportScope, assignedClientIds } from "./rbac";
 import { rolesOf } from "./roles";
 import { templateByCode } from "./templates";
+import { itemizeReport } from "./reportItemize";
 
 // The states for a checklist section: an explicit list, or the yes/no pair.
 // The FIRST state is the "good" one; anything else is a flagged finding.
@@ -560,7 +561,7 @@ function buildDimensions(reports, cur, operations) {
 // Build the role-scoped management report for a date range. Returns a plain
 // object with the summary, every segmented breakdown, period-over-period deltas,
 // auto insights and the flagged findings. Reused by the JSON API and the PDF.
-export async function buildManagementReport(user, { from, to, client, site } = {}) {
+export async function buildManagementReport(user, { from, to, client, site, includeDetails = false } = {}) {
   const reports = await prisma.report.findMany({
     where: whereFor(user, from, to, client, site),
     orderBy: [{ reportDate: "desc" }, { createdAt: "desc" }],
@@ -617,6 +618,22 @@ export async function buildManagementReport(user, { from, to, client, site } = {
   const prev = prevWin ? aggregate(prevReports) : null;
   cur.findingsCount = cur.findings.length;
   if (prev) prev.findingsCount = prev.findings.length;
+
+  // For server-rendered exports (PDF / statement) attach the FULL itemisation of
+  // every report to its register row — every field, checklist result, reading
+  // and note — so the appendix can reproduce exactly what was captured. Left off
+  // for the polled on-screen JSON, which expands rows on demand instead.
+  if (includeDetails) {
+    const bySerial = new Map(reports.map((r) => [r.serial, r]));
+    for (const row of cur.register) {
+      const src = bySerial.get(row.serial);
+      if (src) {
+        const it = itemizeReport(src);
+        row.details = it.blocks;
+        row.filledCount = it.filledCount;
+      }
+    }
+  }
 
   const desc = (a, b) => b.count - a.count;
 

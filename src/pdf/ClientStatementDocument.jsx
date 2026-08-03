@@ -1,6 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { COMPANY } from "@/lib/company";
+import { ReportDetailBlocks } from "./ReportDetailBlocks";
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -295,6 +296,39 @@ export function ClientStatementDocument({ data, logoSrc, clientName, periodLabel
           );
         })}
 
+        <Footer />
+      </Page>
+
+      {/* ---------------- Itemised per-visit detail ---------------- */}
+      {register.some((r) => r.details && r.details.length) ? (
+        <Page size="A4" style={s.page} wrap>
+          <Header />
+          <Section title={`Detailed service record (${register.length})`} note="every check, reading & note captured" />
+          <Text style={[s.lead, { marginBottom: 6 }]}>
+            The complete record of each visit this period — what was inspected, the results, measurements taken and
+            any findings — so this statement stands on its own as the evidence behind your monthly service invoice.
+          </Text>
+          {register.map((r, i) => {
+            const st = STATUS[r.status] || { label: r.status, color: MUTE };
+            return (
+              <View style={s.visit} key={i} wrap={false}>
+                <View style={s.visitHead}>
+                  <Text style={s.visitSerial}>{r.serial} · {r.templateName}</Text>
+                  <Text style={s.visitMeta}>
+                    {fmtDate(r.createdAt)}{r.site ? ` · ${r.site}` : ""}{r.weighbridgeId ? ` · ${r.weighbridgeId}` : ""} · {r.authorName} · {st.label}
+                  </Text>
+                </View>
+                <ReportDetailBlocks blocks={r.details} photoCount={r.photos} />
+              </View>
+            );
+          })}
+          <Footer />
+        </Page>
+      ) : null}
+
+      {/* ---------------- Sign-off ---------------- */}
+      <Page size="A4" style={s.page} wrap>
+        <Header />
         {/* Close */}
         <View style={s.close} wrap={false}>
           <Text style={s.closeText}>
@@ -384,4 +418,10 @@ const s = StyleSheet.create({
 
   footer: { position: "absolute", bottom: 16, left: 34, right: 34, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4, alignItems: "center" },
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
+
+  lead: { fontSize: 8.5, color: INK, lineHeight: 1.45 },
+  visit: { borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, padding: 6, marginBottom: 7 },
+  visitHead: { borderBottomWidth: 0.5, borderColor: "#E6E0D2", paddingBottom: 3, marginBottom: 2 },
+  visitSerial: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK },
+  visitMeta: { fontSize: 7, color: MUTE, marginTop: 1 },
 });

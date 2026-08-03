@@ -1,6 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { COMPANY } from "@/lib/company";
+import { ReportDetailBlocks } from "./ReportDetailBlocks";
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -79,6 +80,10 @@ const s = StyleSheet.create({
   empty: { fontSize: 8.5, color: MUTE, fontStyle: "italic", marginTop: 4 },
   footer: { position: "absolute", bottom: 16, left: 32, right: 32, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4, alignItems: "center" },
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
+  apxCard: { borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, padding: 6, marginBottom: 7 },
+  apxHead: { borderBottomWidth: 0.5, borderColor: "#E6E0D2", paddingBottom: 3, marginBottom: 2 },
+  apxSerial: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK },
+  apxMeta: { fontSize: 7, color: MUTE, marginTop: 1 },
 });
 
 function fmtDate(d) {
@@ -473,6 +478,34 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
           <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · Management Report · Page ${pageNumber} of ${totalPages}`} />
         </View>
       </Page>
+
+      {/* Appendix — the full, itemised detail of every report in scope: each
+          field, checklist result, calibration reading and note as captured. */}
+      {Array.isArray(d.register) && d.register.some((r) => r.details && r.details.length) ? (
+        <Page size="A4" style={s.page} wrap>
+          <View style={s.sectionBar} wrap={false}>
+            <View style={s.swatch} />
+            <Text style={s.sectionTitle}>Appendix — full report detail ({d.register.length})</Text>
+          </View>
+          <Text style={[s.sub, { marginBottom: 6 }]}>Every report in this period, expanded with all captured entries.</Text>
+          {d.register.map((r, i) => (
+            <View key={i} style={s.apxCard} wrap={false}>
+              <View style={s.apxHead}>
+                <Text style={s.apxSerial}>{r.serial}</Text>
+                <Text style={s.apxMeta}>
+                  {r.templateName} · {fmtDate(r.createdAt)} · {r.clientName}{r.site ? ` — ${r.site}` : ""}
+                  {r.weighbridgeId ? ` · ${r.weighbridgeId}` : ""} · {r.authorName}
+                  {r.status === "APPROVED" ? " · Approved" : r.status === "REJECTED" ? " · Returned" : " · Pending"}
+                </Text>
+              </View>
+              <ReportDetailBlocks blocks={r.details} photoCount={r.photos} />
+            </View>
+          ))}
+          <View style={s.footer} fixed>
+            <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · Management Report · Page ${pageNumber} of ${totalPages}`} />
+          </View>
+        </Page>
+      ) : null}
     </Document>
   );
 }

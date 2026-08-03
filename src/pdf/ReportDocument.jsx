@@ -119,10 +119,12 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
   const data = report.data || {};
   const grids = data.grids || {};
   const st = STATUS[report.status] || { label: report.status, color: INK };
+  const serviceDate = report.reportDate || report.createdAt;
+  const backdated = report.reportDate && new Date(report.reportDate).toDateString() !== new Date(report.createdAt).toDateString();
   const meta = [
     ["Client", report.clientName || "-", "Site", report.site || "-"],
     ["Weighbridge", report.weighbridgeId || "-", "Report type", tpl?.cadence ? `${tpl.cadence} (${report.template})` : report.template],
-    ["Completed by", report.authorName || "-", "Date", fmt(report.createdAt)],
+    ["Completed by", report.authorName || "-", "Report date", backdated ? `${fmt(serviceDate)} (filed ${fmt(report.createdAt)})` : fmt(serviceDate)],
     ["Supervisor", report.supervisorEmail || "-", "Manager", report.managerEmail || "-"],
   ];
   const checklistSections = (tpl?.sections || [])

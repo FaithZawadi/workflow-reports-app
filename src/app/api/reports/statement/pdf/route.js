@@ -41,7 +41,7 @@ export async function GET(req) {
   const client = (searchParams.get("client") || "").trim() || null;
   const site = (searchParams.get("site") || "").trim() || null;
 
-  const data = await buildManagementReport(user, { from, to, client, site });
+  const data = await buildManagementReport(user, { from, to, client, site, includeDetails: true });
   const clientName = data.clientLabel || null;
   // A branch statement names the branch alongside the company.
   const statementName = clientName && site ? `${clientName} — ${site}` : clientName;

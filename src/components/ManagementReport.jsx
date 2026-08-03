@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
+import { itemizeReport } from "@/lib/reportItemize";
 
 const STATUS_LABEL = {
   PENDING_SUPERVISOR: "Supervisor review",
@@ -818,16 +819,18 @@ const REG_STATUS = {
 
 function ServiceRegister({ rows }) {
   const [limit, setLimit] = useState(60);
+  const [open, setOpen] = useState(null); // expanded serial
   const shown = rows.slice(0, limit);
   return (
     <section style={S.card}>
       <div style={S.sec}>
         <span style={S.secTtl}><span style={S.secDot} />Service register — every report filed</span>
-        <span style={S.secNote}>{rows.length} record{rows.length === 1 ? "" : "s"} · newest first</span>
+        <span style={S.secNote}>{rows.length} record{rows.length === 1 ? "" : "s"} · click a row for full detail</span>
       </div>
       <div style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 860, border: "1px solid var(--line)", borderRadius: 10, overflow: "hidden" }}>
-          <div style={{ ...S.regRow, ...S.thead }}>
+        <div style={{ minWidth: 880, border: "1px solid var(--line)", borderRadius: 10, overflow: "hidden" }}>
+          <div style={{ ...S.regRow, ...S.thead, gridTemplateColumns: `24px ${S.regRow.gridTemplateColumns}` }}>
+            <span style={S.thcell}> </span>
             <span style={S.thcell}>Date</span>
             <span style={S.thcell}>Serial</span>
             <span style={S.thcell}>Service</span>
@@ -838,25 +841,9 @@ function ServiceRegister({ rows }) {
             <span style={{ ...S.thcell, justifyContent: "center" }}>Findings</span>
             <span style={S.thcell}>Status</span>
           </div>
-          {shown.map((r, i) => {
-            const st = REG_STATUS[r.status] || { label: r.status, color: MUTE };
-            return (
-              <div key={i} style={{ ...S.regRow, background: i % 2 ? "#FBF9F4" : "#fff", borderTop: "1px solid #EFEAdd" }}>
-                <span style={{ ...S.rcell, fontFamily: "var(--mono)", fontSize: 11, color: MUTE }}>{fmtDay(r.createdAt)}</span>
-                <Link href={`/reports/${r.serial}`} style={{ ...S.rcell, fontFamily: "var(--mono)", fontSize: 11, color: "#8a6d00", fontWeight: 700, textDecoration: "none" }}>{r.serial}</Link>
-                <span style={{ ...S.rcell, color: INK }}>{r.templateName}</span>
-                <span style={{ ...S.rcell, fontFamily: "var(--mono)", fontSize: 11, color: INK }}>{r.weighbridgeId || "—"}</span>
-                <span style={{ ...S.rcell, flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
-                  <span style={{ color: INK, fontWeight: 600 }}>{r.clientName || "—"}</span>
-                  {r.site ? <span style={{ fontSize: 11, color: MUTE }}>{r.site}</span> : null}
-                </span>
-                <span style={{ ...S.rcell, color: INK }}>{r.authorName}</span>
-                <span style={{ ...S.rcell, justifyContent: "center", color: MUTE }}>{r.photos || 0}</span>
-                <span style={{ ...S.rcell, justifyContent: "center", fontWeight: 800, color: r.findings ? FAIL : "#b8af9e" }}>{r.findings || "—"}</span>
-                <span style={S.rcell}><span style={{ ...S.regPill, background: st.color }}>{st.label}</span></span>
-              </div>
-            );
-          })}
+          {shown.map((r, i) => (
+            <RegisterRow key={r.serial || i} r={r} zebra={i % 2 === 1} open={open === r.serial} onToggle={() => setOpen(open === r.serial ? null : r.serial)} />
+          ))}
         </div>
       </div>
       {rows.length > limit ? (
@@ -867,6 +854,137 @@ function ServiceRegister({ rows }) {
         <div style={{ fontSize: 12, color: MUTE, marginTop: 8 }}>Showing all {rows.length}. The full register is also in the PDF and Excel exports.</div>
       ) : null}
     </section>
+  );
+}
+
+// One register row that lazy-loads and expands the report's full captured detail
+// when clicked. The single-report GET returns everything, so we itemise client
+// side with the same helper the PDFs use.
+function RegisterRow({ r, zebra, open, onToggle }) {
+  const st = REG_STATUS[r.status] || { label: r.status, color: MUTE };
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (!open || detail || loading) return;
+    setLoading(true);
+    setErr("");
+    fetch(`/api/reports/${r.serial}`, { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Could not load report detail."))))
+      .then((d) => setDetail(itemizeReport(d.report || d)))
+      .catch((e) => setErr(e.message))
+      .finally(() => setLoading(false));
+  }, [open, detail, loading, r.serial]);
+
+  const gridStyle = { ...S.regRow, gridTemplateColumns: `24px ${S.regRow.gridTemplateColumns}`, background: zebra ? "#FBF9F4" : "#fff", borderTop: "1px solid #EFEAdd", cursor: "pointer" };
+
+  return (
+    <div>
+      <div style={gridStyle} onClick={onToggle} title="Show full detail">
+        <span style={{ ...S.rcell, color: "#b6ab93", justifyContent: "center", fontSize: 12, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }}>▸</span>
+        <span style={{ ...S.rcell, fontFamily: "var(--mono)", fontSize: 11, color: MUTE }}>{fmtDay(r.createdAt)}</span>
+        <Link href={`/reports/${r.serial}`} onClick={(e) => e.stopPropagation()} style={{ ...S.rcell, fontFamily: "var(--mono)", fontSize: 11, color: "#8a6d00", fontWeight: 700, textDecoration: "none" }}>{r.serial}</Link>
+        <span style={{ ...S.rcell, color: INK }}>{r.templateName}</span>
+        <span style={{ ...S.rcell, fontFamily: "var(--mono)", fontSize: 11, color: INK }}>{r.weighbridgeId || "—"}</span>
+        <span style={{ ...S.rcell, flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
+          <span style={{ color: INK, fontWeight: 600 }}>{r.clientName || "—"}</span>
+          {r.site ? <span style={{ fontSize: 11, color: MUTE }}>{r.site}</span> : null}
+        </span>
+        <span style={{ ...S.rcell, color: INK }}>{r.authorName}</span>
+        <span style={{ ...S.rcell, justifyContent: "center", color: MUTE }}>{r.photos || 0}</span>
+        <span style={{ ...S.rcell, justifyContent: "center", fontWeight: 800, color: r.findings ? FAIL : "#b8af9e" }}>{r.findings || "—"}</span>
+        <span style={S.rcell}><span style={{ ...S.regPill, background: st.color }}>{st.label}</span></span>
+      </div>
+      {open ? (
+        <div style={{ padding: "12px 16px", background: "#FCFAF4", borderTop: "1px solid #EFEAdd" }}>
+          {loading ? <div style={{ fontSize: 12.5, color: MUTE }}>Loading full detail…</div>
+            : err ? <div style={{ fontSize: 12.5, color: FAIL }}>{err}</div>
+            : detail ? <DetailBlocks blocks={detail.blocks} photoCount={detail.photoCount} />
+            : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// Web renderer for the itemised blocks (mirrors the PDF ReportDetailBlocks).
+function DetailBlocks({ blocks, photoCount }) {
+  if (!blocks || !blocks.length) return <div style={{ fontSize: 12.5, color: MUTE, fontStyle: "italic" }}>No structured entries were captured on this report.</div>;
+  return (
+    <div style={{ display: "grid", gap: 12 }}>
+      {blocks.map((b, i) => (
+        <div key={i}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: INK, textTransform: "uppercase", letterSpacing: ".04em", marginBottom: 5 }}>
+            {b.title}{b.kind === "checklist" && b.flagged ? <span style={{ color: FAIL }}> · {b.flagged} flagged</span> : null}
+          </div>
+          {b.kind === "fields" ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "3px 18px" }}>
+              {b.entries.map((e, k) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 12.5, borderBottom: "1px dashed var(--line)", padding: "3px 0" }}>
+                  <span style={{ color: MUTE }}>{e.label}</span><b style={{ color: INK, textAlign: "right" }}>{e.value}</b>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          {b.kind === "note" ? <div style={{ fontSize: 12.5, color: INK, lineHeight: 1.5, background: "#fff", border: "1px solid var(--line)", borderRadius: 6, padding: "7px 9px" }}>{b.value}</div> : null}
+          {b.kind === "choice" ? <div style={{ fontSize: 13, fontWeight: 800, color: INK }}>{b.value}</div> : null}
+          {b.kind === "checklist" ? <DetailChecklist block={b} /> : null}
+          {(b.kind === "grid" || b.kind === "loadcells" || b.kind === "weekly") ? <DetailTable block={b} /> : null}
+        </div>
+      ))}
+      {photoCount ? <div style={{ fontSize: 11.5, color: MUTE }}>{photoCount} photo{photoCount === 1 ? "" : "s"} attached.</div> : null}
+    </div>
+  );
+}
+
+function DetailChecklist({ block }) {
+  const items = block.items.filter((i) => i.answered || i.remark);
+  return (
+    <div style={{ border: "1px solid var(--line)", borderRadius: 6, overflow: "hidden" }}>
+      {items.map((i, k) => (
+        <div key={k} style={{ display: "grid", gridTemplateColumns: "1fr 90px 1.2fr", gap: 8, fontSize: 12, padding: "5px 9px", background: k % 2 ? "#fff" : "#FBF9F4", borderTop: k ? "1px solid #EFEAdd" : "none" }}>
+          <span style={{ color: INK }}>{i.item}</span>
+          <span style={{ fontWeight: 800, color: i.ok === false ? FAIL : i.ok ? PASS : MUTE, textAlign: "center" }}>{i.result || "—"}</span>
+          <span style={{ color: i.remark ? FAIL : MUTE }}>{i.remark || ""}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DetailTable({ block }) {
+  // Normalise grid / loadcells / weekly into cols + rows for one table renderer.
+  let cols = [];
+  let body = [];
+  let numeric = [];
+  if (block.kind === "grid") {
+    cols = block.cols; numeric = block.numericCols || []; body = block.rows;
+  } else if (block.kind === "loadcells") {
+    cols = ["", ...block.cols]; numeric = cols.map((_, i) => i > 0);
+    body = block.rows.map((r) => [r.label, ...r.cells]);
+  } else if (block.kind === "weekly") {
+    cols = ["Run", "End A", "Middle", "End B", "Spread"]; numeric = [false, true, true, true, true];
+    body = block.rows.map((r) => [r.run, r.a, r.m, r.b, r.diff]);
+  }
+  return (
+    <div style={{ overflowX: "auto" }}>
+      {block.kind === "weekly" ? (
+        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 5, color: block.pass === false ? FAIL : INK }}>
+          Verdict: {block.pass === null ? "not completed" : block.pass ? "within limit" : "over limit — attention required"} · limit {block.limit || "—"} kg
+        </div>
+      ) : null}
+      <div style={{ minWidth: 360, border: "1px solid var(--line)", borderRadius: 6, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols.length}, minmax(48px,1fr))`, background: COAL, color: "#fff" }}>
+          {cols.map((c, ci) => <span key={ci} style={{ fontSize: 10.5, fontWeight: 700, padding: "4px 6px", textAlign: numeric[ci] ? "right" : "left" }}>{c}</span>)}
+        </div>
+        {body.map((row, ri) => (
+          <div key={ri} style={{ display: "grid", gridTemplateColumns: `repeat(${cols.length}, minmax(48px,1fr))`, background: ri % 2 ? "#FBF9F4" : "#fff", borderTop: "1px solid #EFEAdd" }}>
+            {row.map((cell, ci) => <span key={ci} style={{ fontSize: 11.5, padding: "4px 6px", color: INK, textAlign: numeric[ci] ? "right" : "left", fontWeight: ci === 0 && block.kind !== "grid" ? 700 : 400 }}>{cell || "—"}</span>)}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
