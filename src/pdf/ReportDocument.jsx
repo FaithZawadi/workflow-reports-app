@@ -119,12 +119,13 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
   const data = report.data || {};
   const grids = data.grids || {};
   const st = STATUS[report.status] || { label: report.status, color: INK };
+  // The service date (the date the work is FOR). For a backdated report this is
+  // earlier than the creation/"generated" date shown in the header.
   const serviceDate = report.reportDate || report.createdAt;
-  const backdated = report.reportDate && new Date(report.reportDate).toDateString() !== new Date(report.createdAt).toDateString();
   const meta = [
     ["Client", report.clientName || "-", "Site", report.site || "-"],
     ["Weighbridge", report.weighbridgeId || "-", "Report type", tpl?.cadence ? `${tpl.cadence} (${report.template})` : report.template],
-    ["Completed by", report.authorName || "-", "Report date", backdated ? `${fmt(serviceDate)} (filed ${fmt(report.createdAt)})` : fmt(serviceDate)],
+    ["Completed by", report.authorName || "-", "Date", fmt(serviceDate)],
     ["Supervisor", report.supervisorEmail || "-", "Manager", report.managerEmail || "-"],
   ];
   const checklistSections = (tpl?.sections || [])
@@ -189,7 +190,9 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
           <View style={s.metaRight}>
             <Text style={s.sys}>QSL MAINTENANCE MANAGEMENT SYSTEM v2.4</Text>
             <Text style={s.mono}>SERIAL NO: {report.serial}</Text>
-            <Text style={s.mono}>GENERATED: {fmt(new Date())}</Text>
+            {/* The day the report was actually filed in the system. For a
+                backdated report this differs from the service date above. */}
+            <Text style={s.mono}>GENERATED: {fmt(report.createdAt)}</Text>
           </View>
         </View>
         <View style={s.rule} />
