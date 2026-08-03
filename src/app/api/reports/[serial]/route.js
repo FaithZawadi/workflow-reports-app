@@ -104,6 +104,13 @@ export async function PATCH(req, { params }) {
       }
     }
     if (body.site !== undefined) fields.site = String(body.site).trim() || null;
+    // Allow correcting the service date (e.g. a backfilled report filed under
+    // the wrong day). Bare YYYY-MM-DD anchored to local noon; never future.
+    if (body.reportDate !== undefined && body.reportDate) {
+      const s = String(body.reportDate).trim();
+      const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T12:00:00`) : new Date(s);
+      if (!isNaN(d.getTime())) fields.reportDate = d.getTime() > Date.now() ? new Date() : d;
+    }
   }
   if (body.weighbridgeId !== undefined) fields.weighbridgeId = String(body.weighbridgeId).trim() || null;
   // Equipment User(s) — accept the array (or the legacy single) and keep the

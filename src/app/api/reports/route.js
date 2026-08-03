@@ -13,6 +13,18 @@ import { notifyEmails, notifyUsers, oversight } from "@/lib/notify";
 
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
 
+// Turn a user-picked service date into a Date, or now() when absent/invalid.
+// A bare YYYY-MM-DD is anchored to local noon so it never slips a day across
+// timezones. Future dates are clamped to now — you can only backdate.
+function parseReportDate(v) {
+  const now = new Date();
+  if (!v) return now;
+  const s = String(v).trim();
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T12:00:00`) : new Date(s);
+  if (isNaN(d.getTime())) return now;
+  return d.getTime() > now.getTime() ? now : d;
+}
+
 // GET /api/reports?status=&q=&template=
 export async function GET(req) {
   let user;
@@ -56,17 +68,19 @@ export async function GET(req) {
     });
   }
 
-  // Filter by the date the report was filed (inclusive range, local calendar days).
-  const createdAt = {};
+  // Filter by the date the report is FOR (its service date), inclusive range of
+  // local calendar days — so a backfilled report is found under the day the work
+  // was actually done, not the day it was keyed in.
+  const reportDate = {};
   const fromDate = from ? new Date(`${from}T00:00:00`) : null;
-  if (fromDate && !isNaN(fromDate)) createdAt.gte = fromDate;
+  if (fromDate && !isNaN(fromDate)) reportDate.gte = fromDate;
   const toDate = to ? new Date(`${to}T23:59:59.999`) : null;
-  if (toDate && !isNaN(toDate)) createdAt.lte = toDate;
-  if (createdAt.gte || createdAt.lte) where.AND.push({ createdAt });
+  if (toDate && !isNaN(toDate)) reportDate.lte = toDate;
+  if (reportDate.gte || reportDate.lte) where.AND.push({ reportDate });
 
   const reports = await prisma.report.findMany({
     where,
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ reportDate: "desc" }, { createdAt: "desc" }],
     take: 500,
     select: {
       serial: true,
@@ -79,6 +93,7 @@ export async function GET(req) {
       authorName: true,
       supervisorEmail: true,
       managerEmail: true,
+      reportDate: true,
       createdAt: true,
     },
   });
@@ -153,6 +168,13 @@ export async function POST(req) {
   }
 
   const site = String(body.site || "").trim() || user.site || "";
+
+  // The date the work was actually done. Lets a technician backfill a report
+  // missed during an internet outage so it lands in the right period. Accept a
+  // YYYY-MM-DD (or ISO) value, anchor to local noon to avoid timezone slippage,
+  // and never allow a future date. Defaults to now when omitted (e.g. mobile).
+  const reportDate = parseReportDate(body.reportDate);
+
   const data = {
     values: body.values || {},
     checks: body.checks || {},
@@ -190,6 +212,7 @@ export async function POST(req) {
       clientId,
       clientName,
       site: site || null,
+      reportDate,
       weighbridgeId: String(body.weighbridgeId || "").trim() || null,
       authorId: user.sub,
       authorName,

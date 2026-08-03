@@ -44,7 +44,7 @@ function previousWindow(from, to) {
 // When a comparison window is supplied its counts ride alongside as `prev`.
 function buildTrend(reports, from, to, prevReports) {
   if (!reports.length && !(prevReports && prevReports.length)) return [];
-  const times = reports.map((r) => new Date(r.createdAt).getTime());
+  const times = reports.map((r) => new Date(r.reportDate || r.createdAt).getTime());
   const allTimes = times.length ? times : [Date.now()];
   const start = from ? dayStart(from).getTime() : Math.min(...allTimes);
   const end = to ? dayEnd(to).getTime() : Math.max(...allTimes);
@@ -63,7 +63,7 @@ function buildTrend(reports, from, to, prevReports) {
   if (prevReports && prevReports.length) {
     const prevStart = start - (end - start) - 1;
     for (const r of prevReports) {
-      const t = new Date(r.createdAt).getTime();
+      const t = new Date(r.reportDate || r.createdAt).getTime();
       const idx = Math.floor((t - prevStart) / bucketMs);
       prev.set(idx, (prev.get(idx) || 0) + 1);
     }
@@ -101,7 +101,7 @@ function aggregate(reports) {
     const findingsBefore = findings.length;
     byStatus[r.status] = (byStatus[r.status] || 0) + 1;
 
-    const dk = new Date(r.createdAt).toISOString().slice(0, 10);
+    const dk = new Date(effDate(r)).toISOString().slice(0, 10);
     dayCounts.set(dk, (dayCounts.get(dk) || 0) + 1);
 
     const wbKey = r.weighbridgeId || "—";
@@ -158,7 +158,7 @@ function aggregate(reports) {
         item: (sec.items && sec.items[ii]) || `Item ${ii + 1}`,
         result: label,
         remark: v.remark || "",
-        createdAt: r.createdAt,
+        createdAt: effDate(r),
       });
       const wbe2 = wb.get(wbKey);
       if (wbe2) wbe2.findings += 1;
@@ -166,7 +166,8 @@ function aggregate(reports) {
 
     register.push({
       serial: r.serial,
-      createdAt: r.createdAt,
+      createdAt: effDate(r),
+      filedAt: r.createdAt,
       template: r.template,
       templateName: r.templateName,
       cadence: t?.cadence || "",
@@ -201,15 +202,21 @@ function aggregate(reports) {
 
 function whereFor(user, from, to, client, site) {
   const where = { ...reportScope(user) };
+  // Filter by the date the report is FOR (service date), so a report backfilled
+  // late still counts in the period it belongs to. reportDate is backfilled to
+  // createdAt for historical rows, so this is uniform.
   if (from || to) {
-    where.createdAt = {};
-    if (from) where.createdAt.gte = from instanceof Date ? from : dayStart(from);
-    if (to) where.createdAt.lte = to instanceof Date ? to : dayEnd(to);
+    where.reportDate = {};
+    if (from) where.reportDate.gte = from instanceof Date ? from : dayStart(from);
+    if (to) where.reportDate.lte = to instanceof Date ? to : dayEnd(to);
   }
   if (client) where.clientId = client;
   if (site) where.site = { equals: site, mode: "insensitive" };
   return where;
 }
+
+// The effective report date — the service date, falling back to submission.
+const effDate = (r) => r.reportDate || r.createdAt;
 
 // Build a period-over-period delta for a metric. `dir` says which direction is
 // "good" so the UI can colour it (higher approvals good, higher rejects bad).
@@ -556,7 +563,7 @@ function buildDimensions(reports, cur, operations) {
 export async function buildManagementReport(user, { from, to, client, site } = {}) {
   const reports = await prisma.report.findMany({
     where: whereFor(user, from, to, client, site),
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ reportDate: "desc" }, { createdAt: "desc" }],
     include: { trailEvents: { orderBy: { at: "asc" } }, _count: { select: { photos: true } } },
   });
 
@@ -565,7 +572,7 @@ export async function buildManagementReport(user, { from, to, client, site } = {
   if (prevWin) {
     prevReports = await prisma.report.findMany({
       where: whereFor(user, prevWin.from, prevWin.to, client, site),
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ reportDate: "desc" }, { createdAt: "desc" }],
       include: { trailEvents: { orderBy: { at: "asc" } }, _count: { select: { photos: true } } },
     });
   }

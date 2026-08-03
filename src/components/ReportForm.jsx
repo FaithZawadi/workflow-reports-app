@@ -49,6 +49,10 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const [managers, setManagers] = useState([]);
   const [clientName, setClientName] = useState(edit ? edit.clientName || "" : profile.clientName || prefill.client || "");
   const [site, setSite] = useState(edit ? edit.site || "" : profile.site || prefill.site || "");
+  const todayISO = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local
+  const [reportDate, setReportDate] = useState(
+    edit ? new Date(edit.reportDate || edit.createdAt).toLocaleDateString("en-CA") : todayISO
+  );
   const [supervisorEmails, setSupervisorEmails] = useState(
     edit
       ? (edit.supervisorEmails && edit.supervisorEmails.length ? edit.supervisorEmails : edit.supervisorEmail ? [edit.supervisorEmail] : [])
@@ -140,6 +144,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       weighbridgeId: values.weighbridgeId || "",
       clientName: clientName.trim(),
       site: site.trim(),
+      reportDate: reportDate || undefined,
       supervisorEmails: supervisorEmails.map((e) => e.trim()).filter(Boolean),
       managerEmail: managerEmail.trim(),
       values,
@@ -303,6 +308,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
             </p>
             <div style={{ fontSize: 13, color: INK, display: "grid", gap: 4 }}>
               <div><b>Form:</b> {tpl.code} — {tpl.name}</div>
+              <div><b>Report date:</b> {reportDate ? new Date(`${reportDate}T12:00:00`).toLocaleDateString() : "today"}{reportDate && reportDate !== todayISO ? " (backdated)" : ""}</div>
               <div><b>Client:</b> {clientName || "—"}</div>
               <div><b>Site / location:</b> {site || "—"}</div>
               <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>
@@ -371,6 +377,25 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
           {!siteIsWeighbridge && clientName && !siteOptions.length && (
             <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No sites registered for {clientName} yet — an admin can add them in the Clients registry.</div>
           )}
+
+          {/* Date the work was actually done. Defaults to today; backdate it to
+              file a report that was missed on the day (e.g. an internet outage)
+              so it still counts in the right period. Cannot be a future date. */}
+          <label className="field" style={{ maxWidth: 320 }}>
+            <span className="label">Date of this report / service</span>
+            <input
+              className="input"
+              type="date"
+              value={reportDate}
+              max={todayISO}
+              onChange={(e) => setReportDate(e.target.value)}
+            />
+            <span className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+              {reportDate && reportDate !== todayISO
+                ? "Backdated — this report will be recorded for the date above."
+                : "Defaults to today. Backdate it to file a report you missed on the day (e.g. an internet outage)."}
+            </span>
+          </label>
 
           <div style={{ maxWidth: 460 }}>
             <WeighbridgePicker

@@ -432,6 +432,13 @@ model Report {
   // Set when an overdue pending approval was auto-escalated, so we don't re-nag.
   escalatedAt DateTime?
 
+  // The date the work/inspection was actually performed — the date the report is
+  // FOR. Defaults to the submission date, but a technician backfilling a report
+  // missed during an internet outage can set it to the real service date so the
+  // report lands in the correct reporting period. `createdAt` always keeps the
+  // true submission timestamp for audit.
+  reportDate DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -440,6 +447,7 @@ model Report {
   @@index([clientId])
   @@index([authorId])
   @@index([createdAt])
+  @@index([reportDate])
 }
 
 model Photo {

@@ -110,7 +110,10 @@ export default function ReportDetail({ serial, profile }) {
         <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
           {rep.clientName}
           {rep.site ? " - " + rep.site : ""} · {rep.weighbridgeId || "weighbridge not stated"} · by <b>{rep.authorName}</b> ·{" "}
-          {new Date(rep.createdAt).toLocaleString()}
+          {new Date(rep.reportDate || rep.createdAt).toLocaleDateString()}
+          {rep.reportDate && new Date(rep.reportDate).toDateString() !== new Date(rep.createdAt).toDateString() ? (
+            <span title={`Filed on ${new Date(rep.createdAt).toLocaleString()}`}> · <b>backdated</b> (filed {new Date(rep.createdAt).toLocaleDateString()})</span>
+          ) : null}
         </div>
 
         {/* Approval route — who must review/approve. Shown to everyone; only the

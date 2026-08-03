@@ -128,8 +128,8 @@ export default function Registry({ profile }) {
   }, [load]);
 
   const exportCsv = () => {
-    const rows = [["serial", "template", "author", "client", "site", "weighbridge", "status", "created"]].concat(
-      (reports || []).map((r) => [r.serial, r.templateName, r.authorName, r.clientName, r.site, r.weighbridgeId, r.status, r.createdAt])
+    const rows = [["serial", "template", "author", "client", "site", "weighbridge", "status", "report_date", "filed_at"]].concat(
+      (reports || []).map((r) => [r.serial, r.templateName, r.authorName, r.clientName, r.site, r.weighbridgeId, r.status, r.reportDate || r.createdAt, r.createdAt])
     );
     const csv = rows.map((r) => r.map((c) => `"${String(c || "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const a = document.createElement("a");
@@ -326,7 +326,8 @@ function ReportCard({ r, recent, num }) {
           {r.site ? " - " + r.site : ""} · {r.weighbridgeId || "weighbridge not stated"}
         </div>
         <div className="muted" style={{ marginTop: 2, fontSize: 12 }}>
-          by {r.authorName} · <span title={new Date(r.createdAt).toLocaleString()}>{relTime(r.createdAt)}</span>
+          by {r.authorName} · <span title={r.reportDate ? `Report date · filed ${new Date(r.createdAt).toLocaleString()}` : new Date(r.createdAt).toLocaleString()}>{relTime(r.reportDate || r.createdAt)}</span>
+          {r.reportDate && new Date(r.reportDate).toDateString() !== new Date(r.createdAt).toDateString() ? <span> · backdated</span> : null}
         </div>
       </div>
     </Link>

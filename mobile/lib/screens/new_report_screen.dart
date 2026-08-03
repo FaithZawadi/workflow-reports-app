@@ -30,6 +30,11 @@ class _NewReportScreenState extends State<NewReportScreen> {
   final List<String> _supervisorEmails = [];
   String _managerEmail = '';
 
+  // The date the work was actually done. Defaults to today; a technician can
+  // backdate it to file a report missed on the day (e.g. an internet outage) so
+  // it still lands in the right period. Never a future date.
+  DateTime _reportDate = DateTime.now();
+
   // Daily / weekly / monthly forms are single-stage: one approver ("Client")
   // signs off and the report is Approved — no manager stage.
   bool get _single => _tpl != null && const ['WB01', 'WB02', 'WB03'].contains(_tpl!['code']);
@@ -76,6 +81,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
         'weighbridgeId': _weighbridge.text.trim(),
         'clientName': _client.text.trim(),
         'site': _single ? _weighbridge.text.trim() : _site.text.trim(),
+        'reportDate': _reportDate.toIso8601String().split('T').first,
         'supervisorEmails': _supervisorEmails.map((e) => e.trim()).toList(),
         'managerEmail': _managerEmail.trim(),
         'values': _values,
@@ -140,6 +146,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
       if (!_single) _field('Site / location of this job', _site),
       _field('Weighbridge', _weighbridge),
       if (_single) const Padding(padding: EdgeInsets.only(bottom: 10), child: Text('The weighbridge above is the site for this check.', style: TextStyle(color: kMute, fontSize: 12))),
+      _reportDateField(),
 
       for (int si = 0; si < sections.length; si++) ..._section(Map<String, dynamic>.from(sections[si]), si),
 
@@ -194,6 +201,43 @@ class _NewReportScreenState extends State<NewReportScreen> {
           TextField(controller: c),
         ]),
       );
+
+  // Service-date picker. Defaults to today; can be backdated but not set to the
+  // future. Mirrors the web "Date of this report / service" field.
+  Widget _reportDateField() {
+    final today = DateTime.now();
+    final isBackdated = _reportDate.year != today.year || _reportDate.month != today.month || _reportDate.day != today.day;
+    final label = '${_reportDate.year}-${_reportDate.month.toString().padLeft(2, '0')}-${_reportDate.day.toString().padLeft(2, '0')}';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Date of this report / service', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMute)),
+        const SizedBox(height: 4),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.calendar_today, size: 16),
+          label: Align(alignment: Alignment.centerLeft, child: Text(label)),
+          onPressed: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: _reportDate,
+              firstDate: DateTime(today.year - 2),
+              lastDate: today,
+            );
+            if (picked != null) setState(() => _reportDate = picked);
+          },
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            isBackdated
+                ? 'Backdated — recorded for the date above.'
+                : 'Defaults to today. Backdate it to file a report you missed on the day.',
+            style: const TextStyle(color: kMute, fontSize: 11.5),
+          ),
+        ),
+      ]),
+    );
+  }
 
   Widget _valField(String label, String key, {bool number = false, bool date = false, int lines = 1}) => Padding(
         padding: const EdgeInsets.only(bottom: 10),

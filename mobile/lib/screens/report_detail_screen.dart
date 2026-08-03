@@ -192,6 +192,13 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     }
     String labelFor(String k) => fieldLabels[k] ?? _humanizeKey(k);
 
+    // Service date line (shows "backdated" when it differs from the filing day).
+    final reportDay = '${r['reportDate'] ?? ''}'.split('T').first;
+    final filedDay = '${r['createdAt'] ?? ''}'.split('T').first;
+    final reportDateLine = reportDay.isEmpty
+        ? null
+        : 'Report date: $reportDay${reportDay != filedDay ? '  ·  backdated (filed $filedDay)' : ''}';
+
     return ListView(padding: const EdgeInsets.all(14), children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
         Expanded(child: Text(r['templateName'] ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: kInk))),
@@ -200,6 +207,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       const SizedBox(height: 4),
       Text('${r['clientName'] ?? ''}${(r['site'] ?? '') != '' ? " - ${r['site']}" : ""} · ${r['weighbridgeId'] ?? "weighbridge not stated"} · by ${r['authorName'] ?? "-"}',
           style: const TextStyle(color: kMute, fontSize: 12)),
+      if (reportDateLine != null)
+        Text(reportDateLine, style: const TextStyle(color: kMute, fontSize: 12)),
 
       // Approval route
       if (pending) ...[
