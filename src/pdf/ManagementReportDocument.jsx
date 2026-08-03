@@ -271,7 +271,7 @@ function RegisterBlock({ rows }) {
         return (
           <View style={s.row} key={i} wrap={false}>
             <Text style={[s.td, { width: "11%", fontSize: 7 }]}>{fmtDate(r.createdAt)}</Text>
-            <Text style={[s.td, { width: "16%", fontFamily: "Courier", fontSize: 7 }]}>{r.serial}{"\n"}<Text style={{ color: st.color, fontFamily: "Helvetica-Bold", fontSize: 6 }}>{st.label.toUpperCase()}</Text></Text>
+            <Text style={[s.td, { width: "16%", fontFamily: "Courier", fontSize: 6.2 }]}>{r.serial}{"\n"}<Text style={{ color: st.color, fontFamily: "Helvetica-Bold", fontSize: 6 }}>{st.label.toUpperCase()}</Text></Text>
             <Text style={[s.td, { width: "20%" }]}>{r.templateName}</Text>
             <Text style={[s.td, { width: "13%", fontFamily: "Courier", fontSize: 7 }]}>{r.weighbridgeId || "—"}</Text>
             <Text style={[s.td, { width: "17%" }]}>{r.clientName || "—"}{r.site ? <Text style={{ color: MUTE, fontSize: 6.5 }}>{"\n"}{r.site}</Text> : null}</Text>
@@ -456,19 +456,19 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         ) : (
           <View>
             <View style={s.row}>
-              <Text style={[s.th, { width: "14%" }]}>Serial</Text>
-              <Text style={[s.th, { width: "26%" }]}>Item</Text>
-              <Text style={[s.th, { width: "12%" }]}>Result</Text>
+              <Text style={[s.th, { width: "17%" }]}>Serial</Text>
+              <Text style={[s.th, { width: "25%" }]}>Item</Text>
+              <Text style={[s.th, { width: "9%" }]}>Result</Text>
               <Text style={[s.th, { width: "26%" }]}>Remark</Text>
-              <Text style={[s.th, { width: "22%" }]}>Client / branch · WB · date</Text>
+              <Text style={[s.th, { width: "23%" }]}>Client / branch · WB · date</Text>
             </View>
             {d.findings.map((f, i) => (
               <View style={s.row} key={i} wrap={false}>
-                <Text style={[s.td, { width: "14%", fontFamily: "Courier", fontSize: 7 }]}>{f.serial}</Text>
-                <Text style={[s.td, { width: "26%" }]}>{f.item}</Text>
-                <Text style={[s.td, { width: "12%", color: FAIL, fontFamily: "Helvetica-Bold" }]}>{f.result}</Text>
+                <Text style={[s.td, { width: "17%", fontFamily: "Courier", fontSize: 6.2 }]}>{f.serial}</Text>
+                <Text style={[s.td, { width: "25%" }]}>{f.item}</Text>
+                <Text style={[s.td, { width: "9%", color: FAIL, fontFamily: "Helvetica-Bold" }]}>{f.result}</Text>
                 <Text style={[s.td, { width: "26%" }]}>{f.remark || "—"}</Text>
-                <Text style={[s.td, { width: "22%", fontSize: 7 }]}>{f.clientName || "—"}{f.site ? ` · ${f.site}` : ""}{"\n"}{f.weighbridgeId || "—"} · {fmtDate(f.createdAt)}</Text>
+                <Text style={[s.td, { width: "23%", fontSize: 7 }]}>{f.clientName || "—"}{f.site ? ` · ${f.site}` : ""}{"\n"}{f.weighbridgeId || "—"} · {fmtDate(f.createdAt)}</Text>
               </View>
             ))}
           </View>

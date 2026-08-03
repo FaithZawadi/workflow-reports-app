@@ -339,7 +339,7 @@ function Analytics({ data, loading }) {
                 <div key={i} style={{ ...S.trow, background: i % 2 ? "#FBF9F4" : "#fff", borderTop: "1px solid #EFEAdd" }}>
                   <Link href={`/reports/${f.serial}`} style={{ ...S.tcell, fontFamily: "var(--mono)", fontSize: 11, color: "#8a6d00", fontWeight: 700, textDecoration: "none" }}>{f.serial}</Link>
                   <span style={{ ...S.tcell, color: INK }}>{f.item}</span>
-                  <span style={S.tcell}><span style={S.flag}>{(f.result || "NEEDS ATTENTION").toUpperCase()}</span></span>
+                  <span style={S.tcell}><span style={S.flag}>{(f.result || "NO").toUpperCase()}</span></span>
                   <span style={{ ...S.tcell, color: INK }}>{f.remark || "—"}</span>
                   <span style={{ ...S.tcell, fontSize: 11, color: MUTE, fontFamily: "var(--mono)", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
                     <span style={{ color: INK, fontFamily: "inherit", fontWeight: 600 }}>{f.clientName || "—"}{f.site ? ` · ${f.site}` : ""}</span>

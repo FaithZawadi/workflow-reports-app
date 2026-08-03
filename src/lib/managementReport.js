@@ -10,7 +10,7 @@ function statesOf(sec) {
   if (Array.isArray(sec?.states) && sec.states.length) return sec.states;
   return [
     { key: "ok", label: sec?.yes || "OK" },
-    { key: "problem", label: sec?.no || "NEEDS ATTENTION" },
+    { key: "problem", label: sec?.no || "NO" },
   ];
 }
 
