@@ -256,7 +256,7 @@ function RegisterBlock({ rows }) {
         <Text style={[s.th, { width: "16%" }]}>Serial</Text>
         <Text style={[s.th, { width: "20%" }]}>Service</Text>
         <Text style={[s.th, { width: "13%" }]}>Weighbridge</Text>
-        <Text style={[s.th, { width: "17%" }]}>Site</Text>
+        <Text style={[s.th, { width: "17%" }]}>Client / branch</Text>
         <Text style={[s.th, { width: "13%" }]}>Filed by</Text>
         <Text style={[s.th, { width: "5%", textAlign: "center" }]}>Fnd</Text>
         <Text style={[s.th, { width: "5%", textAlign: "center" }]}>Ph</Text>
@@ -269,7 +269,7 @@ function RegisterBlock({ rows }) {
             <Text style={[s.td, { width: "16%", fontFamily: "Courier", fontSize: 7 }]}>{r.serial}{"\n"}<Text style={{ color: st.color, fontFamily: "Helvetica-Bold", fontSize: 6 }}>{st.label.toUpperCase()}</Text></Text>
             <Text style={[s.td, { width: "20%" }]}>{r.templateName}</Text>
             <Text style={[s.td, { width: "13%", fontFamily: "Courier", fontSize: 7 }]}>{r.weighbridgeId || "—"}</Text>
-            <Text style={[s.td, { width: "17%" }]}>{r.site || r.clientName}</Text>
+            <Text style={[s.td, { width: "17%" }]}>{r.clientName || "—"}{r.site ? <Text style={{ color: MUTE, fontSize: 6.5 }}>{"\n"}{r.site}</Text> : null}</Text>
             <Text style={[s.td, { width: "13%" }]}>{r.authorName}</Text>
             <Text style={[s.td, { width: "5%", textAlign: "center", color: r.findings ? FAIL : MUTE, fontFamily: r.findings ? "Helvetica-Bold" : "Helvetica" }]}>{r.findings || "—"}</Text>
             <Text style={[s.td, { width: "5%", textAlign: "center" }]}>{r.photos || "—"}</Text>
@@ -341,7 +341,7 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         <View style={s.rule} />
 
         <Text style={s.title}>Maintenance Management Report</Text>
-        <Text style={s.sub}>Period: {rangeLabel} · {d.total || 0} report{d.total === 1 ? "" : "s"} in scope{d.clientLabel ? ` · ${d.clientLabel}` : ""}</Text>
+        <Text style={s.sub}>Period: {rangeLabel} · {d.total || 0} report{d.total === 1 ? "" : "s"} in scope{d.clientLabel ? ` · ${d.clientLabel}${d.siteLabel ? ` — ${d.siteLabel} branch` : " (all branches)"}` : ""}</Text>
 
         {d.compareRange ? (
           <Text style={[s.sub, { marginTop: 1 }]}>Compared to previous period ({fmtDate(d.compareRange.from)} — {fmtDate(d.compareRange.to)})</Text>
@@ -451,19 +451,19 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         ) : (
           <View>
             <View style={s.row}>
-              <Text style={[s.th, { width: "15%" }]}>Serial</Text>
-              <Text style={[s.th, { width: "30%" }]}>Item</Text>
-              <Text style={[s.th, { width: "13%" }]}>Result</Text>
-              <Text style={[s.th, { width: "27%" }]}>Remark</Text>
-              <Text style={[s.th, { width: "15%" }]}>WB / date</Text>
+              <Text style={[s.th, { width: "14%" }]}>Serial</Text>
+              <Text style={[s.th, { width: "26%" }]}>Item</Text>
+              <Text style={[s.th, { width: "12%" }]}>Result</Text>
+              <Text style={[s.th, { width: "26%" }]}>Remark</Text>
+              <Text style={[s.th, { width: "22%" }]}>Client / branch · WB · date</Text>
             </View>
             {d.findings.map((f, i) => (
               <View style={s.row} key={i} wrap={false}>
-                <Text style={[s.td, { width: "15%", fontFamily: "Courier", fontSize: 7 }]}>{f.serial}</Text>
-                <Text style={[s.td, { width: "30%" }]}>{f.item}</Text>
-                <Text style={[s.td, { width: "13%", color: FAIL, fontFamily: "Helvetica-Bold" }]}>{f.result}</Text>
-                <Text style={[s.td, { width: "27%" }]}>{f.remark || "—"}</Text>
-                <Text style={[s.td, { width: "15%", fontSize: 7 }]}>{f.weighbridgeId || "—"}{"\n"}{fmtDate(f.createdAt)}</Text>
+                <Text style={[s.td, { width: "14%", fontFamily: "Courier", fontSize: 7 }]}>{f.serial}</Text>
+                <Text style={[s.td, { width: "26%" }]}>{f.item}</Text>
+                <Text style={[s.td, { width: "12%", color: FAIL, fontFamily: "Helvetica-Bold" }]}>{f.result}</Text>
+                <Text style={[s.td, { width: "26%" }]}>{f.remark || "—"}</Text>
+                <Text style={[s.td, { width: "22%", fontSize: 7 }]}>{f.clientName || "—"}{f.site ? ` · ${f.site}` : ""}{"\n"}{f.weighbridgeId || "—"} · {fmtDate(f.createdAt)}</Text>
               </View>
             ))}
           </View>

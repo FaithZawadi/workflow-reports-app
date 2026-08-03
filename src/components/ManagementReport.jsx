@@ -332,7 +332,7 @@ function Analytics({ data, loading }) {
                 <span style={S.thcell}>Item</span>
                 <span style={S.thcell}>Result</span>
                 <span style={S.thcell}>Remark</span>
-                <span style={S.thcell}>WB / date</span>
+                <span style={S.thcell}>Client · WB · date</span>
               </div>
               {d.findings.slice(0, 40).map((f, i) => (
                 <div key={i} style={{ ...S.trow, background: i % 2 ? "#FBF9F4" : "#fff", borderTop: "1px solid #EFEAdd" }}>
@@ -341,6 +341,7 @@ function Analytics({ data, loading }) {
                   <span style={S.tcell}><span style={S.flag}>{(f.result || "NEEDS ATTENTION").toUpperCase()}</span></span>
                   <span style={{ ...S.tcell, color: INK }}>{f.remark || "—"}</span>
                   <span style={{ ...S.tcell, fontSize: 11, color: MUTE, fontFamily: "var(--mono)", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
+                    <span style={{ color: INK, fontFamily: "inherit", fontWeight: 600 }}>{f.clientName || "—"}{f.site ? ` · ${f.site}` : ""}</span>
                     <span>{f.weighbridgeId || "—"}</span>
                     <span>{fmtDay(f.createdAt)}</span>
                   </span>
@@ -831,7 +832,7 @@ function ServiceRegister({ rows }) {
             <span style={S.thcell}>Serial</span>
             <span style={S.thcell}>Service</span>
             <span style={S.thcell}>Weighbridge</span>
-            <span style={S.thcell}>Site</span>
+            <span style={S.thcell}>Client / branch</span>
             <span style={S.thcell}>Filed by</span>
             <span style={{ ...S.thcell, justifyContent: "center" }}>Photos</span>
             <span style={{ ...S.thcell, justifyContent: "center" }}>Findings</span>
@@ -845,7 +846,10 @@ function ServiceRegister({ rows }) {
                 <Link href={`/reports/${r.serial}`} style={{ ...S.rcell, fontFamily: "var(--mono)", fontSize: 11, color: "#8a6d00", fontWeight: 700, textDecoration: "none" }}>{r.serial}</Link>
                 <span style={{ ...S.rcell, color: INK }}>{r.templateName}</span>
                 <span style={{ ...S.rcell, fontFamily: "var(--mono)", fontSize: 11, color: INK }}>{r.weighbridgeId || "—"}</span>
-                <span style={{ ...S.rcell, color: INK }}>{r.site || r.clientName}</span>
+                <span style={{ ...S.rcell, flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
+                  <span style={{ color: INK, fontWeight: 600 }}>{r.clientName || "—"}</span>
+                  {r.site ? <span style={{ fontSize: 11, color: MUTE }}>{r.site}</span> : null}
+                </span>
                 <span style={{ ...S.rcell, color: INK }}>{r.authorName}</span>
                 <span style={{ ...S.rcell, justifyContent: "center", color: MUTE }}>{r.photos || 0}</span>
                 <span style={{ ...S.rcell, justifyContent: "center", fontWeight: 800, color: r.findings ? FAIL : "#b8af9e" }}>{r.findings || "—"}</span>
