@@ -192,12 +192,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     }
     String labelFor(String k) => fieldLabels[k] ?? _humanizeKey(k);
 
-    // Service date line (shows "backdated" when it differs from the filing day).
+    // Service date line. The "backdated" flag is an internal audit signal, so
+    // only admins see it — everyone else just sees the report date.
+    final u = context.read<Session>().user;
+    final isAdmin = u != null && ((u.roles.isNotEmpty ? u.roles : [u.role]).contains('ADMIN'));
     final reportDay = '${r['reportDate'] ?? ''}'.split('T').first;
     final filedDay = '${r['createdAt'] ?? ''}'.split('T').first;
     final reportDateLine = reportDay.isEmpty
         ? null
-        : 'Report date: $reportDay${reportDay != filedDay ? '  ·  backdated (filed $filedDay)' : ''}';
+        : 'Report date: $reportDay${isAdmin && reportDay != filedDay ? '  ·  backdated (filed $filedDay)' : ''}';
 
     return ListView(padding: const EdgeInsets.all(14), children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [

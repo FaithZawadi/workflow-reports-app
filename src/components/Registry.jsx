@@ -37,6 +37,9 @@ function relTime(d) {
 }
 
 export default function Registry({ profile }) {
+  // Only admins see the "backdated" flag — it's an internal audit signal, not
+  // something to surface to every viewer.
+  const isAdmin = profile.role === "ADMIN" || (Array.isArray(profile.roles) && profile.roles.includes("ADMIN"));
   const [reports, setReports] = useState(null);
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
@@ -272,7 +275,7 @@ export default function Registry({ profile }) {
           <SectionHeading label="Recent" note="last 24 hours" count={recentReports.length} />
           <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", marginBottom: 18 }}>
             {recentReports.map((r, i) => (
-              <ReportCard key={r.serial} r={r} num={i + 1} recent />
+              <ReportCard key={r.serial} r={r} num={i + 1} recent isAdmin={isAdmin} />
             ))}
           </div>
         </>
@@ -283,7 +286,7 @@ export default function Registry({ profile }) {
           {recentReports.length > 0 && <SectionHeading label="Earlier" count={earlierReports.length} />}
           <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))" }}>
             {earlierReports.map((r, i) => (
-              <ReportCard key={r.serial} r={r} num={recentReports.length + i + 1} />
+              <ReportCard key={r.serial} r={r} num={recentReports.length + i + 1} isAdmin={isAdmin} />
             ))}
           </div>
         </>
@@ -305,7 +308,7 @@ function SectionHeading({ label, note, count }) {
   );
 }
 
-function ReportCard({ r, recent, num }) {
+function ReportCard({ r, recent, num, isAdmin }) {
   return (
     <Link href={`/reports/${r.serial}`} className="card" style={{ textDecoration: "none", display: "block", padding: 0, overflow: "hidden", borderColor: recent ? GOLD : undefined }}>
       <div className="stripe" style={{ height: 4 }} />
@@ -327,7 +330,7 @@ function ReportCard({ r, recent, num }) {
         </div>
         <div className="muted" style={{ marginTop: 2, fontSize: 12 }}>
           by {r.authorName} · <span title={r.reportDate ? `Report date · filed ${new Date(r.createdAt).toLocaleString()}` : new Date(r.createdAt).toLocaleString()}>{relTime(r.reportDate || r.createdAt)}</span>
-          {r.reportDate && new Date(r.reportDate).toDateString() !== new Date(r.createdAt).toDateString() ? <span> · backdated</span> : null}
+          {isAdmin && r.reportDate && new Date(r.reportDate).toDateString() !== new Date(r.createdAt).toDateString() ? <span> · backdated</span> : null}
         </div>
       </div>
     </Link>

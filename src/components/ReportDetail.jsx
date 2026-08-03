@@ -111,7 +111,8 @@ export default function ReportDetail({ serial, profile }) {
           {rep.clientName}
           {rep.site ? " - " + rep.site : ""} · {rep.weighbridgeId || "weighbridge not stated"} · by <b>{rep.authorName}</b> ·{" "}
           {new Date(rep.reportDate || rep.createdAt).toLocaleDateString()}
-          {rep.reportDate && new Date(rep.reportDate).toDateString() !== new Date(rep.createdAt).toDateString() ? (
+          {(profile?.role === "ADMIN" || (Array.isArray(profile?.roles) && profile.roles.includes("ADMIN"))) &&
+          rep.reportDate && new Date(rep.reportDate).toDateString() !== new Date(rep.createdAt).toDateString() ? (
             <span title={`Filed on ${new Date(rep.createdAt).toLocaleString()}`}> · <b>backdated</b> (filed {new Date(rep.createdAt).toLocaleDateString()})</span>
           ) : null}
         </div>
