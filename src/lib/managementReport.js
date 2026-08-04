@@ -83,7 +83,7 @@ function buildTrend(reports, from, to, prevReports) {
 
 // Core aggregation over a set of reports. Splits into the headline counters plus
 // the segmented breakdowns and the checklist-level pass/fail tally.
-function aggregate(reports) {
+function aggregate(reports, resolveWb = (r) => ({ key: r.weighbridgeId || "—", label: r.weighbridgeId || "—", registered: false })) {
   const byStatus = Object.fromEntries(STATUS_KEYS.map((k) => [k, 0]));
   const wb = new Map(); // weighbridgeId -> { count, findings, label }
   const client = new Map(); // "client — site" -> count
@@ -105,10 +105,15 @@ function aggregate(reports) {
     const dk = new Date(effDate(r)).toISOString().slice(0, 10);
     dayCounts.set(dk, (dayCounts.get(dk) || 0) + 1);
 
-    const wbKey = r.weighbridgeId || "—";
-    const wbe = wb.get(wbKey) || { count: 0, findings: 0, label: wbKey };
+    // Resolve the report's free-text weighbridge reference to the registered
+    // weighbridge so name variants ("WB-4", "Sam plant weighbridge") collapse
+    // onto the one physical weighbridge and the counts match the registry.
+    const wbRes = resolveWb(r);
+    const wbKey = wbRes.key;
+    const wbe = wb.get(wbKey) || { count: 0, findings: 0, label: wbRes.label, registered: wbRes.registered };
     wbe.count += 1;
     wb.set(wbKey, wbe);
+    r.__wbLabel = wbRes.label; // canonical label for the register / findings below
 
     const clientKey = r.site ? `${r.clientName} — ${r.site}` : r.clientName || "—";
     client.set(clientKey, (client.get(clientKey) || 0) + 1);
@@ -155,7 +160,7 @@ function aggregate(reports) {
         templateName: r.templateName,
         clientName: r.clientName,
         site: r.site || null,
-        weighbridgeId: r.weighbridgeId || null,
+        weighbridgeId: r.__wbLabel || r.weighbridgeId || null,
         item: (sec.items && sec.items[ii]) || `Item ${ii + 1}`,
         result: label,
         remark: v.remark || "",
@@ -172,7 +177,7 @@ function aggregate(reports) {
       template: r.template,
       templateName: r.templateName,
       cadence: t?.cadence || "",
-      weighbridgeId: r.weighbridgeId || null,
+      weighbridgeId: r.__wbLabel || r.weighbridgeId || null,
       clientName: r.clientName,
       site: r.site || null,
       authorName: r.authorName || "—",
@@ -561,6 +566,48 @@ function buildDimensions(reports, cur, operations) {
 // Build the role-scoped management report for a date range. Returns a plain
 // object with the summary, every segmented breakdown, period-over-period deltas,
 // auto insights and the flagged findings. Reused by the JSON API and the PDF.
+// Build a resolver that maps a report's free-text weighbridge reference onto the
+// registered weighbridge for its client. Reports were filed with inconsistent
+// identifiers ("WB-4", "Sam plant weighbridge", "Container weighbridge"), which
+// otherwise show up as separate weighbridges; matching them to the registry by
+// label or site collapses the variants so the count reflects real weighbridges.
+async function buildWeighbridgeResolver(user, client) {
+  const norm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const compact = (s) => norm(s).replace(/[^a-z0-9]/g, "");
+
+  const rows = await prisma.weighbridge
+    .findMany({
+      where: client ? { clientId: client } : {},
+      select: { id: true, clientId: true, label: true, site: true },
+    })
+    .catch(() => []);
+
+  // Index the fleet per client so resolution never crosses client boundaries.
+  const byClient = new Map();
+  for (const w of rows) {
+    if (!byClient.has(w.clientId)) byClient.set(w.clientId, []);
+    const canonical = w.site ? `${w.label} · ${w.site}` : w.label;
+    byClient.get(w.clientId).push({ ...w, canonical, nLabel: norm(w.label), cLabel: compact(w.label), nSite: norm(w.site), cSite: compact(w.site) });
+  }
+
+  return (report) => {
+    const raw = String(report.weighbridgeId || "").trim();
+    if (!raw) return { key: "—", label: "—", registered: false };
+    const fleet = byClient.get(report.clientId) || [];
+    const nRaw = norm(raw);
+    const cRaw = compact(raw);
+    // 1) exact label, 2) exact site, 3) label/site contained either way.
+    const hit =
+      fleet.find((w) => w.nLabel && w.nLabel === nRaw) ||
+      fleet.find((w) => w.nSite && (w.nSite === nRaw || nRaw.includes(w.nSite) || (w.nSite.length > 3 && w.nSite.includes(nRaw)))) ||
+      fleet.find((w) => w.cLabel && (cRaw.includes(w.cLabel) || w.cLabel.includes(cRaw))) ||
+      fleet.find((w) => w.cSite && w.cSite.length > 3 && cRaw.includes(w.cSite));
+    if (hit) return { key: `wb:${hit.id}`, label: hit.canonical, registered: true };
+    // Unmatched — keep the report's own label but flag it as not in the registry.
+    return { key: `u:${cRaw}`, label: `${raw}`, registered: false };
+  };
+}
+
 export async function buildManagementReport(user, { from, to, client, site, includeDetails = false } = {}) {
   const reports = await prisma.report.findMany({
     where: whereFor(user, from, to, client, site),
@@ -614,8 +661,13 @@ export async function buildManagementReport(user, { from, to, client, site, incl
   }
   const siteLabel = site || null;
 
-  const cur = aggregate(reports);
-  const prev = prevWin ? aggregate(prevReports) : null;
+  // Resolve reports' free-text weighbridge references to the REGISTERED
+  // weighbridge fleet, per client, so name variants collapse onto one physical
+  // weighbridge and the counts match the registry (not one row per spelling).
+  const resolveWb = await buildWeighbridgeResolver(user, client);
+
+  const cur = aggregate(reports, resolveWb);
+  const prev = prevWin ? aggregate(prevReports, resolveWb) : null;
   cur.findingsCount = cur.findings.length;
   if (prev) prev.findingsCount = prev.findings.length;
 
@@ -641,7 +693,8 @@ export async function buildManagementReport(user, { from, to, client, site, incl
   for (const f of cur.findings) findingCounts.set(f.item, (findingCounts.get(f.item) || 0) + 1);
   const topFindings = [...findingCounts.entries()].map(([item, count]) => ({ item, count })).sort(desc).slice(0, 8);
 
-  const byWeighbridge = [...cur.wb.values()].map((v) => ({ id: v.label, label: v.label, count: v.count, findings: v.findings })).sort(desc);
+  const byWeighbridge = [...cur.wb.values()].map((v) => ({ id: v.label, label: v.label, count: v.count, findings: v.findings, registered: !!v.registered })).sort(desc);
+  const registeredServiced = byWeighbridge.filter((w) => w.registered).length;
   const byClient = [...cur.client.entries()].map(([name, count]) => ({ name, count })).sort(desc);
   const byTemplate = [...cur.tpl.entries()].map(([code, v]) => ({ code, name: v.name, count: v.count })).sort(desc);
   const byAuthor = [...cur.author.entries()].map(([name, count]) => ({ name, count })).sort(desc);
@@ -673,7 +726,10 @@ export async function buildManagementReport(user, { from, to, client, site, incl
     photos: cur.photosTotal,
     findingsRaised: cur.findingsCount,
     approvals: cur.approved,
-    weighbridgesServiced: byWeighbridge.length,
+    // Registered weighbridges that were serviced (registry-resolved, so name
+    // variants don't inflate the count). Falls back to the raw group count only
+    // when nothing matched the registry.
+    weighbridgesServiced: registeredServiced || byWeighbridge.length,
     sitesServiced: byClient.length,
     staffActive: byAuthor.length,
     avgPhotosPerReport: cur.total ? Number((cur.photosTotal / cur.total).toFixed(1)) : 0,
