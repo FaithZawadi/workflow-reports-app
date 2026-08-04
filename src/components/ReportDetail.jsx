@@ -107,10 +107,14 @@ export default function ReportDetail({ serial, profile }) {
           <h1 className="h1" style={{ margin: 0 }}>{rep.templateName}</h1>
           <Pill status={rep.status} />
         </div>
-        <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
-          {rep.clientName}
-          {rep.site ? " - " + rep.site : ""} · {rep.weighbridgeId || "weighbridge not stated"} · by <b>{rep.authorName}</b> ·{" "}
-          {new Date(rep.reportDate || rep.createdAt).toLocaleDateString()}
+        {/* Client · Site · Weighbridge — the three key identifiers, shown clearly. */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+          <IdChip label="Client" value={rep.clientName || "—"} />
+          <IdChip label="Site / branch" value={rep.site || "—"} />
+          <IdChip label="Weighbridge" value={rep.weighbridgeId || "not stated"} mono />
+        </div>
+        <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+          by <b>{rep.authorName}</b> · {new Date(rep.reportDate || rep.createdAt).toLocaleDateString()}
           {(profile?.role === "ADMIN" || (Array.isArray(profile?.roles) && profile.roles.includes("ADMIN"))) &&
           rep.reportDate && new Date(rep.reportDate).toDateString() !== new Date(rep.createdAt).toDateString() ? (
             <span title={`Filed on ${new Date(rep.createdAt).toLocaleString()}`}> · <b>backdated</b> (filed {new Date(rep.createdAt).toLocaleDateString()})</span>
@@ -330,6 +334,16 @@ export default function ReportDetail({ serial, profile }) {
         )}
       </PaperCard>
     </div>
+  );
+}
+
+// A labelled identifier chip — Client / Site / Weighbridge on the report header.
+function IdChip({ label, value, mono }) {
+  return (
+    <span style={{ display: "inline-flex", flexDirection: "column", gap: 1, background: "#FBF8F0", border: `1px solid ${GOLD}`, borderRadius: 8, padding: "5px 11px", minWidth: 0 }}>
+      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: MUTE }}>{label}</span>
+      <span style={{ fontSize: 13.5, fontWeight: 800, color: INK, fontFamily: mono ? "var(--mono)" : "inherit" }}>{value}</span>
+    </span>
   );
 }
 

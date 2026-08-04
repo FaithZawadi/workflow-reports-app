@@ -20,6 +20,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
   List<Map<String, dynamic>> _templates = [];
   List<Person> _supervisors = [], _managers = [];
   List<String> _clients = [];
+  List<Map<String, dynamic>> _weighbridges = [];
+  bool _wbManual = false; // "Other" chosen — type the weighbridge by hand
 
   Map<String, dynamic>? _tpl; // chosen template
 
@@ -62,8 +64,11 @@ class _NewReportScreenState extends State<NewReportScreen> {
       _supervisors = dir['supervisors'] ?? [];
       _managers = dir['managers'] ?? [];
       try { _clients = await api.getClients(); } catch (_) {}
+      try { _weighbridges = await api.getWeighbridges(); } catch (_) {}
       final u = context.read<Session>().user!;
       if (u.clientName != null) _client.text = u.clientName!;
+      // The technician's assigned site (branch) auto-fills.
+      if ((u.site ?? '').isNotEmpty) _site.text = u.site!;
     } catch (e) {
       _loadErr = e.toString();
     }
@@ -80,7 +85,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
         'template': _tpl!['code'],
         'weighbridgeId': _weighbridge.text.trim(),
         'clientName': _client.text.trim(),
-        'site': _single ? _weighbridge.text.trim() : _site.text.trim(),
+        'site': _site.text.trim(),
         'reportDate': _reportDate.toIso8601String().split('T').first,
         'supervisorEmails': _supervisorEmails.map((e) => e.trim()).toList(),
         'managerEmail': _managerEmail.trim(),
@@ -140,12 +145,12 @@ class _NewReportScreenState extends State<NewReportScreen> {
     final sections = (_tpl!['sections'] as List?) ?? [];
     return ListView(padding: const EdgeInsets.all(14), children: [
       const Text('Serial number is assigned when you submit.', style: TextStyle(color: kMute, fontSize: 12)),
-      const SectionBar('Client & site'),
-      _field('Client (plant)', _client),
-      // Daily/weekly/monthly: the weighbridge is the site, so no separate field.
-      if (!_single) _field('Site / location of this job', _site),
-      _field('Weighbridge', _weighbridge),
-      if (_single) const Padding(padding: EdgeInsets.only(bottom: 10), child: Text('The weighbridge above is the site for this check.', style: TextStyle(color: kMute, fontSize: 12))),
+      const SectionBar('Client, site & weighbridge'),
+      _field('Client (company)', _client),
+      // Site (branch) and weighbridge are separate, both visible. The assigned
+      // site auto-fills; the weighbridge is picked from the dropdown.
+      _field('Site / branch', _site),
+      _weighbridgePicker(),
       _reportDateField(),
 
       for (int si = 0; si < sections.length; si++) ..._section(Map<String, dynamic>.from(sections[si]), si),
@@ -201,6 +206,57 @@ class _NewReportScreenState extends State<NewReportScreen> {
           TextField(controller: c),
         ]),
       );
+
+  // Weighbridge dropdown — the client's registered weighbridges. Picking one
+  // fills the weighbridge, adopts its site/branch when none is set, and pre-fills
+  // make/serial/capacity + the routed Client/Manager. "Other" allows a manual
+  // entry for anything not yet registered.
+  Widget _weighbridgePicker() {
+    final c = _client.text.trim().toLowerCase();
+    final list = _weighbridges.where((w) => c.isEmpty || '${w['client'] ?? ''}'.toLowerCase() == c).toList();
+    final labels = list.map((w) => '${w['label']}').toList();
+    final current = _weighbridge.text.trim();
+    final inList = labels.contains(current);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Weighbridge', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMute)),
+        const SizedBox(height: 4),
+        if (labels.isNotEmpty)
+          DropdownButtonFormField<String>(
+            value: inList ? current : null,
+            isExpanded: true,
+            hint: const Text('Select a weighbridge'),
+            items: [
+              ...list.map((w) => DropdownMenuItem(
+                    value: '${w['label']}',
+                    child: Text('${w['label']}${(w['site'] ?? '') != '' ? " — ${w['site']}" : ""}', overflow: TextOverflow.ellipsis),
+                  )),
+              const DropdownMenuItem(value: '__other', child: Text('Other (type below)')),
+            ],
+            onChanged: (v) {
+              if (v == null) return;
+              if (v == '__other') { setState(() { _wbManual = true; _weighbridge.text = ''; }); return; }
+              final w = list.firstWhere((x) => '${x['label']}' == v, orElse: () => {});
+              setState(() {
+                _wbManual = false;
+                _weighbridge.text = v;
+                if (_site.text.trim().isEmpty && (w['site'] ?? '') != '') _site.text = '${w['site']}';
+                if ((w['makeModel'] ?? '') != '') _values['make'] = w['makeModel'];
+                if ((w['serialNo'] ?? '') != '') _values['serialNo'] = w['serialNo'];
+                if ((w['capacity'] ?? '') != '') _values['capacity'] = w['capacity'];
+                if ((w['deckLength'] ?? '') != '') _values['deckLength'] = w['deckLength'];
+                if (_managerEmail.isEmpty && (w['managerEmail'] ?? '') != '') _managerEmail = '${w['managerEmail']}';
+              });
+            },
+          ),
+        if (labels.isEmpty || _wbManual) ...[
+          const SizedBox(height: 6),
+          TextField(controller: _weighbridge, decoration: const InputDecoration(hintText: 'e.g. WB-1')),
+        ],
+      ]),
+    );
+  }
 
   // Service-date picker. Defaults to today; can be backdated but not set to the
   // future. Mirrors the web "Date of this report / service" field.

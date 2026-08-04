@@ -97,9 +97,10 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       .catch(() => {});
   }, []);
 
-  // Site options for the chosen client: registered sites PLUS the sites/labels
-  // carried by that client's weighbridges — so the dropdown is populated from the
-  // weighbridge register even when no sites were registered separately.
+  // Site options for the chosen client: registered sites PLUS the sites (branches)
+  // carried by that client's weighbridges — so the dropdown is populated even when
+  // no sites were registered separately. Weighbridge LABELS are deliberately
+  // excluded — the site is the branch/location, the weighbridge is a separate field.
   const siteOptions = (() => {
     const c = (clientName || "").trim().toLowerCase();
     const fromSites = sites
@@ -107,14 +108,16 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       .map((s) => s.name);
     const fromWbs = weighbridges
       .filter((w) => !c || (w.client || "").toLowerCase() === c)
-      .flatMap((w) => [w.site, w.label])
+      .map((w) => w.site)
       .filter(Boolean);
     return [...new Set([...fromSites, ...fromWbs].map((v) => String(v).trim()).filter(Boolean))];
   })();
 
-  // For daily / weekly / monthly checks the "site" IS the weighbridge — there's
-  // no separate location, so the weighbridge choice fills the site field.
-  const siteIsWeighbridge = !!tpl && isSingleApproval(tpl.code);
+  // Site and weighbridge are DISTINCT fields on every form. The technician's
+  // assigned site (branch) auto-fills, and they pick the weighbridge from the
+  // dropdown — both are shown and stored so client, site and weighbridge are all
+  // visible on the report.
+  const siteIsWeighbridge = false;
 
   const setV = (k, v) => setValues((s) => ({ ...s, [k]: v }));
 
@@ -361,7 +364,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
               </div>
             ) : (
               <label className="field">
-                <span className="label">Site / location of this job</span>
+                <span className="label">Site / branch{profile.site ? " (your assigned site)" : ""}</span>
                 {siteOptions.length || (site && !siteOptions.includes(site)) ? (
                   <select className="input" value={site} onChange={(e) => setSite(e.target.value)}>
                     <option value="">— select site —</option>
@@ -404,9 +407,11 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
                 return !c || (w.client || "").toLowerCase() === c;
               })}
               value={values.weighbridgeId}
-              onType={(v) => { setV("weighbridgeId", v); if (siteIsWeighbridge) setSite(v); }}
+              onType={(v) => setV("weighbridgeId", v)}
               onPick={(w) => {
-                if (siteIsWeighbridge) setSite(w.label);
+                // If no site is set yet, adopt the weighbridge's branch/site so
+                // client, site and weighbridge stay consistent on the report.
+                if (!site && w.site) setSite(w.site);
                 const keys = new Set();
                 (tpl?.sections || []).forEach((sec) => { if (sec.type === "fields") sec.fields.forEach((f) => keys.add(f.k)); });
                 setValues((s) => {

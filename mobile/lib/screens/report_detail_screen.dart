@@ -161,6 +161,16 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
     );
   }
 
+  // A labelled identifier chip — Client / Site / Weighbridge on the report header.
+  Widget _idChip(String label, String value) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(color: const Color(0xFFFBF8F0), border: Border.all(color: kGold), borderRadius: BorderRadius.circular(8)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          Text(label, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: .6, color: kMute)),
+          Text(value, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: kInk)),
+        ]),
+      );
+
   Widget _body(ReportDetail d) {
     final r = d.report;
     final data = Map<String, dynamic>.from(r['data'] ?? {});
@@ -207,9 +217,15 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
         Expanded(child: Text(r['templateName'] ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: kInk))),
         StatusPill(r['status'] ?? ''),
       ]),
-      const SizedBox(height: 4),
-      Text('${r['clientName'] ?? ''}${(r['site'] ?? '') != '' ? " - ${r['site']}" : ""} · ${r['weighbridgeId'] ?? "weighbridge not stated"} · by ${r['authorName'] ?? "-"}',
-          style: const TextStyle(color: kMute, fontSize: 12)),
+      const SizedBox(height: 8),
+      // Client · Site · Weighbridge — the three key identifiers, clearly shown.
+      Wrap(spacing: 8, runSpacing: 8, children: [
+        _idChip('CLIENT', '${r['clientName'] ?? '—'}'),
+        _idChip('SITE / BRANCH', (r['site'] ?? '') != '' ? '${r['site']}' : '—'),
+        _idChip('WEIGHBRIDGE', (r['weighbridgeId'] ?? '') != '' ? '${r['weighbridgeId']}' : 'not stated'),
+      ]),
+      const SizedBox(height: 6),
+      Text('by ${r['authorName'] ?? "-"}', style: const TextStyle(color: kMute, fontSize: 12)),
       if (reportDateLine != null)
         Text(reportDateLine, style: const TextStyle(color: kMute, fontSize: 12)),
 

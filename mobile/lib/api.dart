@@ -15,8 +15,8 @@ class ApiException implements Exception {
 class AppUser {
   final String id, email, name, role;
   final List<String> roles;
-  final String? clientId, clientName;
-  AppUser({required this.id, required this.email, required this.name, required this.role, required this.roles, this.clientId, this.clientName});
+  final String? clientId, clientName, site;
+  AppUser({required this.id, required this.email, required this.name, required this.role, required this.roles, this.clientId, this.clientName, this.site});
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
         id: j['id'] ?? '',
         email: j['email'] ?? '',
@@ -25,8 +25,9 @@ class AppUser {
         roles: (j['roles'] as List?)?.map((e) => e.toString()).toList() ?? [j['role']?.toString() ?? ''],
         clientId: j['clientId'],
         clientName: j['clientName'],
+        site: j['site'],
       );
-  Map<String, dynamic> toJson() => {'id': id, 'email': email, 'name': name, 'role': role, 'roles': roles, 'clientId': clientId, 'clientName': clientName};
+  Map<String, dynamic> toJson() => {'id': id, 'email': email, 'name': name, 'role': role, 'roles': roles, 'clientId': clientId, 'clientName': clientName, 'site': site};
 }
 
 class ReportSummary {
@@ -207,6 +208,15 @@ class ApiClient {
   Future<List<String>> getClients() async {
     final d = _decode(await http.get(_u('/api/clients'), headers: _headers));
     return ((d['clients'] as List?) ?? []).map((e) => (e['name'] ?? '').toString()).where((s) => s.isNotEmpty).toList();
+  }
+
+  // The weighbridges the current user may select (optionally scoped to a client).
+  // Each item: { label, client, site, makeModel, serialNo, capacity, deckLength,
+  // managerEmail }. Used to drive the weighbridge dropdown on the report form.
+  Future<List<Map<String, dynamic>>> getWeighbridges({String? client}) async {
+    final q = (client != null && client.isNotEmpty) ? '?client=${Uri.encodeQueryComponent(client)}' : '';
+    final d = _decode(await http.get(_u('/api/weighbridges$q'), headers: _headers));
+    return ((d['weighbridges'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
   // Returns { serial } on success.

@@ -46,6 +46,7 @@ export async function POST(req) {
       roles: user.roles && user.roles.length ? user.roles : [user.role],
       clientId: user.clientId,
       clientName: user.client?.name || null,
+      site: user.site || null,
     },
   });
 }
