@@ -36,9 +36,9 @@ const s = StyleSheet.create({
   swatch: { width: 8, height: 8, backgroundColor: GOLD, marginRight: 4 },
   sectionTitle: { fontSize: 9.5, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
   sectionNote: { fontSize: 7, color: MUTE, marginLeft: 6 },
-  kpiRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 10 },
+  kpiRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 10, alignItems: "stretch" },
   kpi: { width: "16.66%", padding: 4 },
-  kpiBox: { borderWidth: 1, borderColor: "#E4DCCB", borderRadius: 3, padding: 8, alignItems: "center" },
+  kpiBox: { borderWidth: 1, borderColor: "#E4DCCB", borderRadius: 3, padding: 8, alignItems: "center", justifyContent: "center", minHeight: 62 },
   kpiNum: { fontSize: 18, fontFamily: "Helvetica-Bold" },
   kpiLabel: { fontSize: 6.5, color: MUTE, textTransform: "uppercase", marginTop: 2, textAlign: "center", letterSpacing: 0.3 },
   kpiDelta: { fontSize: 6.5, fontFamily: "Helvetica-Bold", marginTop: 2, textAlign: "center" },
@@ -359,7 +359,7 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
           <Kpi num={d.approved || 0} label="Approved" sub={`${d.approvalRate || 0}% of total`} color={PASS} />
           <Kpi num={d.rejected || 0} label="Rejected" sub={`${d.rejectionRate || 0}% of total`} color={FAIL} delta={d.deltas?.rejectionRate} />
           <Kpi num={d.findingsCount || 0} label="Findings" sub={`${d.findingsRate || 0} / report`} color={FAIL} delta={d.deltas?.findingsCount} />
-          <Kpi num={d.avgTurnaroundHours != null ? `${d.avgTurnaroundHours}h` : "—"} label="Avg approval" sub="submit → approved" delta={d.deltas?.avgTurnaroundHours} />
+          <Kpi num={d.avgTurnaroundHours != null ? `${d.avgTurnaroundHours}h` : "—"} label="Avg approval" sub="submit to sign-off" delta={d.deltas?.avgTurnaroundHours} />
         </View>
 
         {/* Auto insights */}
