@@ -47,18 +47,41 @@ export async function GET(req) {
   }
 
   const clientName = (searchParams.get("client") || "").trim().toLowerCase();
-  let list = await prisma.weighbridge.findMany({
-    where: weighbridgeScope(user),
-    orderBy: { label: "asc" },
-    include: withManager,
-  });
-  // A supervisor/manager with no assignments yet shouldn't be blocked from filing.
-  if (list.length === 0 && rolesOf(user).some((r) => ["SUPERVISOR", "MANAGER"].includes(r))) {
+  const roles = rolesOf(user);
+  const techOnly =
+    roles.includes("TECHNICIAN") &&
+    !roles.some((r) => ["ADMIN", "ENGINEER", "SUPERVISOR", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"].includes(r));
+
+  let list;
+  if (techOnly) {
+    // A technician selects only from the weighbridges explicitly assigned to them.
     list = await prisma.weighbridge.findMany({
-      where: { active: true },
+      where: { active: true, users: { some: { id: user.sub } } },
       orderBy: { label: "asc" },
-      include: { client: { select: { name: true } } },
+      include: withManager,
     });
+    // No explicit assignment yet? Fall back to their plant so they aren't blocked.
+    if (list.length === 0 && user.clientId) {
+      list = await prisma.weighbridge.findMany({
+        where: { active: true, clientId: user.clientId },
+        orderBy: { label: "asc" },
+        include: withManager,
+      });
+    }
+  } else {
+    list = await prisma.weighbridge.findMany({
+      where: weighbridgeScope(user),
+      orderBy: { label: "asc" },
+      include: withManager,
+    });
+    // A supervisor/manager with no assignments yet shouldn't be blocked from filing.
+    if (list.length === 0 && roles.some((r) => ["SUPERVISOR", "MANAGER"].includes(r))) {
+      list = await prisma.weighbridge.findMany({
+        where: { active: true },
+        orderBy: { label: "asc" },
+        include: { client: { select: { name: true } } },
+      });
+    }
   }
   if (clientName) list = list.filter((w) => (w.client?.name || "").toLowerCase() === clientName);
   return Response.json({ weighbridges: list.map(shape) });

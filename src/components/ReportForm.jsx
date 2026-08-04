@@ -115,6 +115,11 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   // visible on the report.
   const siteIsWeighbridge = false;
 
+  // A technician files for their OWN assigned client + site. Those auto-fill and
+  // are locked (read-only), so the only thing they choose is the weighbridge.
+  const roles = profile.roles && profile.roles.length ? profile.roles : (profile.role ? [profile.role] : []);
+  const lockAssignment = !isEdit && roles.includes("TECHNICIAN") && !roles.includes("ADMIN") && !!(profile.clientName || profile.site);
+
   const setV = (k, v) => setValues((s) => ({ ...s, [k]: v }));
 
   // Adopt a registered weighbridge onto the form: set the weighbridge, and fill
@@ -373,38 +378,50 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
           </div>
           <p className="muted" style={{ fontSize: 12 }}>Serial number is assigned when you submit.</p>
 
-          {/* Same Client/Site fields for every role. Technicians arrive with
-              their assigned plant/site pre-filled. */}
-          <div className="grid md-2">
-            <label className="field">
-              <span className="label">Client (company)</span>
-              <select className="input" value={clientName} onChange={(e) => { setClientName(e.target.value); setSite(""); }}>
-                <option value="">— select client —</option>
-                {clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                {clientName && !clients.some((c) => c.name === clientName) && <option value={clientName}>{clientName}</option>}
-              </select>
-            </label>
-            {siteIsWeighbridge ? (
-              <div style={{ alignSelf: "end", fontSize: 11.5, color: "var(--mute)" }}>
-                The <b>weighbridge</b> below is the site for this check.
+          {lockAssignment ? (
+            /* Technician: client + site come from their assignment, read-only. */
+            <>
+              <div className="grid md-2">
+                <div className="field">
+                  <span className="label">Client (company)</span>
+                  <div className="input" style={{ background: "#F5F1E8", fontWeight: 700, display: "flex", alignItems: "center" }}>{clientName || "—"}</div>
+                </div>
+                <div className="field">
+                  <span className="label">Site / branch</span>
+                  <div className="input" style={{ background: "#F5F1E8", fontWeight: 700, display: "flex", alignItems: "center" }}>{site || "—"}</div>
+                </div>
               </div>
-            ) : (
-              <label className="field">
-                <span className="label">Site / branch{profile.site ? " (your assigned site)" : ""}</span>
-                {siteOptions.length || (site && !siteOptions.includes(site)) ? (
-                  <select className="input" value={site} onChange={(e) => setSite(e.target.value)}>
-                    <option value="">— select site —</option>
-                    {siteOptions.map((sName) => <option key={sName} value={sName}>{sName}</option>)}
-                    {site && !siteOptions.includes(site) && <option value={site}>{site}</option>}
+              <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>From your assignment. Just pick the weighbridge below.</div>
+            </>
+          ) : (
+            <>
+              {/* Same Client/Site fields for supervisors/managers/admins. */}
+              <div className="grid md-2">
+                <label className="field">
+                  <span className="label">Client (company)</span>
+                  <select className="input" value={clientName} onChange={(e) => { setClientName(e.target.value); setSite(""); }}>
+                    <option value="">— select client —</option>
+                    {clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    {clientName && !clients.some((c) => c.name === clientName) && <option value={clientName}>{clientName}</option>}
                   </select>
-                ) : (
-                  <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="e.g. Magadi plant" />
-                )}
-              </label>
-            )}
-          </div>
-          {!siteIsWeighbridge && clientName && !siteOptions.length && (
-            <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No sites registered for {clientName} yet — an admin can add them in the Clients registry.</div>
+                </label>
+                <label className="field">
+                  <span className="label">Site / branch{profile.site ? " (your assigned site)" : ""}</span>
+                  {siteOptions.length || (site && !siteOptions.includes(site)) ? (
+                    <select className="input" value={site} onChange={(e) => setSite(e.target.value)}>
+                      <option value="">— select site —</option>
+                      {siteOptions.map((sName) => <option key={sName} value={sName}>{sName}</option>)}
+                      {site && !siteOptions.includes(site) && <option value={site}>{site}</option>}
+                    </select>
+                  ) : (
+                    <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="e.g. Magadi plant" />
+                  )}
+                </label>
+              </div>
+              {clientName && !siteOptions.length && (
+                <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No sites registered for {clientName} yet — an admin can add them in the Clients registry.</div>
+              )}
+            </>
           )}
 
           <div style={{ maxWidth: 460 }}>

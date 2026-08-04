@@ -217,7 +217,9 @@ function whereFor(user, from, to, client, site) {
     if (to) where.reportDate.lte = to instanceof Date ? to : dayEnd(to);
   }
   if (client) where.clientId = client;
-  if (site) where.site = { equals: site, mode: "insensitive" };
+  // Match the branch tolerantly: a report whose site is "Tata Chemicals Magadi"
+  // still matches the "Magadi" branch. `contains` bridges the naming variants.
+  if (site) where.site = { contains: site, mode: "insensitive" };
   return where;
 }
 
@@ -640,6 +642,23 @@ export async function buildManagementReport(user, { from, to, client, site, incl
   // The branches (sites) available for the selected client — powers the branch
   // filter so a single client's report can be narrowed to one branch. Combines
   // sites that appear on reports with any registered-but-not-yet-used sites.
+  // A branch is a registered client SITE; a weighbridge sits UNDER a branch. Some
+  // older reports stored a weighbridge name in their `site` field, so this filter
+  // keeps weighbridge names out of the branch list and the "sites covered" count.
+  const wbNameRows = await prisma.weighbridge
+    .findMany({ where: client ? { clientId: client } : {}, select: { label: true, site: true } })
+    .catch(() => []);
+  const wbNameSet = new Set();
+  for (const w of wbNameRows) {
+    if (w.label) wbNameSet.add(String(w.label).trim().toLowerCase());
+    if (w.site) wbNameSet.add(String(w.site).trim().toLowerCase());
+  }
+  const isWbName = (name) => {
+    const n = String(name || "").trim().toLowerCase();
+    if (!n) return false;
+    return wbNameSet.has(n) || /^wb[\s-]?\d/.test(n) || n.includes("weighbridge");
+  };
+
   let siteOptions = [];
   if (client) {
     const [fromReports, registered] = await Promise.all([
@@ -652,10 +671,14 @@ export async function buildManagementReport(user, { from, to, client, site, incl
         .then((rows) => rows.map((s) => s.name))
         .catch(() => []),
     ]);
+    // Prefer the REGISTERED branches (the client's sites). Only if none are
+    // registered do we fall back to branch-like names seen on reports. Weighbridge
+    // names are always excluded so the dropdown lists only real branches.
+    const source = registered.filter((n) => !isWbName(n)).length ? registered : fromReports;
     const seen = new Map();
-    for (const name of [...registered, ...fromReports]) {
+    for (const name of source) {
       const k = String(name).trim().toLowerCase();
-      if (k && !seen.has(k)) seen.set(k, String(name).trim());
+      if (k && !isWbName(name) && !seen.has(k)) seen.set(k, String(name).trim());
     }
     siteOptions = [...seen.values()].sort((a, b) => a.localeCompare(b));
   }
@@ -726,11 +749,14 @@ export async function buildManagementReport(user, { from, to, client, site, incl
     photos: cur.photosTotal,
     findingsRaised: cur.findingsCount,
     approvals: cur.approved,
-    // Registered weighbridges that were serviced (registry-resolved, so name
-    // variants don't inflate the count). Falls back to the raw group count only
-    // when nothing matched the registry.
-    weighbridgesServiced: registeredServiced || byWeighbridge.length,
-    sitesServiced: byClient.length,
+    // Registered weighbridges that were serviced — registry-resolved, so name
+    // variants never inflate it and it can never exceed the active fleet.
+    weighbridgesServiced: registeredServiced,
+    // Branches (real client sites) covered — weighbridge names excluded so an old
+    // report whose site holds a weighbridge label doesn't count as a site.
+    sitesServiced: new Set(
+      reports.map((r) => r.site).filter((s) => s && !isWbName(s)).map((s) => String(s).trim().toLowerCase())
+    ).size,
     staffActive: byAuthor.length,
     avgPhotosPerReport: cur.total ? Number((cur.photosTotal / cur.total).toFixed(1)) : 0,
     avgTurnaroundHours: cur.avgTurnaroundHours,
