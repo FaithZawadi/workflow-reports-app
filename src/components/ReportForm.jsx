@@ -49,10 +49,6 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const [managers, setManagers] = useState([]);
   const [clientName, setClientName] = useState(edit ? edit.clientName || "" : profile.clientName || prefill.client || "");
   const [site, setSite] = useState(edit ? edit.site || "" : profile.site || prefill.site || "");
-  const todayISO = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local
-  const [reportDate, setReportDate] = useState(
-    edit ? new Date(edit.reportDate || edit.createdAt).toLocaleDateString("en-CA") : todayISO
-  );
   const [supervisorEmails, setSupervisorEmails] = useState(
     edit
       ? (edit.supervisorEmails && edit.supervisorEmails.length ? edit.supervisorEmails : edit.supervisorEmail ? [edit.supervisorEmail] : [])
@@ -121,6 +117,38 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
 
   const setV = (k, v) => setValues((s) => ({ ...s, [k]: v }));
 
+  // Adopt a registered weighbridge onto the form: set the weighbridge, and fill
+  // the client, site and equipment details FROM the registry so the report is
+  // accurate and consistent. Only fills fields that are still empty, so a manual
+  // choice is never overwritten. Shared by the picker and the auto-select below.
+  const applyWeighbridge = (w) => {
+    if (!w) return;
+    if (!clientName && w.client) setClientName(w.client);
+    if (!site && w.site) setSite(w.site);
+    const keys = new Set();
+    (tpl?.sections || []).forEach((sec) => { if (sec.type === "fields") sec.fields.forEach((f) => keys.add(f.k)); });
+    setValues((s) => {
+      const n = { ...s, weighbridgeId: w.label };
+      if (keys.has("make") && w.makeModel) n.make = w.makeModel;
+      if (keys.has("serialNo") && w.serialNo) n.serialNo = w.serialNo;
+      if (keys.has("capacity") && w.capacity) n.capacity = w.capacity;
+      if (keys.has("deckLength") && w.deckLength) n.deckLength = w.deckLength;
+      return n;
+    });
+    if (w.managerEmail && !managerEmail) setManagerEmail(w.managerEmail);
+  };
+
+  // Auto-select the weighbridge for a technician with a single assigned unit, so
+  // client / site / weighbridge are all populated with no manual step. Only for a
+  // new report, and only when nothing has been chosen yet.
+  useEffect(() => {
+    if (isEdit || values.weighbridgeId || !weighbridges.length) return;
+    const c = (clientName || "").trim().toLowerCase();
+    const candidates = weighbridges.filter((w) => !c || (w.client || "").toLowerCase() === c);
+    if (candidates.length === 1) applyWeighbridge(candidates[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weighbridges, clientName, tpl]);
+
   // WB02 live verdict
   const { worst, verdict, limit } = useMemo(() => {
     const diffs = [1, 2].map((r) => {
@@ -147,7 +175,6 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       weighbridgeId: values.weighbridgeId || "",
       clientName: clientName.trim(),
       site: site.trim(),
-      reportDate: reportDate || undefined,
       supervisorEmails: supervisorEmails.map((e) => e.trim()).filter(Boolean),
       managerEmail: managerEmail.trim(),
       values,
@@ -311,7 +338,6 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
             </p>
             <div style={{ fontSize: 13, color: INK, display: "grid", gap: 4 }}>
               <div><b>Form:</b> {tpl.code} — {tpl.name}</div>
-              <div><b>Report date:</b> {reportDate ? new Date(`${reportDate}T12:00:00`).toLocaleDateString() : "today"}{reportDate && reportDate !== todayISO ? " (backdated)" : ""}</div>
               <div><b>Client:</b> {clientName || "—"}</div>
               <div><b>Site / location:</b> {site || "—"}</div>
               <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>
@@ -381,25 +407,6 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
             <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No sites registered for {clientName} yet — an admin can add them in the Clients registry.</div>
           )}
 
-          {/* Date the work was actually done. Defaults to today; backdate it to
-              file a report that was missed on the day (e.g. an internet outage)
-              so it still counts in the right period. Cannot be a future date. */}
-          <label className="field" style={{ maxWidth: 320 }}>
-            <span className="label">Date of this report / service</span>
-            <input
-              className="input"
-              type="date"
-              value={reportDate}
-              max={todayISO}
-              onChange={(e) => setReportDate(e.target.value)}
-            />
-            <span className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
-              {reportDate && reportDate !== todayISO
-                ? "Backdated — this report will be recorded for the date above."
-                : "Defaults to today. Backdate it to file a report you missed on the day (e.g. an internet outage)."}
-            </span>
-          </label>
-
           <div style={{ maxWidth: 460 }}>
             <WeighbridgePicker
               list={weighbridges.filter((w) => {
@@ -408,24 +415,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
               })}
               value={values.weighbridgeId}
               onType={(v) => setV("weighbridgeId", v)}
-              onPick={(w) => {
-                // If no site is set yet, adopt the weighbridge's branch/site so
-                // client, site and weighbridge stay consistent on the report.
-                if (!site && w.site) setSite(w.site);
-                const keys = new Set();
-                (tpl?.sections || []).forEach((sec) => { if (sec.type === "fields") sec.fields.forEach((f) => keys.add(f.k)); });
-                setValues((s) => {
-                  const n = { ...s, weighbridgeId: w.label };
-                  if (keys.has("make") && w.makeModel) n.make = w.makeModel;
-                  if (keys.has("serialNo") && w.serialNo) n.serialNo = w.serialNo;
-                  if (keys.has("capacity") && w.capacity) n.capacity = w.capacity;
-                  if (keys.has("deckLength") && w.deckLength) n.deckLength = w.deckLength;
-                  return n;
-                });
-                // The weighbridge carries its Client/Manager — pre-fill the final
-                // approver so reports route to the right person automatically.
-                if (w.managerEmail && !managerEmail) setManagerEmail(w.managerEmail);
-              }}
+              onPick={(w) => applyWeighbridge(w)}
             />
           </div>
 

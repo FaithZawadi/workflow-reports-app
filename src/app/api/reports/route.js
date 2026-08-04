@@ -13,17 +13,6 @@ import { notifyEmails, notifyUsers, oversight } from "@/lib/notify";
 
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
 
-// Turn a user-picked service date into a Date, or now() when absent/invalid.
-// A bare YYYY-MM-DD is anchored to local noon so it never slips a day across
-// timezones. Future dates are clamped to now — you can only backdate.
-function parseReportDate(v) {
-  const now = new Date();
-  if (!v) return now;
-  const s = String(v).trim();
-  const d = /^\d{4}-\d{2}-\d{2}$/.test(s) ? new Date(`${s}T12:00:00`) : new Date(s);
-  if (isNaN(d.getTime())) return now;
-  return d.getTime() > now.getTime() ? now : d;
-}
 
 // GET /api/reports?status=&q=&template=
 export async function GET(req) {
@@ -169,11 +158,9 @@ export async function POST(req) {
 
   const site = String(body.site || "").trim() || user.site || "";
 
-  // The date the work was actually done. Lets a technician backfill a report
-  // missed during an internet outage so it lands in the right period. Accept a
-  // YYYY-MM-DD (or ISO) value, anchor to local noon to avoid timezone slippage,
-  // and never allow a future date. Defaults to now when omitted (e.g. mobile).
-  const reportDate = parseReportDate(body.reportDate);
+  // Backdating is disabled — every new report is dated to now. (The reportDate
+  // column is kept so the reporting layer keys off it uniformly.)
+  const reportDate = new Date();
 
   const data = {
     values: body.values || {},

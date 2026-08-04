@@ -32,11 +32,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
   final List<String> _supervisorEmails = [];
   String _managerEmail = '';
 
-  // The date the work was actually done. Defaults to today; a technician can
-  // backdate it to file a report missed on the day (e.g. an internet outage) so
-  // it still lands in the right period. Never a future date.
-  DateTime _reportDate = DateTime.now();
-
   // Daily / weekly / monthly forms are single-stage: one approver ("Client")
   // signs off and the report is Approved — no manager stage.
   bool get _single => _tpl != null && const ['WB01', 'WB02', 'WB03'].contains(_tpl!['code']);
@@ -69,6 +64,11 @@ class _NewReportScreenState extends State<NewReportScreen> {
       if (u.clientName != null) _client.text = u.clientName!;
       // The technician's assigned site (branch) auto-fills.
       if ((u.site ?? '').isNotEmpty) _site.text = u.site!;
+      // Auto-select the weighbridge when the technician has a single assigned
+      // unit, so client / site / weighbridge are all populated with no manual step.
+      final c = _client.text.trim().toLowerCase();
+      final mine = _weighbridges.where((w) => c.isEmpty || '${w['client'] ?? ''}'.toLowerCase() == c).toList();
+      if (mine.length == 1) _applyWeighbridge(mine.first);
     } catch (e) {
       _loadErr = e.toString();
     }
@@ -86,7 +86,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
         'weighbridgeId': _weighbridge.text.trim(),
         'clientName': _client.text.trim(),
         'site': _site.text.trim(),
-        'reportDate': _reportDate.toIso8601String().split('T').first,
         'supervisorEmails': _supervisorEmails.map((e) => e.trim()).toList(),
         'managerEmail': _managerEmail.trim(),
         'values': _values,
@@ -151,7 +150,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
       // site auto-fills; the weighbridge is picked from the dropdown.
       _field('Site / branch', _site),
       _weighbridgePicker(),
-      _reportDateField(),
 
       for (int si = 0; si < sections.length; si++) ..._section(Map<String, dynamic>.from(sections[si]), si),
 
@@ -207,6 +205,21 @@ class _NewReportScreenState extends State<NewReportScreen> {
         ]),
       );
 
+  // Adopt a registered weighbridge onto the form — set the weighbridge and fill
+  // client / site / equipment details FROM the registry, only where still empty.
+  // Callers wrap this in setState.
+  void _applyWeighbridge(Map<String, dynamic> w) {
+    _wbManual = false;
+    _weighbridge.text = '${w['label'] ?? ''}';
+    if (_client.text.trim().isEmpty && (w['client'] ?? '') != '') _client.text = '${w['client']}';
+    if (_site.text.trim().isEmpty && (w['site'] ?? '') != '') _site.text = '${w['site']}';
+    if ((w['makeModel'] ?? '') != '') _values['make'] = w['makeModel'];
+    if ((w['serialNo'] ?? '') != '') _values['serialNo'] = w['serialNo'];
+    if ((w['capacity'] ?? '') != '') _values['capacity'] = w['capacity'];
+    if ((w['deckLength'] ?? '') != '') _values['deckLength'] = w['deckLength'];
+    if (_managerEmail.isEmpty && (w['managerEmail'] ?? '') != '') _managerEmail = '${w['managerEmail']}';
+  }
+
   // Weighbridge dropdown — the client's registered weighbridges. Picking one
   // fills the weighbridge, adopts its site/branch when none is set, and pre-fills
   // make/serial/capacity + the routed Client/Manager. "Other" allows a manual
@@ -238,59 +251,13 @@ class _NewReportScreenState extends State<NewReportScreen> {
               if (v == null) return;
               if (v == '__other') { setState(() { _wbManual = true; _weighbridge.text = ''; }); return; }
               final w = list.firstWhere((x) => '${x['label']}' == v, orElse: () => {});
-              setState(() {
-                _wbManual = false;
-                _weighbridge.text = v;
-                if (_site.text.trim().isEmpty && (w['site'] ?? '') != '') _site.text = '${w['site']}';
-                if ((w['makeModel'] ?? '') != '') _values['make'] = w['makeModel'];
-                if ((w['serialNo'] ?? '') != '') _values['serialNo'] = w['serialNo'];
-                if ((w['capacity'] ?? '') != '') _values['capacity'] = w['capacity'];
-                if ((w['deckLength'] ?? '') != '') _values['deckLength'] = w['deckLength'];
-                if (_managerEmail.isEmpty && (w['managerEmail'] ?? '') != '') _managerEmail = '${w['managerEmail']}';
-              });
+              setState(() => _applyWeighbridge(w));
             },
           ),
         if (labels.isEmpty || _wbManual) ...[
           const SizedBox(height: 6),
           TextField(controller: _weighbridge, decoration: const InputDecoration(hintText: 'e.g. WB-1')),
         ],
-      ]),
-    );
-  }
-
-  // Service-date picker. Defaults to today; can be backdated but not set to the
-  // future. Mirrors the web "Date of this report / service" field.
-  Widget _reportDateField() {
-    final today = DateTime.now();
-    final isBackdated = _reportDate.year != today.year || _reportDate.month != today.month || _reportDate.day != today.day;
-    final label = '${_reportDate.year}-${_reportDate.month.toString().padLeft(2, '0')}-${_reportDate.day.toString().padLeft(2, '0')}';
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Date of this report / service', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMute)),
-        const SizedBox(height: 4),
-        OutlinedButton.icon(
-          icon: const Icon(Icons.calendar_today, size: 16),
-          label: Align(alignment: Alignment.centerLeft, child: Text(label)),
-          onPressed: () async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: _reportDate,
-              firstDate: DateTime(today.year - 2),
-              lastDate: today,
-            );
-            if (picked != null) setState(() => _reportDate = picked);
-          },
-        ),
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            isBackdated
-                ? 'Backdated — recorded for the date above.'
-                : 'Defaults to today. Backdate it to file a report you missed on the day.',
-            style: const TextStyle(color: kMute, fontSize: 11.5),
-          ),
-        ),
       ]),
     );
   }
