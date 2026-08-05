@@ -695,17 +695,28 @@ export async function buildManagementReport(user, { from, to, client, site, incl
   if (prev) prev.findingsCount = prev.findings.length;
 
   // For server-rendered exports (PDF / statement) attach the FULL itemisation of
-  // every report to its register row — every field, checklist result, reading
-  // and note — so the appendix can reproduce exactly what was captured. Left off
-  // for the polled on-screen JSON, which expands rows on demand instead.
+  // each report to its register row — every field, checklist result, reading and
+  // note — so the appendix reproduces exactly what was captured. Left off for the
+  // polled on-screen JSON, which expands rows on demand.
+  //
+  // Capped: rendering an itemised block per report is expensive in the PDF engine,
+  // so a large period (e.g. a whole company for a month) would time the request
+  // out. We attach detail to at most DETAIL_CAP reports (newest first); the rest
+  // still appear in the register table and the Excel export.
+  const DETAIL_CAP = 30;
+  let detailsShown = 0;
+  let detailsTotal = 0;
   if (includeDetails) {
+    detailsTotal = cur.register.length;
     const bySerial = new Map(reports.map((r) => [r.serial, r]));
     for (const row of cur.register) {
+      if (detailsShown >= DETAIL_CAP) break;
       const src = bySerial.get(row.serial);
       if (src) {
         const it = itemizeReport(src);
         row.details = it.blocks;
         row.filledCount = it.filledCount;
+        detailsShown += 1;
       }
     }
   }
@@ -813,6 +824,8 @@ export async function buildManagementReport(user, { from, to, client, site, incl
     siteOptions,
     site: site || null,
     siteLabel,
+    detailsShown,
+    detailsTotal,
     staff: dimensions.staff,
     weighbridgeHistory: dimensions.weighbridgeHistory,
     clients: dimensions.clients,

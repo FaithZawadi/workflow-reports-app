@@ -303,12 +303,13 @@ export function ClientStatementDocument({ data, logoSrc, clientName, periodLabel
       {register.some((r) => r.details && r.details.length) ? (
         <Page size="A4" style={s.page} wrap>
           <Header />
-          <Section title={`Detailed service record (${register.length})`} note="every check, reading & note captured" />
+          <Section title="Detailed service record" note="every check, reading & note captured" />
           <Text style={[s.lead, { marginBottom: 6 }]}>
-            The complete record of each visit this period — what was inspected, the results, measurements taken and
-            any findings — so this statement stands on its own as the evidence behind your monthly service invoice.
+            {data.detailsShown && data.detailsTotal && data.detailsShown < data.detailsTotal
+              ? `The ${data.detailsShown} most recent visits are expanded below — what was inspected, the results, measurements and findings. The remaining ${data.detailsTotal - data.detailsShown} appear in the complete service log above.`
+              : "The complete record of each visit this period — what was inspected, the results, measurements taken and any findings — so this statement stands on its own as the evidence behind your monthly service invoice."}
           </Text>
-          {register.map((r, i) => {
+          {register.filter((r) => r.details && r.details.length).map((r, i) => {
             const st = STATUS[r.status] || { label: r.status, color: MUTE };
             return (
               <View style={s.visit} key={i} wrap={false}>

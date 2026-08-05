@@ -479,16 +479,21 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         </View>
       </Page>
 
-      {/* Appendix — the full, itemised detail of every report in scope: each
-          field, checklist result, calibration reading and note as captured. */}
+      {/* Appendix — the itemised detail of each report: every field, checklist
+          result, calibration reading and note as captured. Capped for large
+          periods so the PDF renders without timing out. */}
       {Array.isArray(d.register) && d.register.some((r) => r.details && r.details.length) ? (
         <Page size="A4" style={s.page} wrap>
           <View style={s.sectionBar} wrap={false}>
             <View style={s.swatch} />
-            <Text style={s.sectionTitle}>Appendix — full report detail ({d.register.length})</Text>
+            <Text style={s.sectionTitle}>Appendix — full report detail</Text>
           </View>
-          <Text style={[s.sub, { marginBottom: 6 }]}>Every report in this period, expanded with all captured entries.</Text>
-          {d.register.map((r, i) => (
+          <Text style={[s.sub, { marginBottom: 6 }]}>
+            {d.detailsShown && d.detailsTotal && d.detailsShown < d.detailsTotal
+              ? `The ${d.detailsShown} most recent reports, expanded with all captured entries. The remaining ${d.detailsTotal - d.detailsShown} appear in the service register above and in the Excel export.`
+              : "Every report in this period, expanded with all captured entries."}
+          </Text>
+          {d.register.filter((r) => r.details && r.details.length).map((r, i) => (
             <View key={i} style={s.apxCard} wrap={false}>
               <View style={s.apxHead}>
                 <Text style={s.apxSerial}>{r.serial}</Text>
