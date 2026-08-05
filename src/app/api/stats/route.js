@@ -36,12 +36,13 @@ export async function GET() {
     .sort((a, b) => b.count - a.count);
   const totalReports = Object.values(reportsByStatus).reduce((a, b) => a + b, 0);
 
-  // --- 14-day trend (scoped) ---
+  // --- 14-day trend (scoped) — keyed to the service date so it matches the
+  // management report. ---
   const since = new Date();
   since.setDate(since.getDate() - 13);
   since.setHours(0, 0, 0, 0);
   const recentForTrend = await prisma.report
-    .findMany({ where: { AND: [where, { createdAt: { gte: since } }] }, select: { createdAt: true } })
+    .findMany({ where: { AND: [where, { reportDate: { gte: since } }] }, select: { reportDate: true, createdAt: true } })
     .catch(() => []);
   const trendMap = {};
   for (let i = 0; i < 14; i++) {
@@ -50,10 +51,20 @@ export async function GET() {
     trendMap[d.toISOString().slice(0, 10)] = 0;
   }
   recentForTrend.forEach((r) => {
-    const k = new Date(r.createdAt).toISOString().slice(0, 10);
+    const k = new Date(r.reportDate || r.createdAt).toISOString().slice(0, 10);
     if (k in trendMap) trendMap[k] += 1;
   });
   const reportsTrend = Object.entries(trendMap).map(([date, count]) => ({ date, count }));
+
+  // --- Headline quality + volume metrics (scoped) ---
+  const approved = reportsByStatus.APPROVED || 0;
+  const approvalRate = totalReports ? Math.round((approved / totalReports) * 100) : 0;
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6); weekAgo.setHours(0, 0, 0, 0);
+  const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
+  const [reportsThisWeek, reportsThisMonth] = await Promise.all([
+    prisma.report.count({ where: { AND: [where, { reportDate: { gte: weekAgo } }] } }).catch(() => 0),
+    prisma.report.count({ where: { AND: [where, { reportDate: { gte: monthStart } }] } }).catch(() => 0),
+  ]);
 
   // --- Awaiting me (supervisor/manager routing) ---
   const email = norm(user.email);
@@ -98,6 +109,12 @@ export async function GET() {
     schedulesDue = await prisma.schedule.count({ where: { active: true, nextDueAt: { lte: in7 } } }).catch(() => 0);
   }
 
+  // --- Active registered weighbridges (oversight) ---
+  let activeWeighbridges = null;
+  if (isOversight) {
+    activeWeighbridges = await prisma.weighbridge.count({ where: { active: true } }).catch(() => 0);
+  }
+
   // --- Recent activity (scoped reports) ---
   const recentReports = await prisma.report
     .findMany({ where, orderBy: { createdAt: "desc" }, take: 6, select: { serial: true, template: true, templateName: true, status: true, clientName: true, createdAt: true } })
@@ -120,6 +137,10 @@ export async function GET() {
     reportsByStatus,
     reportsByTemplate,
     reportsTrend,
+    approvalRate,
+    reportsThisWeek,
+    reportsThisMonth,
+    activeWeighbridges,
     awaitingMe,
     quotations,
     calibrationRequests,
