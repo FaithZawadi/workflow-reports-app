@@ -2,8 +2,20 @@ import { prisma } from "@/lib/db";
 import { requireUser, hashPassword } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { USER_ADMIN_ROLES, MANAGER_ASSIGNABLE_ROLES, ALL_ROLES, assignableRoles, rolesOf } from "@/lib/roles";
+import { sendMail, invitationEmail } from "@/lib/email";
+import { ROLE_LABEL } from "@/lib/theme";
+import crypto from "crypto";
 
 const rolesOfRow = (u) => (u.roles && u.roles.length ? u.roles : [u.role]);
+
+// A readable temporary password: easy to type once, still hard to guess.
+function tempPassword() {
+  const words = ["Weigh", "Scale", "Bridge", "Calib", "Metric", "Load", "Zero", "Deck", "Gauge", "Trust"];
+  const w = words[crypto.randomInt(words.length)];
+  const n = String(crypto.randomInt(1000, 9999));
+  const sym = "!@#$%".charAt(crypto.randomInt(5));
+  return `${w}${n}${sym}`;
+}
 
 export async function GET() {
   let me;
@@ -55,14 +67,17 @@ export async function POST(req) {
   const clientName = String(body.clientName || "").trim();
 
   const allowedRoles = assignableRoles(me);
-  if (!email || !name || !password || roles.length === 0 || !roles.every((r) => allowedRoles.includes(r)))
+  if (!email || !name || roles.length === 0 || !roles.every((r) => allowedRoles.includes(r)))
     return Response.json(
-      { error: "Name, email, password and at least one role you are allowed to assign are required." },
+      { error: "Name, email and at least one role you are allowed to assign are required." },
       { status: 400 }
     );
   const role = roles[0]; // primary role
-  if (password.length < 8)
+  // The account is invited with a temporary password (the admin may supply one,
+  // otherwise it's generated) and the user must change it on first sign-in.
+  if (password && password.length < 8)
     return Response.json({ error: "Password must be at least 8 characters." }, { status: 400 });
+  const temp = password && password.length >= 8 ? password : tempPassword();
 
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) return Response.json({ error: "A user with that email already exists." }, { status: 409 });
@@ -78,14 +93,23 @@ export async function POST(req) {
   }
 
   const user = await prisma.user.create({
-    data: { email, name, passwordHash: await hashPassword(password), passwordChangedAt: new Date(), role, roles, site, clientId },
+    // passwordChangedAt=null keeps the account flagged as never-rotated; the
+    // mustChangePassword gate forces the change on first sign-in.
+    data: { email, name, passwordHash: await hashPassword(temp), passwordChangedAt: null, mustChangePassword: true, role, roles, site, clientId },
   });
   await recordAudit({
     actor: me,
     action: "CREATE",
     entity: "USER",
     entityId: user.id,
-    summary: `Created ${roles.join(", ")} ${name} <${email}>`,
+    summary: `Invited ${roles.join(", ")} ${name} <${email}>`,
   });
-  return Response.json({ user: { id: user.id, email: user.email, role: user.role } });
+
+  // Email the invitation with the temporary password (best-effort). The temp
+  // password is also returned so the admin can pass it on if email is disabled.
+  const rolesLabel = roles.map((r) => ROLE_LABEL?.[r] || r).join(", ");
+  const mail = invitationEmail(email, name, temp, rolesLabel);
+  const { sent } = await sendMail(mail).catch(() => ({ sent: false }));
+
+  return Response.json({ user: { id: user.id, email: user.email, role: user.role }, tempPassword: temp, emailed: !!sent });
 }

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { COAL, GOLD, INK, MUTE, PAPER, LINE, ROLE_LABEL } from "@/lib/theme";
+import { COAL, GOLD, INK, MUTE, PAPER, LINE, PASS, ROLE_LABEL } from "@/lib/theme";
 import { assignableRoles, rolesOf } from "@/lib/roles";
 
 const rolesOfUser = (u) => (u.roles && u.roles.length ? u.roles : u.role ? [u.role] : []);
@@ -128,12 +128,13 @@ function AddUser({ roleOptions, onCreated }) {
   const [f, setF] = useState({ name: "", email: "", password: "", roles: [roleOptions[0] || "TECHNICIAN"], clientName: "", site: "", phone: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [result, setResult] = useState(null); // { email, tempPassword, emailed }
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
 
   const submit = async () => {
     setErr("");
-    if (!f.name.trim() || !f.email.trim() || !f.password) return setErr("Name, email and password are required.");
-    if (f.password.length < 8) return setErr("Password must be at least 8 characters.");
+    if (!f.name.trim() || !f.email.trim()) return setErr("Name and email are required.");
+    if (f.password && f.password.length < 8) return setErr("If you set a password it must be at least 8 characters.");
     if (!f.roles.length) return setErr("Choose at least one role.");
     setBusy(true);
     const res = await fetch("/api/users", {
@@ -142,17 +143,41 @@ function AddUser({ roleOptions, onCreated }) {
       body: JSON.stringify(f),
     });
     setBusy(false);
-    if (!res.ok) return setErr((await res.json()).error || "Could not create user.");
-    onCreated();
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) return setErr(d.error || "Could not create user.");
+    setResult({ email: f.email.trim(), tempPassword: d.tempPassword, emailed: d.emailed });
   };
+
+  // Success panel — shows the temp password and whether the invitation was emailed.
+  if (result) {
+    return (
+      <div className="card" style={{ padding: 16, marginTop: 12, borderColor: PASS }}>
+        <div style={{ fontWeight: 900, fontSize: 15, color: INK }}>✓ {result.email} invited</div>
+        <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+          {result.emailed
+            ? "An invitation email was sent with the temporary password. They'll be asked to set their own password on first sign-in."
+            : "Email is not configured, so share the temporary password below with them directly. They'll be asked to set their own password on first sign-in."}
+        </p>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
+          <span className="muted" style={{ fontSize: 12.5 }}>Temporary password</span>
+          <code style={{ fontSize: 15, fontWeight: 800, background: "#F3EFE6", padding: "6px 12px", borderRadius: 8, letterSpacing: 0.5 }}>{result.tempPassword}</code>
+          <button className="btn" style={{ fontSize: 12 }} onClick={() => navigator.clipboard?.writeText(result.tempPassword)}>Copy</button>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+          <button className="btn btn-primary" onClick={() => { setResult(null); setF({ name: "", email: "", password: "", roles: [roleOptions[0] || "TECHNICIAN"], clientName: "", site: "", phone: "" }); }}>Invite another</button>
+          <button className="btn" onClick={onCreated}>Done</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="card" style={{ padding: 16, marginTop: 12, borderColor: GOLD }}>
-      <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK, marginBottom: 10 }}>New user</div>
+      <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK, marginBottom: 10 }}>Invite user</div>
       <div className="grid md-2" style={{ gap: 8 }}>
         <L label="Full name"><input className="input" value={f.name} onChange={(e) => set("name", e.target.value)} /></L>
         <L label="Email"><input className="input" type="email" value={f.email} onChange={(e) => set("email", e.target.value)} /></L>
-        <L label="Temporary password"><input className="input" type="text" value={f.password} onChange={(e) => set("password", e.target.value)} placeholder="min 8 chars — user can change it" /></L>
+        <L label="Temporary password (optional)"><input className="input" type="text" value={f.password} onChange={(e) => set("password", e.target.value)} placeholder="leave blank to auto-generate" /></L>
         <L label="Roles (choose one or more)">
           <RolePicker options={roleOptions} value={f.roles} onChange={(v) => set("roles", v)} />
         </L>
@@ -160,9 +185,10 @@ function AddUser({ roleOptions, onCreated }) {
         <L label="Site (technicians)"><input className="input" value={f.site} onChange={(e) => set("site", e.target.value)} placeholder="e.g. Plant Gate 1" /></L>
         <L label="Phone (optional)"><input className="input" value={f.phone} onChange={(e) => set("phone", e.target.value)} /></L>
       </div>
+      <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>An invitation email is sent with a temporary password. The user must set their own password on first sign-in.</p>
       {err && <div className="err" style={{ margin: "6px 0" }}>{err}</div>}
       <button className="btn btn-primary" onClick={submit} disabled={busy} style={{ marginTop: 6 }}>
-        {busy ? "Creating…" : "Create user"}
+        {busy ? "Inviting…" : "Send invitation"}
       </button>
     </div>
   );

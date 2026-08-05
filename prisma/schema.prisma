@@ -103,6 +103,10 @@ model User {
   // days (see src/lib/passwordPolicy.js). Backfilled to the rollout date so the
   // clock starts "today" for everyone.
   passwordChangedAt DateTime?
+  // Set when a user is invited/created with a temporary password. They are made
+  // to change it on first sign-in before they can use the app. Cleared once the
+  // password is changed.
+  mustChangePassword Boolean @default(false)
   name         String
   // Primary role — kept for display, reviewer routing and backward compatibility.
   role         Role
@@ -624,4 +628,25 @@ model AuditLog {
   @@index([at])
   @@index([entity])
   @@index([actorId])
+}
+
+// Lightweight first-party analytics — page views and clicks — so we can see how
+// the system is used (visits, top pages, active users) without a third-party
+// tracker. One row per event; aggregated on the analytics dashboard.
+model VisitEvent {
+  id        String   @id @default(cuid())
+  type      String // "pageview" | "click"
+  path      String // page path, e.g. /dashboard
+  ref       String? // referrer host (external) or internal path
+  label     String? // for clicks: a short description of what was clicked
+  sessionId String // anonymous per-browser id (localStorage)
+  userId    String? // set when the visitor is signed in
+  role      String? // the signed-in user's primary role, if any
+  device    String? // "mobile" | "tablet" | "desktop"
+  createdAt DateTime @default(now())
+
+  @@index([type])
+  @@index([path])
+  @@index([sessionId])
+  @@index([createdAt])
 }

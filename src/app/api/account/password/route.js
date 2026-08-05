@@ -23,7 +23,8 @@ export async function POST(req) {
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash: await hashPassword(next), passwordChangedAt: new Date() },
+    // Clears the forced-change gate for an invited user setting their own password.
+    data: { passwordHash: await hashPassword(next), passwordChangedAt: new Date(), mustChangePassword: false },
   });
   return Response.json({ ok: true });
 }

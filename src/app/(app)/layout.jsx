@@ -25,6 +25,8 @@ export default async function AppLayout({ children }) {
     site: user.site,
     // Prompt to rotate the password every ~2 months (see passwordPolicy.js).
     passwordDue: isPasswordDue(user.passwordChangedAt),
+    // Invited users must set their own password before using the app.
+    mustChangePassword: !!user.mustChangePassword,
   };
 
   return <AppShell user={profile}>{children}</AppShell>;

@@ -86,6 +86,7 @@ export default function AppShell({ user, children }) {
         isAdmin && { href: "/clients", label: "Clients", icon: "building" },
         isAdmin && { href: "/sites", label: "Sites", icon: "pin" },
         isAdmin && { href: "/feedback", label: "Feedback", icon: "star" },
+        isAdmin && { href: "/analytics", label: "Usage analytics", icon: "chart" },
         isAdmin && { href: "/audit", label: "Audit log", icon: "audit" },
       ].filter(Boolean);
 
@@ -114,7 +115,7 @@ export default function AppShell({ user, children }) {
 
   return (
     <div className="has-tabbar app-body" style={{ minHeight: "100dvh" }}>
-      {user.passwordDue && <PasswordPrompt />}
+      {user.mustChangePassword ? <PasswordPrompt force /> : user.passwordDue && <PasswordPrompt />}
       {/* ---- Sidebar ---- */}
       <aside className={`sidebar${navOpen ? " open" : ""}${collapsed ? " collapsed" : ""}`} aria-label="Primary navigation">
         <div className="stripe" />

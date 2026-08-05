@@ -101,6 +101,37 @@ function metaRows(rows) {
     .join("")}</table>`;
 }
 
+// Invitation for a newly-created account. Carries a one-time temporary password
+// and a sign-in link; the user is made to set their own password on first login.
+export function invitationEmail(to, name, tempPassword, rolesLabel) {
+  const url = `${appUrl()}/login`;
+  const html = emailShell(
+    "You've been invited to Qalibrated Systems",
+    `<p style="margin:0 0 14px;color:#26221c;font-size:14px;">Hi ${esc(name)}, an account has been created for you on the QSL Maintenance Management System${rolesLabel ? ` as <b>${esc(rolesLabel)}</b>` : ""}. Sign in with the temporary password below — you'll be asked to set your own password straight away.</p>
+     ${metaRows([["Email", to], ["Temporary password", tempPassword]])}
+     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 4px;"><tr><td>
+       <a href="${esc(url)}" style="display:inline-block;background:#161310;color:#f5a800;text-decoration:none;font-weight:800;font-size:14px;padding:12px 24px;border-radius:8px;">Sign in &amp; set your password</a>
+     </td></tr></table>
+     <p style="margin:16px 0 0;color:#6b6355;font-size:12px;">For your security, change this temporary password as soon as you sign in. If you didn't expect this invitation, you can ignore this email.</p>`
+  );
+  return {
+    to,
+    subject: "Your Qalibrated Systems account — set your password",
+    text: `Hi ${name},
+
+An account has been created for you on the QSL Maintenance Management System${rolesLabel ? ` as ${rolesLabel}` : ""}.
+
+Sign in here: ${url}
+  Email:              ${to}
+  Temporary password: ${tempPassword}
+
+You'll be asked to set your own password as soon as you sign in. Please change this temporary password immediately.
+
+- QSL Maintenance Management System · Qalibrated Systems Limited`,
+    html,
+  };
+}
+
 export function reviewRequestEmail(report, links) {
   const html = emailShell(
     "A report needs your review",

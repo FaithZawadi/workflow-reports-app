@@ -1,0 +1,11 @@
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://reports.qalibrated.com";
+
+// Only the public pages belong in the sitemap — the rest of the app is behind
+// authentication and excluded from indexing (see robots.js).
+export default function sitemap() {
+  const now = new Date();
+  return [
+    { url: `${SITE_URL}/`, lastModified: now, changeFrequency: "monthly", priority: 1 },
+    { url: `${SITE_URL}/login`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+  ];
+}

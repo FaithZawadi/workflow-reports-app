@@ -5,7 +5,9 @@ import PasswordInput from "./PasswordInput";
 
 // Shown after login when the user's password is due for its ~2-monthly change.
 // They can change it now, or choose "Remind me later" (reappears next sign-in).
-export default function PasswordPrompt() {
+// In `force` mode (a newly-invited account) it cannot be dismissed — the user
+// must set their own password before using the app.
+export default function PasswordPrompt({ force = false }) {
   const [dismissed, setDismissed] = useState(false);
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -31,6 +33,8 @@ export default function PasswordPrompt() {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setErr(d.error || "Could not change password."); setBusy(false); return; }
+      // Forced (invited) change: reload so the app loads without the gate.
+      if (force) { window.location.reload(); return; }
       setDone(true);
     } catch {
       setErr("Network problem. Please try again.");
@@ -47,16 +51,19 @@ export default function PasswordPrompt() {
       <div className="card" style={{ width: "100%", maxWidth: 440, padding: 0, overflow: "hidden" }}>
         <div className="stripe" style={{ height: 6 }} />
         <form onSubmit={submit} style={{ padding: 22 }}>
-          <div style={{ fontSize: 22 }} aria-hidden>🔒</div>
-          <h2 style={{ margin: "6px 0 2px", fontSize: 20, fontWeight: 900, color: INK }}>Time to update your password</h2>
+          <div style={{ fontSize: 22 }} aria-hidden>{force ? "👋" : "🔒"}</div>
+          <h2 style={{ margin: "6px 0 2px", fontSize: 20, fontWeight: 900, color: INK }}>
+            {force ? "Welcome — set your password" : "Time to update your password"}
+          </h2>
           <p style={{ margin: 0, fontSize: 13.5, color: MUTE, lineHeight: 1.5 }}>
-            For security, passwords are changed every two months. Please set a new one to continue — you&apos;ll be
-            reminded again in two months.
+            {force
+              ? "Your account was created with a temporary password. Set your own password now to finish setting up and start using the system."
+              : "For security, passwords are changed every two months. Please set a new one to continue — you'll be reminded again in two months."}
           </p>
 
           <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
             <label className="field" style={{ margin: 0 }}>
-              <span className="label">Current password</span>
+              <span className="label">{force ? "Temporary password" : "Current password"}</span>
               <PasswordInput autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
             </label>
             <label className="field" style={{ margin: 0 }}>
@@ -73,11 +80,13 @@ export default function PasswordPrompt() {
 
           <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
             <button className="btn btn-primary" type="submit" disabled={busy} style={{ flex: 1 }}>
-              {busy ? "Saving…" : "Change password"}
+              {busy ? "Saving…" : force ? "Set password & continue" : "Change password"}
             </button>
-            <button className="btn" type="button" onClick={() => setDismissed(true)} style={{ fontSize: 13 }}>
-              Remind me later
-            </button>
+            {!force && (
+              <button className="btn" type="button" onClick={() => setDismissed(true)} style={{ fontSize: 13 }}>
+                Remind me later
+              </button>
+            )}
           </div>
         </form>
       </div>
