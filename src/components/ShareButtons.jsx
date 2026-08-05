@@ -3,12 +3,15 @@ import { useState } from "react";
 import { INK } from "@/lib/theme";
 
 // Email + WhatsApp share buttons (plus copy link). `url` is appended to the
-// message. Uses mailto: and wa.me so it works from any browser / phone.
-export default function ShareButtons({ subject, message, url, size = "sm" }) {
+// message. Uses mailto: and wa.me so it works from any browser / phone. When a
+// recipient `to` (email) or `phone` is supplied the message is addressed to them.
+export default function ShareButtons({ subject, message, url, to, phone, size = "sm" }) {
   const [copied, setCopied] = useState(false);
   const body = `${message || ""}${url ? `\n\n${url}` : ""}`.trim();
-  const mailto = `mailto:?subject=${encodeURIComponent(subject || "")}&body=${encodeURIComponent(body)}`;
-  const whatsapp = `https://wa.me/?text=${encodeURIComponent(body)}`;
+  const mailto = `mailto:${encodeURIComponent(to || "")}?subject=${encodeURIComponent(subject || "")}&body=${encodeURIComponent(body)}`;
+  // wa.me wants a country-coded number with no +, spaces or symbols.
+  const waNum = String(phone || "").replace(/[^\d]/g, "");
+  const whatsapp = `https://wa.me/${waNum}?text=${encodeURIComponent(body)}`;
 
   const copy = async () => {
     try {

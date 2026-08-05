@@ -12,6 +12,10 @@ const FILTERS = [
   ["REJECTED", "Rejected"],
 ];
 
+// Registry filters persist across visits until cleared or 2 minutes of inactivity.
+const FILTERS_KEY = "qsl_registry_filters";
+const INACTIVITY_MS = 2 * 60 * 1000;
+
 // A report is "recent" if filed within the last 24 hours. Shown to every role,
 // scoped to the reports they can see.
 const RECENT_MS = 24 * 60 * 60 * 1000;
@@ -52,16 +56,31 @@ export default function Registry({ profile }) {
   const [queuedNotice, setQueuedNotice] = useState(false);
 
   // Land pre-filtered when arriving from a dashboard chart (e.g. /dashboard?status=APPROVED
-  // or ?template=WB01 or ?q=...). Read once on mount.
+  // or ?template=WB01 or ?q=...). Otherwise restore the last-used filters — they
+  // persist until manually cleared or 2 minutes of inactivity elapse. Read once.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const p = new URLSearchParams(window.location.search);
-    const st = p.get("status");
-    if (st) setFilter(st);
-    const tq = p.get("q");
-    if (tq) setQ(tq);
-    const tpl = p.get("template");
-    if (tpl) setTemplate(tpl);
+    const st = p.get("status"), tq = p.get("q"), tpl = p.get("template");
+    if (st || tq || tpl) {
+      if (st) setFilter(st);
+      if (tq) setQ(tq);
+      if (tpl) setTemplate(tpl);
+      return;
+    }
+    try {
+      const saved = JSON.parse(localStorage.getItem(FILTERS_KEY) || "null");
+      if (saved && Date.now() - (saved.savedAt || 0) < INACTIVITY_MS) {
+        setFilter(saved.filter || "all");
+        setQ(saved.q || "");
+        setName(saved.name || "");
+        setFrom(saved.from || "");
+        setTo(saved.to || "");
+        setTemplate(saved.template || "");
+      } else {
+        localStorage.removeItem(FILTERS_KEY);
+      }
+    } catch { /* ignore */ }
   }, []);
 
   const load = useCallback(async () => {
@@ -86,6 +105,23 @@ export default function Registry({ profile }) {
     setTemplate("");
   };
   const anyFilter = filter !== "all" || q || name || from || to || template;
+
+  // Persist the active filters and auto-clear them after 2 minutes of inactivity
+  // (the timer restarts on every filter change). Cleared immediately when the
+  // user clears filters manually.
+  useEffect(() => {
+    try {
+      if (anyFilter) localStorage.setItem(FILTERS_KEY, JSON.stringify({ filter, q, name, from, to, template, savedAt: Date.now() }));
+      else localStorage.removeItem(FILTERS_KEY);
+    } catch { /* ignore */ }
+    if (!anyFilter) return;
+    const id = setTimeout(() => {
+      clearFilters();
+      try { localStorage.removeItem(FILTERS_KEY); } catch { /* ignore */ }
+    }, INACTIVITY_MS);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, q, name, from, to, template]);
 
   useEffect(() => {
     const t = setTimeout(load, 200);

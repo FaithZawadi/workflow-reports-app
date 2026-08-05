@@ -1,6 +1,6 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
-import { COMPANY } from "@/lib/company";
+import { COMPANY, HAS_BANK_DETAILS } from "@/lib/company";
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -48,7 +48,21 @@ const s = StyleSheet.create({
   qrText: { flex: 1 },
   qrTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4 },
   qrSub: { fontSize: 7.5, color: MUTE, marginTop: 2, lineHeight: 1.3, maxWidth: 260 },
+  pay: { marginTop: 12, padding: 8, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1" },
+  payTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4 },
+  payCell: { width: "50%", flexDirection: "row", paddingVertical: 1.5, paddingRight: 8 },
+  payK: { width: "40%", fontSize: 8, color: MUTE },
+  payV: { width: "60%", fontSize: 8, color: INK, fontFamily: "Helvetica-Bold" },
 });
+
+function PayRow({ k, v }) {
+  return (
+    <View style={s.payCell}>
+      <Text style={s.payK}>{k}</Text>
+      <Text style={s.payV}>{v}</Text>
+    </View>
+  );
+}
 
 function fmt(d, withTime) {
   if (!d) return "-";
@@ -112,8 +126,14 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
         <View style={s.row}>
           <Text style={s.key}>Email</Text>
           <Text style={s.val}>{q.contactEmail || "-"}</Text>
+          <Text style={s.key}>Phone</Text>
+          <Text style={s.val}>{q.contactPhone || "-"}</Text>
+        </View>
+        <View style={s.row}>
           <Text style={s.key}>Prepared by</Text>
           <Text style={s.val}>{q.preparedByName || "-"}</Text>
+          <Text style={s.key}>Date</Text>
+          <Text style={s.val}>{fmt(q.quotedAt || q.createdAt)}</Text>
         </View>
 
         {/* Items */}
@@ -152,6 +172,24 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
         </View>
 
         {q.amountInWords ? <Text style={s.words}>Amount in words: {q.amountInWords}</Text> : null}
+
+        {/* Payment details — how the client settles the quotation. */}
+        {HAS_BANK_DETAILS ? (
+          <View style={s.pay} wrap={false}>
+            <Text style={s.payTitle}>Payment details</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+              {COMPANY.bank.name ? <PayRow k="Bank" v={COMPANY.bank.name} /> : null}
+              {COMPANY.bank.account ? <PayRow k="Account name" v={COMPANY.bank.account} /> : null}
+              {COMPANY.bank.accountNo ? <PayRow k="Account no." v={COMPANY.bank.accountNo} /> : null}
+              {COMPANY.bank.branch ? <PayRow k="Branch" v={COMPANY.bank.branch} /> : null}
+              {COMPANY.bank.swift ? <PayRow k="SWIFT" v={COMPANY.bank.swift} /> : null}
+              {COMPANY.bank.currency ? <PayRow k="Currency" v={COMPANY.bank.currency} /> : null}
+              {COMPANY.bank.mpesaPaybill ? <PayRow k="M-Pesa paybill" v={COMPANY.bank.mpesaPaybill} /> : null}
+              {COMPANY.bank.mpesaAccount ? <PayRow k="M-Pesa account" v={COMPANY.bank.mpesaAccount} /> : null}
+              {COMPANY.pin ? <PayRow k="KRA PIN" v={COMPANY.pin} /> : null}
+            </View>
+          </View>
+        ) : null}
 
         {q.notes ? (
           <View style={s.note}>

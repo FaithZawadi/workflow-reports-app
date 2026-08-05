@@ -15,6 +15,26 @@ function canView(user, q) {
   return roles.includes("ADMIN") || canPrepareQuotes(user) || ownedByClient(user, q);
 }
 
+// DELETE — remove a quotation (e.g. clearing out test/dummy quotes). Admins and
+// the quote preparers (PM / TM) may delete.
+export async function DELETE(_req, { params }) {
+  let user;
+  try {
+    user = await requireUser();
+  } catch (res) {
+    return res;
+  }
+  if (!(rolesOf(user).includes("ADMIN") || canPrepareQuotes(user)))
+    return Response.json({ error: "Only admins or PM/TM can delete quotations." }, { status: 403 });
+
+  const q = await prisma.quotation.findUnique({ where: { id: params.id } });
+  if (!q) return Response.json({ error: "Not found." }, { status: 404 });
+
+  await prisma.quotation.delete({ where: { id: q.id } });
+  await recordAudit({ actor: user, action: "DELETE", entity: "QUOTATION", entityId: q.number, summary: `Deleted quotation ${q.number} (${q.clientName})` });
+  return Response.json({ ok: true });
+}
+
 export async function GET(_req, { params }) {
   let user;
   try {
@@ -152,10 +172,16 @@ export async function PATCH(req, { params }) {
     notes: String(body.notes || "").trim() || null,
     validUntil: body.validUntil ? new Date(body.validUntil) : q.validUntil,
   };
+  // Client contact details may be captured/updated when issuing.
+  if (body.contactEmail !== undefined) data.contactEmail = String(body.contactEmail || "").trim() || null;
+  if (body.contactPhone !== undefined) data.contactPhone = String(body.contactPhone || "").trim() || null;
+  if (body.contactPerson !== undefined) data.contactPerson = String(body.contactPerson || "").trim() || null;
   if (issue) {
     data.status = "QUOTED";
     data.preparedByName = user.name;
     data.quotedAt = new Date();
+    // Mint the shareable link now so the client can be emailed/messaged the PDF.
+    if (!q.shareToken) data.shareToken = crypto.randomBytes(18).toString("base64url");
   }
 
   const updated = await prisma.quotation.update({ where: { id: q.id }, data });
@@ -177,5 +203,14 @@ export async function PATCH(req, { params }) {
     }
   }
 
-  return Response.json({ ok: true, status: updated.status });
+  return Response.json({
+    ok: true,
+    status: updated.status,
+    shareToken: updated.shareToken || null,
+    contactEmail: updated.contactEmail || null,
+    contactPhone: updated.contactPhone || null,
+    number: updated.number,
+    grandTotal: updated.grandTotal,
+    currency: updated.currency,
+  });
 }

@@ -550,6 +550,7 @@ model Quotation {
   clientName String
   contactPerson String?
   contactEmail  String?
+  contactPhone  String?
 
   status QuotationStatus @default(REQUESTED)
 

@@ -39,10 +39,21 @@ export default function AuditLog() {
 
   return (
     <div>
-      <div style={{ marginTop: 12 }}>
-        <p className="eyebrow">Administration</p>
-        <h1 className="h1">Audit log</h1>
-        <p className="muted">Every create, update, approval and deletion across users, reports and schedules.</p>
+      <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <p className="eyebrow">Administration</p>
+          <h1 className="h1">Audit log</h1>
+          <p className="muted">Every create, update, approval and deletion across users, reports and schedules.</p>
+        </div>
+        <a
+          className="btn btn-dark"
+          href={`/api/audit/pdf?${new URLSearchParams({ ...(entity !== "all" ? { entity } : {}), ...(q.trim() ? { q: q.trim() } : {}) }).toString()}`}
+          target="_blank"
+          rel="noreferrer"
+          style={{ fontSize: 12, textDecoration: "none", whiteSpace: "nowrap" }}
+        >
+          ⬇ Download PDF
+        </a>
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "12px 0" }}>

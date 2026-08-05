@@ -26,6 +26,10 @@ export default function QuotationDetail({ id, profile }) {
   const [currency, setCurrency] = useState("KES");
   const [validUntil, setValidUntil] = useState("");
   const [notes, setNotes] = useState("");
+  // Client contact — captured/edited on the quote so it can be emailed/messaged.
+  const [contactPerson, setContactPerson] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
 
   const load = () =>
     fetch(`/api/quotations/${id}`)
@@ -41,6 +45,9 @@ export default function QuotationDetail({ id, profile }) {
         setCurrency(quote.currency || "KES");
         setValidUntil(quote.validUntil ? quote.validUntil.slice(0, 10) : "");
         setNotes(quote.notes || "");
+        setContactPerson(quote.contactPerson || "");
+        setContactEmail(quote.contactEmail || "");
+        setContactPhone(quote.contactPhone || "");
       })
       .catch(() => setErr("Could not load."));
 
@@ -58,12 +65,22 @@ export default function QuotationDetail({ id, profile }) {
     setNote("");
     const clean = items.filter((it) => String(it.description).trim());
     if (issue && clean.length === 0) return setNote("Add at least one line item before issuing.");
+    // Issuing needs the client's email so we can send it to them.
+    if (issue && !contactEmail.trim()) {
+      setNote("Add the client's email below so the quotation can be sent to them.");
+      document.getElementById("qd-client-email")?.focus();
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch(`/api/quotations/${id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ items: clean, vatRate: Number(vatRate), freight: Number(freight), currency, notes, validUntil: validUntil || null, issue }),
+        body: JSON.stringify({
+          items: clean, vatRate: Number(vatRate), freight: Number(freight), currency, notes,
+          validUntil: validUntil || null, issue,
+          contactPerson: contactPerson.trim(), contactEmail: contactEmail.trim(), contactPhone: contactPhone.trim(),
+        }),
       });
       const d = await res.json();
       if (!res.ok) {
@@ -71,8 +88,15 @@ export default function QuotationDetail({ id, profile }) {
         setBusy(false);
         return;
       }
+      // On issue, open the client's email app with the quotation link ready to send.
+      if (issue && d.shareToken && d.contactEmail) {
+        const link = `${window.location.origin}/d/${d.shareToken}`;
+        const subject = `Quotation ${d.number} — Qalibrated Systems`;
+        const body = `Dear ${contactPerson.trim() || "Sir/Madam"},\n\nPlease find our quotation ${d.number} for ${q?.clientName || "your organisation"}. Total ${d.currency} ${Number(d.grandTotal || 0).toLocaleString()}.\n\nOpen the quotation (PDF):\n${link}\n\nKind regards,\n${profile?.name || "Qalibrated Systems"}\nQalibrated Systems Limited`;
+        window.location.href = `mailto:${encodeURIComponent(d.contactEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      }
       await load();
-      setNote(issue ? "Quotation issued and emailed to the client." : "Draft saved.");
+      setNote(issue ? "Quotation issued. Your email app should open, ready to send — or use the share buttons above (Email / WhatsApp)." : "Draft saved.");
     } catch {
       setNote("Network problem — try again.");
     }
@@ -167,6 +191,20 @@ export default function QuotationDetail({ id, profile }) {
             {q.status !== "REQUESTED" && (
               <a className="btn btn-dark" href={`/api/quotations/${id}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, textDecoration: "none" }}>Download PDF</a>
             )}
+            {perm.canPrepare && (
+              <button
+                className="btn"
+                style={{ fontSize: 12, color: FAIL }}
+                onClick={async () => {
+                  if (!confirm(`Delete quotation ${q.number}? This can't be undone.`)) return;
+                  const res = await fetch(`/api/quotations/${id}`, { method: "DELETE" });
+                  if (res.ok) router.push("/quotations");
+                  else setNote((await res.json().catch(() => ({}))).error || "Could not delete.");
+                }}
+              >
+                Delete
+              </button>
+            )}
           </div>
         </div>
 
@@ -189,6 +227,8 @@ export default function QuotationDetail({ id, profile }) {
               subject={`Quotation ${q.number} — Qalibrated Systems`}
               message={`Quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}${q.validUntil ? `, valid until ${new Date(q.validUntil).toLocaleDateString()}` : ""}. Open the PDF:`}
               url={typeof window !== "undefined" ? `${window.location.origin}/d/${q.shareToken}` : ""}
+              to={q.contactEmail}
+              phone={q.contactPhone}
             />
             <div style={{ fontSize: 11, color: MUTE, marginTop: 6 }}>
               This is a private, unguessable link that opens only the quotation PDF — it doesn&apos;t expose the system.
@@ -199,6 +239,19 @@ export default function QuotationDetail({ id, profile }) {
         {/* ---- Staff editor ---- */}
         {editable ? (
           <>
+            <SectionBar>Client contact</SectionBar>
+            <div className="grid md-2">
+              <label className="field"><span className="label">Contact person</span>
+                <input className="input" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} placeholder="e.g. Jane Doe" />
+              </label>
+              <label className="field"><span className="label">Client email (needed to issue)</span>
+                <input id="qd-client-email" className="input" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="client@company.com" />
+              </label>
+              <label className="field"><span className="label">Client phone (for WhatsApp)</span>
+                <input className="input" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="e.g. +254 7XX XXX XXX" />
+              </label>
+            </div>
+
             <SectionBar>Line items</SectionBar>
             <div style={{ overflowX: "auto" }}>
               <div style={{ minWidth: 640 }}>
