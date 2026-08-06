@@ -90,8 +90,11 @@ export async function POST(req) {
       number,
       clientId,
       clientName,
-      contactPerson: String(body.contactPerson || cr?.contactPerson || user.name || "").trim() || null,
-      contactEmail: String(body.contactEmail || cr?.email || user.email || "").trim() || null,
+      // The CLIENT's contact details — do NOT fall back to the signed-in staff.
+      contactPerson: String(body.contactPerson || cr?.contactPerson || "").trim() || null,
+      contactEmail: String(body.contactEmail || cr?.email || "").trim() || null,
+      contactPhone: String(body.contactPhone || cr?.phone || cr?.contactPhone || "").trim() || null,
+      subject: String(body.subject || "").trim() || null,
       status: "REQUESTED",
       requestNote: String(body.requestNote || "").trim() || (cr ? `From calibration request ${cr.serial}` : null),
       requestedById: user.sub,

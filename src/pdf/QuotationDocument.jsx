@@ -1,6 +1,6 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
-import { COMPANY, HAS_BANK_DETAILS } from "@/lib/company";
+import { COMPANY, DEFAULT_PAYMENT_DETAILS, DEFAULT_QUOTE_TERMS } from "@/lib/company";
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -21,48 +21,48 @@ const s = StyleSheet.create({
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brand: { fontSize: 13, fontFamily: "Helvetica-Bold", color: COAL },
   brandGold: { color: GOLD },
+  tagline: { fontSize: 7, color: GOLD, fontFamily: "Helvetica-Oblique", marginTop: 1 },
   accred: { fontSize: 6.5, color: MUTE, marginTop: 2, fontFamily: "Courier" },
   contact: { fontSize: 6.5, color: MUTE, marginTop: 1 },
-  metaRight: { alignItems: "flex-end" },
-  sys: { fontSize: 6.5, color: MUTE, fontFamily: "Courier-Bold" },
-  mono: { fontSize: 8, fontFamily: "Courier", marginTop: 1 },
+  // Boxed DATE / NO / FILE NO panel, top-right (invoice style).
+  metaBox: { borderWidth: 0.8, borderColor: COAL, width: 168 },
+  metaLine: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#CFC7B6" },
+  metaK: { width: "42%", backgroundColor: "#F5EEDD", padding: 3, fontSize: 7.5, fontFamily: "Helvetica-Bold", color: COAL },
+  metaV: { width: "58%", padding: 3, fontSize: 7.5, fontFamily: "Courier" },
   rule: { borderBottomWidth: 2, borderBottomColor: COAL, marginTop: 5, marginBottom: 6 },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
-  title: { fontSize: 15, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
+  // Gold QUOTATION banner, matching the reference invoice.
+  titleBadge: { fontSize: 13, fontFamily: "Helvetica-Bold", color: COAL, backgroundColor: GOLD, paddingVertical: 3, paddingHorizontal: 12, letterSpacing: 1, textTransform: "uppercase" },
   statusBadge: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#fff", paddingVertical: 2.5, paddingHorizontal: 6, borderRadius: 2 },
   row: { flexDirection: "row" },
-  key: { backgroundColor: "#F5EEDD", fontFamily: "Helvetica-Bold", padding: 3, width: "18%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
-  val: { padding: 3, width: "32%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
+  key: { backgroundColor: "#F5EEDD", fontFamily: "Helvetica-Bold", padding: 3, width: "16%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
+  val: { padding: 3, width: "34%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
+  subjectBar: { marginTop: 8, backgroundColor: "#F5EEDD", borderLeftWidth: 3, borderLeftColor: GOLD, paddingVertical: 4, paddingHorizontal: 8 },
+  subjectLabel: { fontSize: 6.5, color: MUTE, fontFamily: "Helvetica-Bold", textTransform: "uppercase", letterSpacing: 0.6 },
+  subjectText: { fontSize: 10, fontFamily: "Helvetica-Bold", color: COAL, textTransform: "uppercase", marginTop: 1 },
   th: { backgroundColor: COAL, color: "#fff", fontSize: 8, padding: 4, fontFamily: "Helvetica-Bold", borderRightWidth: 0.5, borderColor: "#2c2720" },
   td: { fontSize: 8.5, padding: 4, borderWidth: 0.5, borderColor: "#D9D2C4" },
   totalRow: { flexDirection: "row", justifyContent: "flex-end" },
-  totalKey: { width: "24%", padding: 3, fontFamily: "Helvetica-Bold", fontSize: 8.5, backgroundColor: "#F5EEDD", borderWidth: 0.5, borderColor: "#E4DCCB", textAlign: "right" },
-  totalVal: { width: "20%", padding: 3, fontSize: 8.5, borderWidth: 0.5, borderColor: "#E4DCCB", textAlign: "right" },
+  totalKey: { width: "26%", padding: 3, fontFamily: "Helvetica-Bold", fontSize: 8.5, backgroundColor: "#F5EEDD", borderWidth: 0.5, borderColor: "#E4DCCB", textAlign: "right" },
+  totalVal: { width: "22%", padding: 3, fontSize: 8.5, borderWidth: 0.5, borderColor: "#E4DCCB", textAlign: "right" },
   words: { marginTop: 8, fontSize: 9, fontFamily: "Helvetica-Bold" },
   note: { marginTop: 10, padding: 6, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA" },
   noteText: { fontSize: 8, color: INK },
   footer: { position: "absolute", bottom: 16, left: 32, right: 32, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4, alignItems: "center" },
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
+  // Payment details + terms of sale blocks at the foot of the quotation.
+  blocks: { flexDirection: "row", marginTop: 12 },
+  pay: { flex: 1, padding: 8, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1", marginRight: 8 },
+  terms: { flex: 1, padding: 8, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1" },
+  blockTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, borderBottomWidth: 0.5, borderBottomColor: GOLD, paddingBottom: 2 },
+  payText: { fontSize: 7.8, color: INK, lineHeight: 1.5, fontFamily: "Courier" },
+  termsText: { fontSize: 7.8, color: INK, lineHeight: 1.5 },
   qrBlock: { flexDirection: "row", alignItems: "center", marginTop: 14, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: "#E4DCCB" },
   qrImg: { width: 68, height: 68, marginRight: 10 },
   qrText: { flex: 1 },
   qrTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4 },
   qrSub: { fontSize: 7.5, color: MUTE, marginTop: 2, lineHeight: 1.3, maxWidth: 260 },
-  pay: { marginTop: 12, padding: 8, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1" },
-  payTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4 },
-  payCell: { width: "50%", flexDirection: "row", paddingVertical: 1.5, paddingRight: 8 },
-  payK: { width: "40%", fontSize: 8, color: MUTE },
-  payV: { width: "60%", fontSize: 8, color: INK, fontFamily: "Helvetica-Bold" },
 });
-
-function PayRow({ k, v }) {
-  return (
-    <View style={s.payCell}>
-      <Text style={s.payK}>{k}</Text>
-      <Text style={s.payV}>{v}</Text>
-    </View>
-  );
-}
 
 function fmt(d, withTime) {
   if (!d) return "-";
@@ -84,10 +84,13 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
   const q = quotation;
   const st = STATUS[q.status] || { label: q.status, color: INK };
   const items = Array.isArray(q.items) ? q.items : [];
+  const paymentDetails = q.paymentDetails || DEFAULT_PAYMENT_DETAILS;
+  const terms = q.terms || DEFAULT_QUOTE_TERMS;
 
   return (
     <Document>
       <Page size="A4" style={s.page} wrap>
+        {/* Header — retained exactly as the app's branded identity. */}
         <View style={s.topRow}>
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             {logoSrc ? (
@@ -98,21 +101,23 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
               <Text style={s.brand}>
                 QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
               </Text>
+              {COMPANY.tagline ? <Text style={s.tagline}>{COMPANY.tagline}</Text> : null}
               <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO/IEC 17020:2012 · ILAC-MRA</Text>
-              <Text style={s.contact}>{COMPANY.address} · {COMPANY.website}</Text>
-              <Text style={s.contact}>{COMPANY.email} · {COMPANY.phone}</Text>
+              <Text style={s.contact}>{COMPANY.postal || COMPANY.address} · {COMPANY.website}</Text>
+              <Text style={s.contact}>{COMPANY.email} · {COMPANY.phone}{COMPANY.pin ? ` · PIN ${COMPANY.pin}` : ""}</Text>
             </View>
           </View>
-          <View style={s.metaRight}>
-            <Text style={s.mono}>NO: {q.number}</Text>
-            <Text style={s.mono}>DATE: {fmt(q.quotedAt || q.createdAt)}</Text>
-            {q.validUntil ? <Text style={s.mono}>VALID TO: {fmt(q.validUntil)}</Text> : null}
+          <View style={s.metaBox}>
+            <View style={s.metaLine}><Text style={s.metaK}>DATE</Text><Text style={s.metaV}>{fmt(q.quotedAt || q.createdAt)}</Text></View>
+            <View style={s.metaLine}><Text style={s.metaK}>NO.</Text><Text style={s.metaV}>{q.number}</Text></View>
+            <View style={s.metaLine}><Text style={s.metaK}>FILE NO.</Text><Text style={s.metaV}>{q.fileNo || "-"}</Text></View>
+            <View style={[s.metaLine, { borderBottomWidth: 0 }]}><Text style={s.metaK}>VALID TO</Text><Text style={s.metaV}>{q.validUntil ? fmt(q.validUntil) : "-"}</Text></View>
           </View>
         </View>
         <View style={s.rule} />
 
         <View style={s.titleRow}>
-          <Text style={s.title}>Quotation</Text>
+          <Text style={s.titleBadge}>Quotation</Text>
           <Text style={[s.statusBadge, { backgroundColor: st.color }]}>{st.label}</Text>
         </View>
 
@@ -132,39 +137,47 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
         <View style={s.row}>
           <Text style={s.key}>Prepared by</Text>
           <Text style={s.val}>{q.preparedByName || "-"}</Text>
-          <Text style={s.key}>Date</Text>
-          <Text style={s.val}>{fmt(q.quotedAt || q.createdAt)}</Text>
+          <Text style={s.key}>Currency</Text>
+          <Text style={s.val}>{q.currency || "KES"}</Text>
         </View>
+
+        {/* Subject / job — the invoice-style RE: line */}
+        {q.subject ? (
+          <View style={s.subjectBar}>
+            <Text style={s.subjectLabel}>Subject</Text>
+            <Text style={s.subjectText}>{q.subject}</Text>
+          </View>
+        ) : null}
 
         {/* Items */}
         <View style={{ marginTop: 10 }}>
           <View style={s.row}>
-            <Text style={[s.th, { width: "6%", textAlign: "center" }]}>No.</Text>
-            <Text style={[s.th, { width: "48%" }]}>Description</Text>
-            <Text style={[s.th, { width: "10%", textAlign: "right" }]}>Qty</Text>
-            <Text style={[s.th, { width: "10%", textAlign: "center" }]}>UOM</Text>
-            <Text style={[s.th, { width: "13%", textAlign: "right" }]}>Unit price</Text>
-            <Text style={[s.th, { width: "13%", textAlign: "right" }]}>Amount</Text>
+            <Text style={[s.th, { width: "6%", textAlign: "center" }]}>Item</Text>
+            <Text style={[s.th, { width: "46%" }]}>Description</Text>
+            <Text style={[s.th, { width: "9%", textAlign: "right" }]}>Qty</Text>
+            <Text style={[s.th, { width: "10%", textAlign: "center" }]}>Unit</Text>
+            <Text style={[s.th, { width: "14%", textAlign: "right" }]}>Rate</Text>
+            <Text style={[s.th, { width: "15%", textAlign: "right" }]}>Amount</Text>
           </View>
           {items.map((it, i) => (
             <View style={s.row} key={i} wrap={false}>
               <Text style={[s.td, { width: "6%", textAlign: "center" }]}>{i + 1}</Text>
-              <Text style={[s.td, { width: "48%" }]}>{it.description}</Text>
-              <Text style={[s.td, { width: "10%", textAlign: "right" }]}>{Number(it.qty || 0).toLocaleString()}</Text>
+              <Text style={[s.td, { width: "46%" }]}>{it.description}</Text>
+              <Text style={[s.td, { width: "9%", textAlign: "right" }]}>{Number(it.qty || 0).toLocaleString()}</Text>
               <Text style={[s.td, { width: "10%", textAlign: "center" }]}>{it.unit || "EA"}</Text>
-              <Text style={[s.td, { width: "13%", textAlign: "right" }]}>{money(it.unitPrice)}</Text>
-              <Text style={[s.td, { width: "13%", textAlign: "right" }]}>{money((Number(it.qty) || 0) * (Number(it.unitPrice) || 0))}</Text>
+              <Text style={[s.td, { width: "14%", textAlign: "right" }]}>{money(it.unitPrice)}</Text>
+              <Text style={[s.td, { width: "15%", textAlign: "right" }]}>{money((Number(it.qty) || 0) * (Number(it.unitPrice) || 0))}</Text>
             </View>
           ))}
         </View>
 
         {/* Totals */}
         <View style={{ marginTop: 6 }}>
-          <View style={s.totalRow}><Text style={s.totalKey}>Sub total</Text><Text style={s.totalVal}>{money(q.subtotal)}</Text></View>
+          <View style={s.totalRow}><Text style={s.totalKey}>Total</Text><Text style={s.totalVal}>{money(q.subtotal)}</Text></View>
           {Number(q.freight) > 0 ? (
             <View style={s.totalRow}><Text style={s.totalKey}>Freight</Text><Text style={s.totalVal}>{money(q.freight)}</Text></View>
           ) : null}
-          <View style={s.totalRow}><Text style={s.totalKey}>VAT ({Number(q.vatRate || 0)}%)</Text><Text style={s.totalVal}>{money(q.vatAmount)}</Text></View>
+          <View style={s.totalRow}><Text style={s.totalKey}>Add VAT ({Number(q.vatRate || 0)}%)</Text><Text style={s.totalVal}>{money(q.vatAmount)}</Text></View>
           <View style={s.totalRow}>
             <Text style={[s.totalKey, { backgroundColor: COAL, color: "#fff" }]}>Grand total, {q.currency}</Text>
             <Text style={[s.totalVal, { fontFamily: "Helvetica-Bold" }]}>{money(q.grandTotal)}</Text>
@@ -173,23 +186,17 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
 
         {q.amountInWords ? <Text style={s.words}>Amount in words: {q.amountInWords}</Text> : null}
 
-        {/* Payment details — how the client settles the quotation. */}
-        {HAS_BANK_DETAILS ? (
-          <View style={s.pay} wrap={false}>
-            <Text style={s.payTitle}>Payment details</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-              {COMPANY.bank.name ? <PayRow k="Bank" v={COMPANY.bank.name} /> : null}
-              {COMPANY.bank.account ? <PayRow k="Account name" v={COMPANY.bank.account} /> : null}
-              {COMPANY.bank.accountNo ? <PayRow k="Account no." v={COMPANY.bank.accountNo} /> : null}
-              {COMPANY.bank.branch ? <PayRow k="Branch" v={COMPANY.bank.branch} /> : null}
-              {COMPANY.bank.swift ? <PayRow k="SWIFT" v={COMPANY.bank.swift} /> : null}
-              {COMPANY.bank.currency ? <PayRow k="Currency" v={COMPANY.bank.currency} /> : null}
-              {COMPANY.bank.mpesaPaybill ? <PayRow k="M-Pesa paybill" v={COMPANY.bank.mpesaPaybill} /> : null}
-              {COMPANY.bank.mpesaAccount ? <PayRow k="M-Pesa account" v={COMPANY.bank.mpesaAccount} /> : null}
-              {COMPANY.pin ? <PayRow k="KRA PIN" v={COMPANY.pin} /> : null}
-            </View>
+        {/* Payment details + terms of sale — both editable per quotation. */}
+        <View style={s.blocks} wrap={false}>
+          <View style={s.pay}>
+            <Text style={s.blockTitle}>Payment details</Text>
+            <Text style={s.payText}>{paymentDetails}</Text>
           </View>
-        ) : null}
+          <View style={s.terms}>
+            <Text style={s.blockTitle}>Terms of sale</Text>
+            <Text style={s.termsText}>{terms}</Text>
+          </View>
+        </View>
 
         {q.notes ? (
           <View style={s.note}>
@@ -235,7 +242,7 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
       {q.lpoImage && /^data:image\//.test(q.lpoImage) ? (
         <Page size="A4" style={s.page} wrap>
           <View style={s.titleRow}>
-            <Text style={s.title}>Local Purchase Order</Text>
+            <Text style={s.titleBadge}>Local Purchase Order</Text>
             <Text style={[s.statusBadge, { backgroundColor: COAL }]}>{q.number}</Text>
           </View>
           {/* eslint-disable-next-line jsx-a11y/alt-text */}

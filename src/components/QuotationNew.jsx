@@ -12,8 +12,12 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
   const clientOnly = rolesOf(profile).length > 0 && rolesOf(profile).every((r) => r === "CLIENT");
 
   const [clientName, setClientName] = useState("");
-  const [contactPerson, setContactPerson] = useState(profile.name || "");
-  const [contactEmail, setContactEmail] = useState(profile.email || "");
+  // A client raising their own request pre-fills their own details; staff start
+  // blank and enter the CLIENT's contact details (not their own).
+  const [contactPerson, setContactPerson] = useState(clientOnly ? profile.name || "" : "");
+  const [contactEmail, setContactEmail] = useState(clientOnly ? profile.email || "" : "");
+  const [contactPhone, setContactPhone] = useState("");
+  const [subject, setSubject] = useState("");
   const [requestNote, setRequestNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -30,6 +34,8 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
           clientName: clientName.trim(),
           contactPerson: contactPerson.trim(),
           contactEmail: contactEmail.trim(),
+          contactPhone: contactPhone.trim(),
+          subject: subject.trim(),
           requestNote: requestNote.trim(),
           calibrationRequestId: calibrationRequestId || undefined,
         }),
@@ -64,13 +70,19 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
 
         <SectionBar>Details</SectionBar>
         {!clientOnly && !calibrationRequestId && (
-          <Field label="Client" value={clientName} onChange={setClientName} placeholder="e.g. Kapa Oil Refineries" />
+          <Field label="Client name (company)" value={clientName} onChange={setClientName} placeholder="e.g. Kapa Oil Refineries" />
         )}
         <div className="grid md-2">
-          <Field label="Contact person" value={contactPerson} onChange={setContactPerson} />
-          <Field label="Contact email" type="email" value={contactEmail} onChange={setContactEmail} />
+          <Field label="Client contact person" value={contactPerson} onChange={setContactPerson} placeholder="e.g. Jane Doe" />
+          <Field label="Client email" type="email" value={contactEmail} onChange={setContactEmail} placeholder="client@company.com" />
         </div>
-        <Textarea label={clientOnly ? "What would you like quoted?" : "Request note"} value={requestNote} onChange={setRequestNote} rows={4} />
+        <div className="grid md-2">
+          <Field label="Client phone" value={contactPhone} onChange={setContactPhone} placeholder="+254 7XX XXX XXX" />
+          {!clientOnly && <Field label="Subject / job" value={subject} onChange={setSubject} placeholder="e.g. Calibration & verification of weighbridge" />}
+        </div>
+        {clientOnly && (
+          <Textarea label="What would you like quoted?" value={requestNote} onChange={setRequestNote} rows={4} />
+        )}
 
         {msg && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, margin: "10px 0" }}>{msg}</div>}
         <button className="btn btn-primary" onClick={submit} disabled={busy} style={{ width: "100%", padding: 13, marginTop: 12 }}>

@@ -6,6 +6,7 @@ import { StatusBadge } from "./CalibrationRequests";
 import { QUOTE_STATUS } from "./Quotations";
 import ShareButtons from "./ShareButtons";
 import { quoteTotals, amountInWords } from "@/lib/money";
+import { DEFAULT_PAYMENT_DETAILS, DEFAULT_QUOTE_TERMS } from "@/lib/company";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
 const BLANK = { description: "", qty: 1, unit: "EA", unitPrice: 0 };
@@ -30,6 +31,12 @@ export default function QuotationDetail({ id, profile }) {
   const [contactPerson, setContactPerson] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  // Invoice-style fields — subject line, file/ref no, and the editable payment
+  // details + terms-of-sale blocks (prefilled from company defaults).
+  const [subject, setSubject] = useState("");
+  const [fileNo, setFileNo] = useState("");
+  const [paymentDetails, setPaymentDetails] = useState(DEFAULT_PAYMENT_DETAILS);
+  const [terms, setTerms] = useState(DEFAULT_QUOTE_TERMS);
 
   const load = () =>
     fetch(`/api/quotations/${id}`)
@@ -48,6 +55,10 @@ export default function QuotationDetail({ id, profile }) {
         setContactPerson(quote.contactPerson || "");
         setContactEmail(quote.contactEmail || "");
         setContactPhone(quote.contactPhone || "");
+        setSubject(quote.subject || "");
+        setFileNo(quote.fileNo || "");
+        setPaymentDetails(quote.paymentDetails || DEFAULT_PAYMENT_DETAILS);
+        setTerms(quote.terms || DEFAULT_QUOTE_TERMS);
       })
       .catch(() => setErr("Could not load."));
 
@@ -80,6 +91,7 @@ export default function QuotationDetail({ id, profile }) {
           items: clean, vatRate: Number(vatRate), freight: Number(freight), currency, notes,
           validUntil: validUntil || null, issue,
           contactPerson: contactPerson.trim(), contactEmail: contactEmail.trim(), contactPhone: contactPhone.trim(),
+          subject: subject.trim(), fileNo: fileNo.trim(), paymentDetails: paymentDetails.trim(), terms: terms.trim(),
         }),
       });
       const d = await res.json();
@@ -251,6 +263,14 @@ export default function QuotationDetail({ id, profile }) {
                 <input className="input" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="e.g. +254 7XX XXX XXX" />
               </label>
             </div>
+            <div className="grid md-2">
+              <label className="field"><span className="label">Subject / job</span>
+                <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Calibration & verification of weighbridge" />
+              </label>
+              <label className="field"><span className="label">File / reference no.</span>
+                <input className="input" value={fileNo} onChange={(e) => setFileNo(e.target.value)} placeholder="e.g. QSL/2026/014" />
+              </label>
+            </div>
 
             <SectionBar>Line items</SectionBar>
             <div style={{ overflowX: "auto" }}>
@@ -293,6 +313,18 @@ export default function QuotationDetail({ id, profile }) {
             <label className="field"><span className="label">Notes</span>
               <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </label>
+
+            <SectionBar>Payment details &amp; terms</SectionBar>
+            <div className="grid md-2">
+              <label className="field"><span className="label">Payment details (shown on the PDF)</span>
+                <textarea className="input" rows={7} style={{ fontFamily: "monospace", fontSize: 12 }} value={paymentDetails} onChange={(e) => setPaymentDetails(e.target.value)} />
+                <span className="muted" style={{ fontSize: 11 }}>Editable — one line each. Defaults to the company bank details.</span>
+              </label>
+              <label className="field"><span className="label">Terms of sale (foot of the quotation)</span>
+                <textarea className="input" rows={7} value={terms} onChange={(e) => setTerms(e.target.value)} />
+                <span className="muted" style={{ fontSize: 11 }}>Editable — shown at the bottom of the quotation.</span>
+              </label>
+            </div>
 
             <Totals totals={totals} currency={currency} vatRate={vatRate} freight={freight} words={previewWords} />
             {note && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, margin: "8px 0" }}>{note}</div>}

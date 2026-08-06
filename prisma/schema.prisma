@@ -562,6 +562,11 @@ model Quotation {
   calibrationRequestId String?
   calibrationRequest   CalibrationRequest? @relation(fields: [calibrationRequestId], references: [id], onDelete: SetNull)
 
+  // Subject line printed above the items (e.g. "Calibration & verification of
+  // weighbridge") and an optional file/job reference.
+  subject       String?
+  fileNo        String?
+
   // Line items: [{ description, qty, unit, unitPrice }]
   items         Json?
   currency      String  @default("KES")
@@ -572,6 +577,10 @@ model Quotation {
   grandTotal    Float   @default(0)
   amountInWords String?
   notes         String?
+  // Payment-details block and terms-of-sale, defaulted from company config but
+  // editable per quotation (see src/lib/company.js).
+  paymentDetails String?
+  terms         String?
   validUntil    DateTime?
 
   preparedByName String?

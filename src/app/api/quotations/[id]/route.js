@@ -176,6 +176,12 @@ export async function PATCH(req, { params }) {
   if (body.contactEmail !== undefined) data.contactEmail = String(body.contactEmail || "").trim() || null;
   if (body.contactPhone !== undefined) data.contactPhone = String(body.contactPhone || "").trim() || null;
   if (body.contactPerson !== undefined) data.contactPerson = String(body.contactPerson || "").trim() || null;
+  // Invoice-style fields: subject line, file/ref no, and the editable payment
+  // details + terms-of-sale blocks printed on the quotation PDF.
+  if (body.subject !== undefined) data.subject = String(body.subject || "").trim() || null;
+  if (body.fileNo !== undefined) data.fileNo = String(body.fileNo || "").trim() || null;
+  if (body.paymentDetails !== undefined) data.paymentDetails = String(body.paymentDetails || "").trim() || null;
+  if (body.terms !== undefined) data.terms = String(body.terms || "").trim() || null;
   if (issue) {
     data.status = "QUOTED";
     data.preparedByName = user.name;
