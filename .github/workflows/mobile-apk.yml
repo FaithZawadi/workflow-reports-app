@@ -1,0 +1,88 @@
+name: Build mobile APK
+
+# Builds a release APK for the QSL Maintenance Flutter app and uploads it as a
+# downloadable artifact — no local Flutter/Android toolchain needed.
+#
+# Run it: GitHub → Actions → "Build mobile APK" → Run workflow (pick the server
+# URL if it differs from the default). The APK appears under the run's Artifacts.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Backend server the APK talks to (baked in at build time)"
+        required: true
+        default: "https://reports.qalibrated.com"
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile-apk.yml"
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate android platform folder
+        working-directory: mobile
+        run: flutter create --platforms=android .
+
+      - name: Apply required Android permissions
+        working-directory: mobile
+        run: |
+          python3 - <<'PY'
+          import re
+          p = "android/app/src/main/AndroidManifest.xml"
+          xml = open(p, encoding="utf-8").read()
+          perms = [
+              "android.permission.INTERNET",
+              "android.permission.CAMERA",
+              "android.permission.ACCESS_FINE_LOCATION",
+          ]
+          add = "".join(f'    <uses-permission android:name="{n}"/>\n' for n in perms if n not in xml)
+          if add:
+              xml = re.sub(r"(<manifest\b[^>]*>\n)", r"\1" + add, xml, count=1)
+              open(p, "w", encoding="utf-8").write(xml)
+              print("Added:", add)
+          else:
+              print("Permissions already present.")
+          PY
+
+      - name: Install dependencies
+        working-directory: mobile
+        run: flutter pub get
+
+      - name: Stamp launcher icon + native splash
+        working-directory: mobile
+        run: |
+          dart run flutter_launcher_icons
+          dart run flutter_native_splash:create
+
+      - name: Analyze
+        working-directory: mobile
+        continue-on-error: true # report issues but don't block the APK; a real compile error still fails the build step below
+        run: flutter analyze
+
+      - name: Build release APK
+        working-directory: mobile
+        run: flutter build apk --release --dart-define=QSL_BASE_URL="${{ github.event.inputs.base_url || 'https://reports.qalibrated.com' }}"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: qsl-maintenance-apk
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
