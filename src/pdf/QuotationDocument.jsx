@@ -19,9 +19,12 @@ const STATUS = {
 const s = StyleSheet.create({
   page: { paddingTop: 26, paddingBottom: 44, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  brand: { fontSize: 13, fontFamily: "Helvetica-Bold", color: COAL },
+  brandRow: { flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 12 },
+  logo: { width: 58, height: 58, marginRight: 12, objectFit: "contain" },
+  brandText: { flex: 1 },
+  brand: { fontSize: 15, fontFamily: "Helvetica-Bold", color: COAL, marginBottom: 2 },
   brandGold: { color: GOLD },
-  tagline: { fontSize: 7, color: GOLD, fontFamily: "Helvetica-Oblique", marginTop: 1 },
+  tagline: { fontSize: 7.5, color: GOLD, fontFamily: "Helvetica-Oblique", marginBottom: 2 },
   accred: { fontSize: 6.5, color: MUTE, marginTop: 2, fontFamily: "Courier" },
   contact: { fontSize: 6.5, color: MUTE, marginTop: 1 },
   // Boxed DATE / NO / FILE NO panel, top-right (invoice style).
@@ -90,17 +93,19 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
   return (
     <Document>
       <Page size="A4" style={s.page} wrap>
-        {/* Header — retained exactly as the app's branded identity. */}
+        {/* Header — the logo already carries the "QALIBRATED SYSTEMS" wordmark,
+            so no separate brand text; the details sit neatly beside it. */}
         <View style={s.topRow}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={s.brandRow}>
             {logoSrc ? (
               // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={logoSrc} style={{ width: 34, height: 34, marginRight: 8 }} />
-            ) : null}
-            <View>
+              <Image src={logoSrc} style={s.logo} />
+            ) : (
               <Text style={s.brand}>
                 QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
               </Text>
+            )}
+            <View style={s.brandText}>
               {COMPANY.tagline ? <Text style={s.tagline}>{COMPANY.tagline}</Text> : null}
               <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO/IEC 17020:2012 · ILAC-MRA</Text>
               <Text style={s.contact}>{COMPANY.postal || COMPANY.address} · {COMPANY.website}</Text>
