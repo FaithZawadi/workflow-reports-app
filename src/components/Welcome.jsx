@@ -51,7 +51,7 @@ export default function Welcome() {
 
         <div className="welcome-cta welcome-rise" style={{ animationDelay: "1.05s" }}>
           <Link href="/login" className="welcome-enter">
-            Enter the system <span aria-hidden>→</span>
+            Login <span aria-hidden>→</span>
           </Link>
           <p className="welcome-hint">Accounts are created by your QSL administrator.</p>
         </div>
