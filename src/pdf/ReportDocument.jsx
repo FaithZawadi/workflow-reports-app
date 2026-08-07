@@ -122,9 +122,13 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
   // The service date (the date the work is FOR). For a backdated report this is
   // earlier than the creation/"generated" date shown in the header.
   const serviceDate = report.reportDate || report.createdAt;
+  // The Technical Report isn't tied to a weighbridge — show the vehicle instead.
+  const isTechReport = report.template === "TR01";
   const meta = [
     ["Client", report.clientName || "-", "Site", report.site || "-"],
-    ["Weighbridge", report.weighbridgeId || "-", "Report type", tpl?.cadence ? `${tpl.cadence} (${report.template})` : report.template],
+    isTechReport
+      ? ["Vehicle no.", data.values?.vehicleNo || "-", "Report type", tpl?.cadence ? `${tpl.cadence} (${report.template})` : report.template]
+      : ["Weighbridge", report.weighbridgeId || "-", "Report type", tpl?.cadence ? `${tpl.cadence} (${report.template})` : report.template],
     ["Completed by", report.authorName || "-", "Date", fmt(serviceDate)],
     ["Supervisor", report.supervisorEmail || "-", "Manager", report.managerEmail || "-"],
   ];
@@ -140,7 +144,8 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
     { key: "corner", label: "Corner (kg)" },
   ];
   const freeFields = Object.entries(data.values || {}).filter(
-    ([k, v]) => k !== "weighbridgeId" && v
+    // vehicleNo is shown in the meta header for the Technical Report — don't repeat it.
+    ([k, v]) => k !== "weighbridgeId" && !(isTechReport && k === "vehicleNo") && v
   );
 
   // Proper field labels (from the template) so the calibration / service sheets

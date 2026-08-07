@@ -29,6 +29,19 @@ const Map<String, Color> kStatusColor = {
   'APPROVED': kPass,
   'REJECTED': kFail,
 };
+// Quotation statuses (mirrors the web Quotations status map).
+const Map<String, String> kQuoteStatusLabel = {
+  'REQUESTED': 'Requested',
+  'QUOTED': 'Quoted',
+  'ACCEPTED': 'Accepted',
+  'DECLINED': 'Declined',
+};
+const Map<String, Color> kQuoteStatusColor = {
+  'REQUESTED': kWait,
+  'QUOTED': kCoal,
+  'ACCEPTED': kPass,
+  'DECLINED': kFail,
+};
 const Map<String, String> kRoleLabel = {
   'TECHNICIAN': 'Site Technician',
   'ENGINEER': 'QSL Engineer',

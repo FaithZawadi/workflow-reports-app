@@ -7,6 +7,7 @@ import '../widgets/common.dart';
 import '../widgets/charts.dart';
 import '../widgets/app_drawer.dart';
 import 'report_detail_screen.dart';
+import 'quotations_list_screen.dart';
 
 const _oversight = {'ADMIN', 'PROJECT_MANAGER', 'TECHNICAL_MANAGER'};
 
@@ -87,14 +88,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final recent = (d['recent'] as List?) ?? [];
     final isClient = d['isClient'] == true;
 
+    final int total = ((d['totalReports'] ?? 0) as num).toInt();
     final kpis = <Widget>[
       if ((d['awaitingMe'] ?? 0) > 0) StatTile(label: 'Awaiting you', value: '${d['awaitingMe']}', tone: kWait, icon: '⏳', sub: 'to review / approve', onTap: () => widget.onOpenReports(status: 'PENDING_SUPERVISOR')),
-      if (!isClient) StatTile(label: 'Total reports', value: '${d['totalReports'] ?? 0}', icon: '📄', onTap: () => widget.onOpenReports()),
+      if (!isClient) StatTile(label: 'Total reports', value: '$total', icon: '📄', onTap: () => widget.onOpenReports()),
       if (!isClient) StatTile(label: 'Approved', value: '${st('APPROVED')}', tone: kPass, icon: '✓', onTap: () => widget.onOpenReports(status: 'APPROVED')),
       if (!isClient) StatTile(label: 'Pending', value: '$pending', tone: kWait, icon: '•', onTap: () => widget.onOpenReports(status: 'PENDING_SUPERVISOR')),
+      // Quality + volume headline metrics (from /api/stats).
+      if (!isClient && total > 0) StatTile(label: 'Approval rate', value: '${d['approvalRate'] ?? 0}%', tone: kPass, icon: '✅', sub: 'approved of all'),
+      if (!isClient && d['reportsThisWeek'] != null) StatTile(label: 'This week', value: '${d['reportsThisWeek']}', icon: '📆', sub: 'reports filed'),
+      if (!isClient && d['reportsThisMonth'] != null) StatTile(label: 'This month', value: '${d['reportsThisMonth']}', icon: '🗓', sub: 'reports filed'),
+      if (d['activeWeighbridges'] != null) StatTile(label: 'Active weighbridges', value: '${d['activeWeighbridges']}', tone: kCoal, icon: '⚖️', sub: 'in the registry'),
       if (satisfaction != null) StatTile(label: 'Satisfaction', value: (satisfaction['average'] ?? 0) > 0 ? '${satisfaction['average']}/5' : '—', tone: const Color(0xFF8A6D00), icon: '★', sub: '${satisfaction['count']} surveys'),
       if (d['schedulesDue'] != null) StatTile(label: 'Due in 7 days', value: '${d['schedulesDue']}', tone: (d['schedulesDue'] ?? 0) > 0 ? kWait : kInk, icon: '🗓'),
-      if (quotations != null) StatTile(label: 'Quotes accepted', value: '${quotations['ACCEPTED'] ?? 0}', tone: kPass, icon: '💷'),
+      if (quotations != null) StatTile(label: 'Quotes accepted', value: '${quotations['ACCEPTED'] ?? 0}', tone: kPass, icon: '💷', onTap: () => _openQuotations()),
     ];
 
     return ListView(
@@ -142,12 +149,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
         if (_show('quotations') && quotations != null) ...[
           const SizedBox(height: 12),
-          ChartCard(title: 'Quotations', child: Donut(centerLabel: 'quotes', segments: [
-            Segment('Requested', (quotations['REQUESTED'] ?? 0) as num, kWait),
-            Segment('Quoted', (quotations['QUOTED'] ?? 0) as num, kCoal),
-            Segment('Accepted', (quotations['ACCEPTED'] ?? 0) as num, kPass),
-            Segment('Declined', (quotations['DECLINED'] ?? 0) as num, kFail),
-          ])),
+          ChartCard(
+            title: 'Quotations',
+            action: TextButton(onPressed: _openQuotations, child: const Text('Open')),
+            child: Donut(centerLabel: 'quotes', segments: [
+              Segment('Requested', (quotations['REQUESTED'] ?? 0) as num, kWait, onTap: _openQuotations),
+              Segment('Quoted', (quotations['QUOTED'] ?? 0) as num, kCoal, onTap: _openQuotations),
+              Segment('Accepted', (quotations['ACCEPTED'] ?? 0) as num, kPass, onTap: _openQuotations),
+              Segment('Declined', (quotations['DECLINED'] ?? 0) as num, kFail, onTap: _openQuotations),
+            ]),
+          ),
         ],
         if (_show('calibration') && calib != null) ...[
           const SizedBox(height: 12),
@@ -217,8 +228,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Only report links open a report detail; quotation/calibration links have no
-  // mobile detail screen yet, so those rows stay non-tappable.
+  void _openQuotations() =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const QuotationsListScreen()));
+
+  // Only report links open a report detail; calibration links have no mobile
+  // detail screen yet, so those rows stay non-tappable.
   static bool _isReport(String link) => link.startsWith('/reports/');
 
   static String _greeting() {

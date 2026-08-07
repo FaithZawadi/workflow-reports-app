@@ -345,7 +345,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
               <div><b>Form:</b> {tpl.code} — {tpl.name}</div>
               <div><b>Client:</b> {clientName || "—"}</div>
               <div><b>Site / location:</b> {site || "—"}</div>
-              <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>
+              {tpl.code !== "TR01" && <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>}
               <div><b>{singleApproval ? "Client" : "Equipment User"}{supervisorEmails.length > 1 ? "s" : ""}:</b> {supervisorEmails.join(", ") || "—"}</div>
               {!singleApproval && <div><b>Client/Manager:</b> {managerEmail}</div>}
               <div><b>Entries filled:</b> {filledCount} · <b>Photos:</b> {photos.length}</div>
@@ -391,7 +391,9 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
                   <div className="input" style={{ background: "#F5F1E8", fontWeight: 700, display: "flex", alignItems: "center" }}>{site || "—"}</div>
                 </div>
               </div>
-              <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>From your assignment. Just pick the weighbridge below.</div>
+              <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>
+                {tpl.code === "TR01" ? "From your assignment." : "From your assignment. Just pick the weighbridge below."}
+              </div>
             </>
           ) : (
             <>
@@ -424,17 +426,21 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
             </>
           )}
 
-          <div style={{ maxWidth: 460 }}>
-            <WeighbridgePicker
-              list={weighbridges.filter((w) => {
-                const c = (clientName || "").trim().toLowerCase();
-                return !c || (w.client || "").toLowerCase() === c;
-              })}
-              value={values.weighbridgeId}
-              onType={(v) => setV("weighbridgeId", v)}
-              onPick={(w) => applyWeighbridge(w)}
-            />
-          </div>
+          {/* The Technical Report is a field-service report (scales, analysers,
+              general equipment) — it is not tied to a weighbridge. */}
+          {tpl.code !== "TR01" && (
+            <div style={{ maxWidth: 460 }}>
+              <WeighbridgePicker
+                list={weighbridges.filter((w) => {
+                  const c = (clientName || "").trim().toLowerCase();
+                  return !c || (w.client || "").toLowerCase() === c;
+                })}
+                value={values.weighbridgeId}
+                onType={(v) => setV("weighbridgeId", v)}
+                onPick={(w) => applyWeighbridge(w)}
+              />
+            </div>
+          )}
 
           {tpl.sections.map((sec, si) => {
             if (sec.type === "fields")

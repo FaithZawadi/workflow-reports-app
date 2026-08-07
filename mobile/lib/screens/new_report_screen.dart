@@ -142,20 +142,22 @@ class _NewReportScreenState extends State<NewReportScreen> {
 
   Widget _form() {
     final sections = (_tpl!['sections'] as List?) ?? [];
+    // The Technical Report is a field-service report (not tied to a weighbridge).
+    final needsWeighbridge = _tpl!['code'] != 'TR01';
     return ListView(padding: const EdgeInsets.all(14), children: [
       const Text('Serial number is assigned when you submit.', style: TextStyle(color: kMute, fontSize: 12)),
-      const SectionBar('Client, site & weighbridge'),
+      SectionBar(needsWeighbridge ? 'Client, site & weighbridge' : 'Client & site'),
       // A technician files for their assigned client + site — read-only — and
       // only picks the weighbridge. Others may choose the client and site.
       if (_lockAssignment) ...[
         _readonlyField('Client (company)', _client.text),
         _readonlyField('Site / branch', _site.text),
-        const Padding(padding: EdgeInsets.only(bottom: 8), child: Text('From your assignment. Just pick the weighbridge below.', style: TextStyle(color: kMute, fontSize: 12))),
+        Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(needsWeighbridge ? 'From your assignment. Just pick the weighbridge below.' : 'From your assignment.', style: const TextStyle(color: kMute, fontSize: 12))),
       ] else ...[
         _field('Client (company)', _client),
         _field('Site / branch', _site),
       ],
-      _weighbridgePicker(),
+      if (needsWeighbridge) _weighbridgePicker(),
 
       for (int si = 0; si < sections.length; si++) ..._section(Map<String, dynamic>.from(sections[si]), si),
 

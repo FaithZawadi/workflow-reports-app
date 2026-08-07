@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../session.dart';
 import '../theme.dart';
 import 'common.dart';
+import '../screens/quotations_list_screen.dart';
 
 // The side navigation. Simple, neat and on-brand: a coal header carrying the
 // QSL mark + who is signed in, then the three primary destinations and a sign
@@ -51,6 +52,19 @@ class AppDrawer extends StatelessWidget {
           _item(context, 0, Icons.insights_outlined, Icons.insights, 'Dashboard'),
           _item(context, 1, Icons.description_outlined, Icons.description, 'Reports'),
           _item(context, 2, Icons.task_alt_outlined, Icons.task_alt, 'Tasks'),
+          // Quotations opens as its own screen (not a bottom-nav tab).
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            child: ListTile(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              leading: const Icon(Icons.request_quote_outlined, color: kMute),
+              title: const Text('Quotations', style: TextStyle(fontWeight: FontWeight.w600, color: kMute)),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const QuotationsListScreen()));
+              },
+            ),
+          ),
           _item(context, 3, Icons.account_circle_outlined, Icons.account_circle, 'Account'),
           const Spacer(),
           const Divider(height: 1, color: kLine),

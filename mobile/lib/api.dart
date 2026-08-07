@@ -110,6 +110,39 @@ class Person {
   Person.fromJson(Map<String, dynamic> j) : id = j['id'] ?? '', name = j['name'] ?? '', email = j['email'] ?? '';
 }
 
+// A quotation row in the list.
+class QuotationSummary {
+  final String id, number, clientName, status, currency;
+  final num grandTotal;
+  final String? createdAt, quotedAt, validUntil;
+  QuotationSummary.fromJson(Map<String, dynamic> j)
+      : id = j['id'] ?? '',
+        number = j['number'] ?? '',
+        clientName = j['clientName'] ?? '',
+        status = j['status'] ?? '',
+        currency = j['currency'] ?? 'KES',
+        grandTotal = (j['grandTotal'] ?? 0) as num,
+        createdAt = j['createdAt'],
+        quotedAt = j['quotedAt'],
+        validUntil = j['validUntil'];
+}
+
+// Full quotation + what the signed-in user may do with it.
+class QuotationDetailData {
+  final Map<String, dynamic> quotation;
+  final bool canPrepare, canDecide, canUploadLpo;
+  QuotationDetailData(this.quotation, this.canPrepare, this.canDecide, this.canUploadLpo);
+  factory QuotationDetailData.fromJson(Map<String, dynamic> j) {
+    final p = Map<String, dynamic>.from(j['permissions'] ?? {});
+    return QuotationDetailData(
+      Map<String, dynamic>.from(j['quotation'] ?? {}),
+      p['canPrepare'] == true,
+      p['canDecide'] == true,
+      p['canUploadLpo'] == true,
+    );
+  }
+}
+
 class ApiClient {
   String baseUrl;
   String? token;
@@ -259,5 +292,51 @@ class ApiClient {
   // Update a task's status (managers, or the task's assignee).
   Future<void> updateTaskStatus(String id, String status) async {
     _decode(await http.patch(_u('/api/tasks/$id'), headers: _headers, body: jsonEncode({'status': status})));
+  }
+
+  // ---- Quotations ----
+
+  // The quotations the signed-in user may see (role-scoped server-side).
+  Future<List<QuotationSummary>> getQuotations() async {
+    try {
+      final d = _decode(await http.get(_u('/api/quotations'), headers: _headers));
+      await LocalCache.put('quotations', d);
+      return ((d['quotations'] as List?) ?? []).map((e) => QuotationSummary.fromJson(Map<String, dynamic>.from(e))).toList();
+    } catch (e) {
+      final cached = await LocalCache.get('quotations');
+      if (cached != null) return ((cached['quotations'] as List?) ?? []).map((e) => QuotationSummary.fromJson(Map<String, dynamic>.from(e))).toList();
+      rethrow;
+    }
+  }
+
+  Future<QuotationDetailData> getQuotation(String id) async {
+    final d = _decode(await http.get(_u('/api/quotations/$id'), headers: _headers));
+    return QuotationDetailData.fromJson(Map<String, dynamic>.from(d));
+  }
+
+  // Create a quotation shell (a client raises a request; staff start one for a
+  // client). Returns the new id.
+  Future<String> createQuotation(Map<String, dynamic> payload) async {
+    final d = _decode(await http.post(_u('/api/quotations'), headers: _headers, body: jsonEncode(payload)));
+    return d['id']?.toString() ?? '';
+  }
+
+  // Prepare / issue (staff) or accept / decline (client). Returns the raw result.
+  Future<Map<String, dynamic>> patchQuotation(String id, Map<String, dynamic> payload) async {
+    final d = _decode(await http.patch(_u('/api/quotations/$id'), headers: _headers, body: jsonEncode(payload)));
+    return Map<String, dynamic>.from(d);
+  }
+
+  // The quotation as a PDF. The route is a capability URL keyed by the id, so no
+  // token is required — but we send it anyway when present.
+  Future<Uint8List> getQuotationPdf(String id) async {
+    final r = await http.get(_u('/api/quotations/$id/pdf'), headers: {if (token != null) 'authorization': 'Bearer $token'});
+    if (r.statusCode >= 200 && r.statusCode < 300) return r.bodyBytes;
+    String msg = 'Could not load the PDF (${r.statusCode}).';
+    try {
+      final b = jsonDecode(r.body);
+      if (b is Map && b['error'] != null) msg = b['error'].toString();
+    } catch (_) {}
+    throw ApiException(r.statusCode, msg);
   }
 }

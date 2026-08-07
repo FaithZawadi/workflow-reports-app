@@ -46,7 +46,8 @@ class StatTile extends StatelessWidget {
 class ChartCard extends StatelessWidget {
   final String title;
   final Widget child;
-  const ChartCard({super.key, required this.title, required this.child});
+  final Widget? action; // optional trailing control in the header (e.g. "Open")
+  const ChartCard({super.key, required this.title, required this.child, this.action});
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -54,7 +55,10 @@ class ChartCard extends StatelessWidget {
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(kRadius), boxShadow: kSoftShadow),
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-        Text(title.toUpperCase(), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: kInk, letterSpacing: 0.3)),
+        Row(children: [
+          Expanded(child: Text(title.toUpperCase(), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: kInk, letterSpacing: 0.3))),
+          if (action != null) action!,
+        ]),
         const SizedBox(height: 12),
         child,
       ]),
