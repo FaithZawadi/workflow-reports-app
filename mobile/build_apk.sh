@@ -44,13 +44,24 @@ add = "".join(
     f'    <uses-permission android:name="{n}"/>\n'
     for n in perms if n not in xml
 )
+changed = False
 if add:
     # Insert right after the opening <manifest ...> tag.
     xml = re.sub(r"(<manifest\b[^>]*>\n)", r"\1" + add, xml, count=1)
-    open(p, "w", encoding="utf-8").write(xml)
+    changed = True
     print("▶ Added missing permissions to the manifest.")
 else:
     print("▶ Manifest permissions already present.")
+
+# The server is HTTPS-only — forbid cleartext (HTTP) traffic app-wide so a
+# downgrade/MITM can't push the app onto plaintext.
+if "usesCleartextTraffic" not in xml:
+    xml = re.sub(r"(<application\b)", r'\1 android:usesCleartextTraffic="false"', xml, count=1)
+    changed = True
+    print("▶ Disabled cleartext (HTTP) traffic.")
+
+if changed:
+    open(p, "w", encoding="utf-8").write(xml)
 PY
 
 # 3) Dependencies, launcher icon and native splash.

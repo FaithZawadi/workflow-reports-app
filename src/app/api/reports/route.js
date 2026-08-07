@@ -8,6 +8,7 @@ import { sendMail, reviewRequestEmail, failureAlertEmail } from "@/lib/email";
 import { createApprovalLinks } from "@/lib/approvalToken";
 import { addCycle } from "@/lib/schedule";
 import { recordAudit } from "@/lib/audit";
+import { isValidImageUpload, MAX_IMAGE_BYTES } from "@/lib/upload";
 import { FILER_ROLES, rolesOf } from "@/lib/roles";
 import { notifyEmails, notifyUsers, oversight } from "@/lib/notify";
 
@@ -188,7 +189,15 @@ export async function POST(req) {
   const serial = await nextSerial(tpl.code);
   const authorName = user.name;
 
+  // Photos are capped at 8, and each must be a real image within the size limit
+  // — never trust the client (a direct API call could post huge or non-image
+  // blobs). Reject the whole submission with a clear message if any fail.
   const photos = Array.isArray(body.photos) ? body.photos.slice(0, 8) : [];
+  for (const p of photos) {
+    if (!isValidImageUpload(String(p?.src || p?.dataUrl || ""), MAX_IMAGE_BYTES)) {
+      return Response.json({ error: "Each photo must be an image of 5 MB or less." }, { status: 413 });
+    }
+  }
 
   const report = await prisma.report.create({
     data: {
