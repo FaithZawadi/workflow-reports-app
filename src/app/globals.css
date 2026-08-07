@@ -109,6 +109,11 @@ img { max-width: 100%; }
 .brand-link { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .brand-mark { width: 34px; height: 34px; border-radius: 6px; background: #fff; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .brand-text { font-weight: 900; font-size: 15px; letter-spacing: -.01em; color: #fff; white-space: nowrap; }
+/* Official logo used as-is on a white chip (its wordmark is dark, so it needs a
+   light backdrop on the dark sidebar). Full lockup expanded; mark when collapsed. */
+.brand-logo { display: inline-flex; align-items: center; justify-content: center; background: #fff; border-radius: 8px; padding: 7px 10px; flex-shrink: 0; }
+.brand-full { display: block; height: 30px; width: auto; }
+.brand-mini { display: none; width: 26px; height: 26px; }
 .collapse-btn { display: none; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.08); border: none; color: #d7cdb8; flex-shrink: 0; }
 .collapse-btn:hover { background: rgba(255,255,255,.16); color: #fff; }
 .collapse-btn svg { transition: transform .2s ease; }
@@ -202,9 +207,12 @@ img { max-width: 100%; }
   /* Collapsed icon rail */
   .sidebar.collapsed { width: 74px; }
   .sidebar.collapsed .brand-text,
+  .sidebar.collapsed .brand-full,
   .sidebar.collapsed .side-label,
   .sidebar.collapsed .sidebar-foot,
   .sidebar.collapsed .cta-full { display: none; }
+  .sidebar.collapsed .brand-mini { display: block; }
+  .sidebar.collapsed .brand-logo { padding: 6px; }
   .sidebar.collapsed .cta-mini { display: inline; font-size: 20px; font-weight: 900; }
   .sidebar.collapsed .sidebar-brand { flex-direction: column; gap: 10px; padding: 14px 0 10px; }
   .sidebar.collapsed .side-link { justify-content: center; padding: 11px 0; }

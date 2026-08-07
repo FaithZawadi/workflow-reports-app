@@ -58,10 +58,11 @@ export function ClientStatementDocument({ data, logoSrc, clientName, periodLabel
       <View style={{ flexDirection: "row", alignItems: "center" }}>
         {logoSrc ? (
           // eslint-disable-next-line jsx-a11y/alt-text
-          <Image src={logoSrc} style={{ width: 30, height: 30, marginRight: 8 }} />
-        ) : null}
+          <Image src={logoSrc} style={{ width: 46, height: 46, marginRight: 10, objectFit: "contain" }} />
+        ) : (
+          <Text style={[s.brand, { marginRight: 10 }]}>QALIBRATED <Text style={{ color: GOLD }}>SYSTEMS</Text></Text>
+        )}
         <View>
-          <Text style={s.brand}>QALIBRATED <Text style={{ color: GOLD }}>SYSTEMS</Text></Text>
           <Text style={s.accred}>{COMPANY.accreditation}</Text>
         </View>
       </View>

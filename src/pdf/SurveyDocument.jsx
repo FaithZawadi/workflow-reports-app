@@ -77,10 +77,11 @@ export function SurveyDocument({ feedback, logoSrc, qrSrc }) {
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             {logoSrc ? (
               // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={logoSrc} style={{ width: 34, height: 34, marginRight: 8 }} />
-            ) : null}
+              <Image src={logoSrc} style={{ width: 52, height: 52, marginRight: 10, objectFit: "contain" }} />
+            ) : (
+              <Text style={[s.brand, { marginRight: 10 }]}>QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text></Text>
+            )}
             <View>
-              <Text style={s.brand}>QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text></Text>
               <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO/IEC 17020:2012 · ILAC-MRA</Text>
               <Text style={s.contact}>{COMPANY.address} · {COMPANY.website}</Text>
               <Text style={s.contact}>{COMPANY.email} · {COMPANY.phone}</Text>

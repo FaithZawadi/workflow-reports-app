@@ -121,11 +121,14 @@ export default function AppShell({ user, children }) {
         <div className="stripe" />
         <div className="sidebar-brand">
           <Link href={homeHref} onClick={() => setNavOpen(false)} className="brand-link" style={{ textDecoration: "none", color: "#fff" }} title={COMPANY.name}>
-            <span className="brand-mark" aria-hidden>
+            <span className="brand-logo" aria-hidden>
+              {/* The official Qalibrated Systems logo, used as-is. Full lockup when
+                  expanded; the mark alone when the sidebar is collapsed. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/mark.svg" alt="" width={22} height={22} style={{ display: "block" }} />
+              <img className="brand-full" src="/brand/logo.svg" alt="Qalibrated Systems" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="brand-mini" src="/brand/mark.svg" alt="" />
             </span>
-            <span className="brand-text">QALIBRATED <b style={{ color: "var(--gold)", letterSpacing: ".08em" }}>SYSTEMS</b></span>
           </Link>
           <button className="collapse-btn" onClick={toggleCollapsed} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} title={collapsed ? "Expand" : "Collapse"}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>
