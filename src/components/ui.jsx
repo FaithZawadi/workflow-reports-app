@@ -1,38 +1,30 @@
 "use client";
-import { STATUS, GOLD, COAL, INK, MUTE } from "@/lib/theme";
+import { STATUS, GOLD, INK } from "@/lib/theme";
 
 export function Stripe() {
   return <div className="stripe" />;
 }
 
 export function Brand({ small, onDark }) {
-  const tile = small ? 34 : 44;
-  const mark = small ? 26 : 34;
+  // The official logo lockup (icon + wordmark), used as-is. Its wordmark is dark,
+  // so on dark surfaces it sits on a white pill; on light surfaces it stands alone.
+  const height = small ? 24 : 34;
+  const img = (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/brand/logo.svg" alt="Qalibrated Systems" style={{ display: "block", height, width: "auto" }} />
+  );
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      {/* The mark is black-on-light, so on dark surfaces it sits on a white tile. */}
-      <span
-        aria-hidden
-        style={{
-          width: tile,
-          height: tile,
-          borderRadius: 6,
-          background: "#fff",
-          border: onDark ? "none" : "1px solid var(--line)",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/mark.svg" alt="" width={mark} height={mark} style={{ display: "block" }} />
-      </span>
-      <span style={{ fontWeight: 900, letterSpacing: "-.01em", fontSize: small ? 15 : 18, lineHeight: 1.05 }}>
-        QALIBRATED{" "}
-        <span style={{ color: GOLD, display: small ? "inline" : "block", letterSpacing: ".08em" }}>SYSTEMS</span>
-      </span>
-    </div>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        ...(onDark
+          ? { background: "#fff", borderRadius: 8, padding: small ? "5px 9px" : "8px 12px" }
+          : {}),
+      }}
+    >
+      {img}
+    </span>
   );
 }
 
