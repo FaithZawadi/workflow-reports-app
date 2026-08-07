@@ -1,8 +1,8 @@
 // The QSL weighbridge maintenance form catalogue.
 // Codes and content mirror the printed QSL/F/WB-01..06 sheets.
 
-export const TECH_TEMPLATES = ["WB01", "WB02", "WB03", "WB07", "TR01"];
-export const ENGINEER_TEMPLATES = ["WB04", "WB05", "WB06", "WB07", "SI01", "TR01"];
+export const TECH_TEMPLATES = ["WB01", "WB02", "WB03", "TR01"];
+export const ENGINEER_TEMPLATES = ["WB04", "WB05", "WB06", "SI01", "TR01"];
 
 // Result-state sets for engineer checklists.
 const OK_ATTN_NA = [
@@ -267,6 +267,9 @@ export const TEMPLATES = [
     cadence: "Photo evidence",
     who: "Anyone",
     anyone: true,
+    // Retired as a standalone report: no longer selectable/scheduleable, but kept
+    // here so any historical WB07 records still resolve and render.
+    hidden: true,
     desc: "Attach GPS-stamped photos to any maintenance or service form (QSL/F/WB-07).",
     sections: [
       {
@@ -367,15 +370,19 @@ export function templateByCode(code) {
 export const SINGLE_APPROVAL_TEMPLATES = ["WB01", "WB02", "WB03"];
 export const isSingleApproval = (code) => SINGLE_APPROVAL_TEMPLATES.includes(code);
 
+// Templates that can be picked when filing/scheduling a new report. Retired
+// forms (hidden) stay in TEMPLATES for rendering old records but never appear
+// in a picker.
+export const SELECTABLE_TEMPLATES = TEMPLATES.filter((t) => !t.hidden);
+
 // Which forms a set of roles may file. Supervisors, managers and admins may file
 // any form. Technicians file WB01-03, engineers WB04-06; a user holding both
-// gets both. WB07 (Photo Evidence) is available to anyone. Pass an array of role
-// strings.
+// gets both. Pass an array of role strings. Retired (hidden) forms are excluded.
 const FULL_ACCESS_ROLES = ["ADMIN", "SUPERVISOR", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
 export function templatesForRoles(roles = []) {
   const held = Array.isArray(roles) ? roles : [roles];
-  if (held.some((r) => FULL_ACCESS_ROLES.includes(r))) return TEMPLATES;
-  return TEMPLATES.filter((t) => {
+  if (held.some((r) => FULL_ACCESS_ROLES.includes(r))) return SELECTABLE_TEMPLATES;
+  return SELECTABLE_TEMPLATES.filter((t) => {
     if (t.anyone) return true;
     if (held.includes("TECHNICIAN") && TECH_TEMPLATES.includes(t.code)) return true;
     if (held.includes("ENGINEER") && ENGINEER_TEMPLATES.includes(t.code)) return true;

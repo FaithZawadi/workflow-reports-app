@@ -296,11 +296,12 @@ function ScheduleForm({ profile, onCreated }) {
   // manage schedules).
   const manageable = useMemo(() => {
     const roles = rolesOf(profile);
-    if (roles.some((r) => ["ADMIN", "SUPERVISOR", "MANAGER"].includes(r))) return TEMPLATES;
+    const pickable = TEMPLATES.filter((t) => !t.hidden);
+    if (roles.some((r) => ["ADMIN", "SUPERVISOR", "MANAGER"].includes(r))) return pickable;
     const codes = new Set();
     if (roles.includes("PROJECT_MANAGER")) TECH_TEMPLATES.forEach((c) => codes.add(c));
     if (roles.includes("TECHNICAL_MANAGER")) ENGINEER_TEMPLATES.forEach((c) => codes.add(c));
-    return TEMPLATES.filter((t) => codes.has(t.code));
+    return pickable.filter((t) => codes.has(t.code));
   }, [profile]);
 
   const [template, setTemplate] = useState(manageable[0]?.code || "");
