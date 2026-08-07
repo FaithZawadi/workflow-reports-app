@@ -108,6 +108,19 @@ build number and **must increase on every store upload** (e.g. `1.1.0+2` →
 
 **Android APK** (side-load / direct install):
 
+The quickest path is the bundled script — it regenerates the platform folders,
+re-applies the manifest permissions (which `flutter create` drops), stamps the
+icon + splash, runs `flutter analyze`, and builds the release APK:
+
+```bash
+cd mobile
+./build_apk.sh                                             # default server
+QSL_BASE_URL=https://staging.example.com ./build_apk.sh   # or a staging server
+# output: build/app/outputs/flutter-apk/app-release.apk
+```
+
+Or do it by hand:
+
 ```bash
 flutter build apk --release --dart-define=QSL_BASE_URL=https://reports.qalibrated.com
 # output: build/app/outputs/flutter-apk/app-release.apk
