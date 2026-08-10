@@ -69,6 +69,28 @@ jobs:
               print("Permissions already present.")
           PY
 
+      - name: Pin Android compileSdk for every module
+        working-directory: mobile
+        # Force a consistent compileSdkVersion (and a namespace fallback) on the
+        # app and every plugin module, so no plugin trips on "compileSdkVersion
+        # is not specified" or "compiled against android-33".
+        run: |
+          cat >> android/build.gradle <<'GRADLE'
+
+          subprojects {
+              afterEvaluate { proj ->
+                  if (proj.hasProperty("android")) {
+                      proj.android {
+                          compileSdkVersion 34
+                          if (proj.android.namespace == null) {
+                              namespace proj.group.toString()
+                          }
+                      }
+                  }
+              }
+          }
+          GRADLE
+
       - name: Install dependencies
         working-directory: mobile
         run: flutter pub get
