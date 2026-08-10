@@ -40,6 +40,7 @@ const s = StyleSheet.create({
   row: { flexDirection: "row" },
   key: { backgroundColor: "#F5EEDD", fontFamily: "Helvetica-Bold", padding: 2.5, width: "17%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
   val: { padding: 2.5, width: "33%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
+  fillCell: { width: "50%", borderWidth: 0.5, borderColor: "#E4DCCB" },
   sectionBar: { flexDirection: "row", alignItems: "center", marginTop: 6, marginBottom: 3 },
   swatch: { width: 8, height: 8, backgroundColor: GOLD, marginRight: 4 },
   sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
@@ -55,6 +56,13 @@ const s = StyleSheet.create({
   narrative: { marginTop: 4 },
   narrativeLabel: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: MUTE, textTransform: "uppercase" },
   narrativeText: { fontSize: 8.5, marginTop: 1.5, lineHeight: 1.25 },
+  // Appealing narrative card: subtle paper fill + gold left accent.
+  narrCard: { marginTop: 5, paddingVertical: 5, paddingHorizontal: 8, backgroundColor: "#FBF8F1", borderLeftWidth: 2.5, borderLeftColor: GOLD, borderRadius: 2 },
+  narrLabel: { fontSize: 8, fontFamily: "Helvetica-Bold", color: COAL, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 2 },
+  narrText: { fontSize: 8.5, lineHeight: 1.3, color: INK },
+  bulletRow: { flexDirection: "row", marginTop: 1 },
+  bulletDot: { fontSize: 8.5, color: GOLD, width: 9, fontFamily: "Helvetica-Bold" },
+  bulletText: { fontSize: 8.5, flex: 1, lineHeight: 1.3, color: INK },
   sysNote: { marginTop: 10, padding: 6, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA" },
   sysNoteText: { fontSize: 8, color: INK, fontFamily: "Helvetica-Bold" },
   sysNoteSub: { fontSize: 7.5, color: MUTE, marginTop: 2 },
@@ -143,26 +151,30 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
     { key: "lc", label: lcUnitLabel },
     { key: "corner", label: "Corner (kg)" },
   ];
-  const freeFields = Object.entries(data.values || {}).filter(
-    // vehicleNo is shown in the meta header for the Technical Report — don't repeat it.
-    ([k, v]) => k !== "weighbridgeId" && !(isTechReport && k === "vehicleNo") && v
-  );
-
-  // Proper field labels (from the template) so the calibration / service sheets
-  // show "Certificate no." rather than the raw "CERTNO" key. Long narrative
-  // fields (textareas) are kept full width; short fields go in a tidy table.
+  // Proper field labels + the template's declaration order, so the report reads
+  // in the same logical sequence as the form (e.g. Fault → Findings → Correction
+  // → Result → Parts) rather than raw object-key order. Long narrative fields
+  // (textareas) are kept full width; short fields go in a tidy table.
   const fieldLabels = {};
   const longKeys = new Set();
+  const fieldOrder = {};
+  let _oi = 0;
   (tpl?.sections || []).forEach((sec) => {
-    if (sec.type === "fields") sec.fields.forEach((f) => (fieldLabels[f.k] = f.label));
-    else if (sec.type === "choices") fieldLabels[sec.k] = sec.title;
+    if (sec.type === "fields") sec.fields.forEach((f) => { fieldLabels[f.k] = f.label; fieldOrder[f.k] = _oi++; });
+    else if (sec.type === "choices") { fieldLabels[sec.k] = sec.title; fieldOrder[sec.k] = _oi++; }
     else if (sec.type === "textarea") {
       fieldLabels[sec.k] = sec.label;
       longKeys.add(sec.k);
+      fieldOrder[sec.k] = _oi++;
     }
   });
   const labelFor = (k) =>
     fieldLabels[k] || k.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase());
+
+  const freeFields = Object.entries(data.values || {})
+    // vehicleNo is shown in the meta header for the Technical Report — don't repeat it.
+    .filter(([k, v]) => k !== "weighbridgeId" && !(isTechReport && k === "vehicleNo") && v)
+    .sort((a, b) => (fieldOrder[a[0]] ?? 999) - (fieldOrder[b[0]] ?? 999));
   const detailFields = freeFields.filter(([k]) => !longKeys.has(k));
   const narrativeFields = freeFields.filter(([k]) => longKeys.has(k));
   const detailRows = [];
@@ -209,44 +221,55 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
           <Text style={[s.statusBadge, { backgroundColor: st.color }]}>{st.label}</Text>
         </View>
 
-        {/* meta */}
+        {/* Info panel — meta + key details in one continuous key/value table. */}
         <View style={s.table}>
           {meta.map((r, i) => (
-            <View style={s.row} key={i}>
+            <View style={s.row} key={`m${i}`}>
               <Text style={s.key}>{r[0]}</Text>
               <Text style={s.val}>{r[1]}</Text>
               <Text style={s.key}>{r[2]}</Text>
               <Text style={s.val}>{r[3]}</Text>
             </View>
           ))}
+          {detailRows.map((pair, ri) => (
+            <View style={s.row} key={`d${ri}`}>
+              {[0, 1].map((ci) => {
+                const cell = pair[ci];
+                // A trailing odd cell renders as a plain filler — never an empty
+                // cream label box, which looked unfinished.
+                if (!cell) return <View key={ci} style={s.fillCell} />;
+                return (
+                  <React.Fragment key={ci}>
+                    <Text style={s.key}>{labelFor(cell[0])}</Text>
+                    <Text style={s.val}>{String(cell[1])}</Text>
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          ))}
         </View>
 
-        {/* key details — tidy labelled key/value table (no raw machine keys) */}
-        {detailRows.length > 0 && (
-          <View style={s.table}>
-            {detailRows.map((pair, ri) => (
-              <View style={s.row} key={ri}>
-                {[0, 1].map((ci) => {
-                  const cell = pair[ci];
-                  return (
-                    <React.Fragment key={ci}>
-                      <Text style={s.key}>{cell ? labelFor(cell[0]) : ""}</Text>
-                      <Text style={s.val}>{cell ? String(cell[1]) : ""}</Text>
-                    </React.Fragment>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* narrative fields — full width so long text stays readable */}
-        {narrativeFields.map(([k, v]) => (
-          <View style={s.narrative} key={k} wrap={false}>
-            <Text style={s.narrativeLabel}>{labelFor(k)}</Text>
-            <Text style={s.narrativeText}>{String(v)}</Text>
-          </View>
-        ))}
+        {/* Narrative fields — clean gold-accent cards; dash/bullet lines render
+            as a tidy bulleted list. */}
+        {narrativeFields.map(([k, v]) => {
+          const lines = String(v).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+          const bulleted = lines.length > 1 && lines.every((l) => /^[-•*]/.test(l));
+          return (
+            <View style={s.narrCard} key={k} wrap={false}>
+              <Text style={s.narrLabel}>{labelFor(k)}</Text>
+              {bulleted ? (
+                lines.map((l, i) => (
+                  <View style={s.bulletRow} key={i}>
+                    <Text style={s.bulletDot}>•</Text>
+                    <Text style={s.bulletText}>{l.replace(/^[-•*]\s*/, "")}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={s.narrText}>{String(v)}</Text>
+              )}
+            </View>
+          );
+        })}
 
         {/* checklists — one result column per state (OK/ATTN/N/A, PASS/ADJ/FAIL, …) */}
         {checklistSections.map(({ sec, idx }) => {
