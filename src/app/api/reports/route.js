@@ -9,6 +9,7 @@ import { createApprovalLinks } from "@/lib/approvalToken";
 import { addCycle } from "@/lib/schedule";
 import { recordAudit } from "@/lib/audit";
 import { isValidImageUpload, MAX_IMAGE_BYTES } from "@/lib/upload";
+import { chainFor, stageRole, stageLabel } from "@/lib/approvalChain";
 import { FILER_ROLES, rolesOf } from "@/lib/roles";
 import { notifyEmails, notifyUsers, oversight } from "@/lib/notify";
 
@@ -138,6 +139,28 @@ export async function POST(req) {
   const managerEmail = String(body.managerEmail || "").trim();
   if (!single && !isEmail(managerEmail))
     return Response.json({ error: "Enter the manager's email." }, { status: 400 });
+
+  // Role-locked approval chain (e.g. Technical Report → Technical Manager then
+  // Project Manager): the assigned approvers must actually hold the required
+  // roles, so the report can only ever be signed off by the right people.
+  const chain = chainFor(tpl.code);
+  if (chain) {
+    const emails = [...supervisorEmails, managerEmail].filter(Boolean);
+    const approvers = await prisma.user.findMany({
+      where: { email: { in: emails, mode: "insensitive" }, active: true },
+      select: { email: true, role: true, roles: true },
+    });
+    const rolesByEmail = new Map(
+      approvers.map((u) => [u.email.toLowerCase(), u.roles && u.roles.length ? u.roles : [u.role]])
+    );
+    const holds = (email, role) => (rolesByEmail.get(String(email).toLowerCase()) || []).includes(role);
+    const supRole = stageRole(tpl.code, "SUPERVISOR");
+    const mgrRole = stageRole(tpl.code, "MANAGER");
+    if (!supervisorEmails.every((e) => holds(e, supRole)))
+      return Response.json({ error: `The first approver must be a ${stageLabel(tpl.code, "SUPERVISOR")}.` }, { status: 400 });
+    if (!single && !holds(managerEmail, mgrRole))
+      return Response.json({ error: `The final approver must be a ${stageLabel(tpl.code, "MANAGER")}.` }, { status: 400 });
+  }
 
   // Client/site come from the form for every role (same fields for all). If a
   // technician leaves them blank, fall back to their assigned plant/site.

@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { TECH_TEMPLATES, ENGINEER_TEMPLATES } from "./templates";
 import { rolesOf } from "./roles";
+import { stageRole } from "./approvalChain";
 
 const norm = (v) => (v || "").trim().toLowerCase();
 
@@ -97,8 +98,16 @@ export function canAct(report, user) {
   // approve on someone else's behalf.
   const email = norm(user.email);
   if (!email) return null;
+  // Role-locked chains (e.g. Technical Report → Technical Manager then Project
+  // Manager) additionally require the acting user to currently hold the stage's
+  // role — defence in depth on top of the email routing enforced at filing.
+  const holdsStageRole = (stage) => {
+    const req = stageRole(report.template, stage);
+    if (!req) return true; // template not role-locked
+    return rolesOf(user).includes(req);
+  };
   // Any of the assigned Equipment Users may act at the review stage.
-  if (pendingSup && supervisorSet(report).has(email)) return "SUPERVISOR";
-  if (pendingMgr && norm(report.managerEmail) === email) return "MANAGER";
+  if (pendingSup && supervisorSet(report).has(email) && holdsStageRole("SUPERVISOR")) return "SUPERVISOR";
+  if (pendingMgr && norm(report.managerEmail) === email && holdsStageRole("MANAGER")) return "MANAGER";
   return null;
 }

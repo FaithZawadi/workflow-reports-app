@@ -28,5 +28,8 @@ export async function GET() {
     supervisors: pick(["SUPERVISOR"]),
     managers: pick(["MANAGER"]),
     assignees: pick(["TECHNICIAN", "ENGINEER"]),
+    // Role-locked chains (e.g. the Technical Report) route to these.
+    technicalManagers: pick(["TECHNICAL_MANAGER"]),
+    projectManagers: pick(["PROJECT_MANAGER"]),
   });
 }

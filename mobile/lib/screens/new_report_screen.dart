@@ -19,6 +19,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
   String? _loadErr;
   List<Map<String, dynamic>> _templates = [];
   List<Person> _supervisors = [], _managers = [];
+  List<Person> _technicalManagers = [], _projectManagers = [];
   List<String> _clients = [];
   List<Map<String, dynamic>> _weighbridges = [];
   bool _wbManual = false; // "Other" chosen — type the weighbridge by hand
@@ -35,6 +36,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
   // Daily / weekly / monthly forms are single-stage: one approver ("Client")
   // signs off and the report is Approved — no manager stage.
   bool get _single => _tpl != null && const ['WB01', 'WB02', 'WB03'].contains(_tpl!['code']);
+  // The Technical Report is role-locked: Technical Manager then Project Manager.
+  bool get _isTR => _tpl != null && _tpl!['code'] == 'TR01';
   final Map<String, dynamic> _values = {};
   final Map<String, Map<String, dynamic>> _checks = {};
   final Map<String, dynamic> _grids = {};
@@ -58,6 +61,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
       final dir = await api.getDirectory();
       _supervisors = dir['supervisors'] ?? [];
       _managers = dir['managers'] ?? [];
+      _technicalManagers = dir['technicalManagers'] ?? [];
+      _projectManagers = dir['projectManagers'] ?? [];
       try { _clients = await api.getClients(); } catch (_) {}
       try { _weighbridges = await api.getWeighbridges(); } catch (_) {}
       final u = context.read<Session>().user!;
@@ -76,8 +81,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_supervisorEmails.any((e) => RegExp(r'\S+@\S+\.\S+').hasMatch(e))) return showError(context, _single ? "Add at least one Client." : "Add at least one Equipment User.");
-    if (!_single && !RegExp(r'\S+@\S+\.\S+').hasMatch(_managerEmail)) return showError(context, "Choose the Client/Manager's email.");
+    if (!_supervisorEmails.any((e) => RegExp(r'\S+@\S+\.\S+').hasMatch(e))) return showError(context, _isTR ? "Add the Technical Manager." : (_single ? "Add at least one Client." : "Add at least one Equipment User."));
+    if (!_single && !RegExp(r'\S+@\S+\.\S+').hasMatch(_managerEmail)) return showError(context, _isTR ? "Add the Project Manager." : "Choose the Client/Manager's email.");
     if (_client.text.trim().isEmpty) return showError(context, 'Choose the client (plant).');
     setState(() => _busy = true);
     try {
@@ -165,10 +170,16 @@ class _NewReportScreenState extends State<NewReportScreen> {
       _photosSection(),
 
       const SectionBar('Approval route'),
-      _multiReviewerPicker(_single ? 'Client(s) — approves' : 'Equipment User(s) — any one reviews', _supervisors, _supervisorEmails),
+      // The Technical Report is reviewed by a Technical Manager, then approved by
+      // a Project Manager (role-locked). Other forms use the standard route.
+      _multiReviewerPicker(
+        _isTR ? 'Technical Manager — reviews first' : (_single ? 'Client(s) — approves' : 'Equipment User(s) — any one reviews'),
+        _isTR ? _technicalManagers : _supervisors,
+        _supervisorEmails,
+      ),
       if (!_single) ...[
         const SizedBox(height: 8),
-        _reviewerPicker('Client/Manager (approves)', _managers, _managerEmail, (v) => setState(() => _managerEmail = v)),
+        _reviewerPicker(_isTR ? 'Project Manager — approves' : 'Client/Manager (approves)', _isTR ? _projectManagers : _managers, _managerEmail, (v) => setState(() => _managerEmail = v)),
       ],
       const SizedBox(height: 18),
       ElevatedButton(

@@ -1,6 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from "@react-pdf/renderer";
 import { templateByCode } from "@/lib/templates";
+import { chainFor } from "@/lib/approvalChain";
 import { COMPANY } from "@/lib/company";
 
 const GOLD = "#F5A800";
@@ -51,7 +52,7 @@ const s = StyleSheet.create({
   freeField: { fontSize: 8.5, marginVertical: 1.5 },
   photoWrap: { flexDirection: "row", flexWrap: "wrap", marginTop: 3 },
   photoCell: { width: "31.3%", margin: "1%" },
-  photoImg: { width: "100%", height: 96, objectFit: "contain", backgroundColor: "#f3eee2", borderWidth: 1, borderColor: "#999" },
+  photoImg: { width: "100%", height: 82, objectFit: "contain", backgroundColor: "#f3eee2", borderWidth: 1, borderColor: "#999" },
   photoCap: { fontSize: 6.5, marginTop: 1.5 },
   narrative: { marginTop: 4 },
   narrativeLabel: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: MUTE, textTransform: "uppercase" },
@@ -66,6 +67,8 @@ const s = StyleSheet.create({
   sysNote: { marginTop: 10, padding: 6, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA" },
   sysNoteText: { fontSize: 8, color: INK, fontFamily: "Helvetica-Bold" },
   sysNoteSub: { fontSize: 7.5, color: MUTE, marginTop: 2 },
+  footNote: { marginTop: 8, padding: 6, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA", flexDirection: "row", alignItems: "center" },
+  footQr: { width: 52, height: 52, marginLeft: 6 },
   footer: { position: "absolute", bottom: 16, left: 30, right: 30, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4, alignItems: "center" },
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
   qrBlock: { flexDirection: "row", alignItems: "center", marginTop: 14, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: "#E4DCCB" },
@@ -127,6 +130,16 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
   const data = report.data || {};
   const grids = data.grids || {};
   const st = STATUS[report.status] || { label: report.status, color: INK };
+  // Role-locked chains relabel the pending stages (e.g. "TECHNICAL MANAGER
+  // REVIEW" / "PROJECT MANAGER APPROVAL") on the status badge and info panel.
+  const chain = chainFor(report.template);
+  const stLabel = chain
+    ? report.status === "PENDING_SUPERVISOR"
+      ? chain.SUPERVISOR.short
+      : report.status === "PENDING_MANAGER"
+      ? chain.MANAGER.short
+      : st.label
+    : st.label;
   // The service date (the date the work is FOR). For a backdated report this is
   // earlier than the creation/"generated" date shown in the header.
   const serviceDate = report.reportDate || report.createdAt;
@@ -138,7 +151,12 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
       ? ["Vehicle no.", data.values?.vehicleNo || "-", "Report type", tpl?.cadence ? `${tpl.cadence} (${report.template})` : report.template]
       : ["Weighbridge", report.weighbridgeId || "-", "Report type", tpl?.cadence ? `${tpl.cadence} (${report.template})` : report.template],
     ["Completed by", report.authorName || "-", "Date", fmt(serviceDate)],
-    ["Supervisor", report.supervisorEmail || "-", "Manager", report.managerEmail || "-"],
+    [
+      isTechReport ? "Technical Manager" : "Supervisor",
+      report.supervisorEmail || "-",
+      isTechReport ? "Project Manager" : "Manager",
+      report.managerEmail || "-",
+    ],
   ];
   const checklistSections = (tpl?.sections || [])
     .map((sec, idx) => ({ sec, idx }))
@@ -218,7 +236,7 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
         {/* title left · status on the extreme right, same line */}
         <View style={s.titleRow}>
           <Text style={s.title}>{report.templateName}</Text>
-          <Text style={[s.statusBadge, { backgroundColor: st.color }]}>{st.label}</Text>
+          <Text style={[s.statusBadge, { backgroundColor: st.color }]}>{stLabel}</Text>
         </View>
 
         {/* Info panel — meta + key details in one continuous key/value table. */}
@@ -441,28 +459,21 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
           </View>
         ))}
 
-        {/* system-generated note — approvals are electronic, no physical signing */}
-        <View style={s.sysNote} wrap={false}>
-          <Text style={s.sysNoteText}>
-            System-generated document — no physical signature required.
-          </Text>
-          <Text style={s.sysNoteSub}>
-            All approvals are captured electronically by the named supervisor and manager and are
-            recorded in the approval trail above.
-          </Text>
-        </View>
-
-        {/* Scan-for-details QR — placed at the foot of the document, not the header */}
-        {qrSrc ? (
-          <View style={s.qrBlock} wrap={false}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image src={qrSrc} style={s.qrImg} />
-            <View style={s.qrText}>
-              <Text style={s.qrTitle}>Scan for details</Text>
-              <Text style={s.qrSub}>Point your phone camera at this code for a summary of this report and a link to verify it online.</Text>
-            </View>
+        {/* Electronic-signature note + scan-to-verify QR as one compact block, so
+            the QR never orphans onto a near-empty extra page. */}
+        <View style={s.footNote} wrap={false}>
+          <View style={{ flex: 1, paddingRight: 8 }}>
+            <Text style={s.sysNoteText}>System-generated document — no physical signature required.</Text>
+            <Text style={s.sysNoteSub}>
+              All approvals are captured electronically by the named approvers and recorded in the approval trail above.
+              {qrSrc ? " Scan the code to verify this report online." : ""}
+            </Text>
           </View>
-        ) : null}
+          {qrSrc ? (
+            // eslint-disable-next-line jsx-a11y/alt-text
+            <Image src={qrSrc} style={s.footQr} />
+          ) : null}
+        </View>
 
         {/* Footer carries only the document identity + page number — the company
             contact block lives in the header and is not repeated here. */}

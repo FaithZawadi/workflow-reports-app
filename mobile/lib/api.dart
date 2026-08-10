@@ -235,7 +235,12 @@ class ApiClient {
   Future<Map<String, List<Person>>> getDirectory() async {
     final d = _decode(await http.get(_u('/api/users/directory'), headers: _headers));
     List<Person> pick(String k) => ((d[k] as List?) ?? []).map((e) => Person.fromJson(Map<String, dynamic>.from(e))).toList();
-    return {'supervisors': pick('supervisors'), 'managers': pick('managers')};
+    return {
+      'supervisors': pick('supervisors'),
+      'managers': pick('managers'),
+      'technicalManagers': pick('technicalManagers'),
+      'projectManagers': pick('projectManagers'),
+    };
   }
 
   Future<List<String>> getClients() async {

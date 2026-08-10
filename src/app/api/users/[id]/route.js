@@ -3,6 +3,39 @@ import { requireUser, hashPassword } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { USER_ADMIN_ROLES, assignableRoles, canActOnUserRole } from "@/lib/roles";
 
+// DELETE /api/users/[id] — permanently remove a user. Deliberately narrow: only
+// an administrator, never your own account, and only when the user has filed no
+// reports — so a real person's audit trail is never broken. It's meant for
+// clearing out test accounts; anyone with history should be Deactivated instead.
+export async function DELETE(_req, { params }) {
+  let admin;
+  try {
+    admin = await requireUser(["ADMIN"]);
+  } catch (res) {
+    return res;
+  }
+  if (params.id === admin.sub)
+    return Response.json({ error: "You can't delete your own account." }, { status: 400 });
+
+  const target = await prisma.user.findUnique({ where: { id: params.id } });
+  if (!target) return Response.json({ error: "User not found." }, { status: 404 });
+
+  const reportCount = await prisma.report.count({ where: { authorId: params.id } });
+  if (reportCount > 0)
+    return Response.json(
+      { error: `This user has filed ${reportCount} report(s). Deactivate them instead so the audit trail stays intact.` },
+      { status: 400 }
+    );
+
+  try {
+    await prisma.user.delete({ where: { id: params.id } });
+  } catch {
+    return Response.json({ error: "This user still has linked records — deactivate them instead." }, { status: 409 });
+  }
+  await recordAudit({ actor: admin, action: "DELETE", entity: "USER", entityId: target.email, summary: `Deleted user ${target.name} (${target.email})` });
+  return Response.json({ ok: true });
+}
+
 const rolesOfRow = (u) => (u && u.roles && u.roles.length ? u.roles : u ? [u.role] : []);
 
 // PATCH /api/users/[id] — edit a user: role, active, name, site, phone, client,

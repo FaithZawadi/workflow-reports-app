@@ -115,7 +115,7 @@ export default function UsersAdmin({ profile }) {
                 {editing === u.id ? "Cancel" : "Manage"}
               </button>
             </div>
-            {editing === u.id && <EditUser user={u} roleOptions={roleOptions} allWbs={allWbs} isSelf={u.id === profile.id} onSaved={() => { setEditing(null); load(); }} />}
+            {editing === u.id && <EditUser user={u} roleOptions={roleOptions} allWbs={allWbs} isSelf={u.id === profile.id} isAdmin={isAdmin} onSaved={() => { setEditing(null); load(); }} />}
           </div>
         ))}
         {users && shown.length === 0 && <div className="muted">No users match.</div>}
@@ -194,7 +194,7 @@ function AddUser({ roleOptions, onCreated }) {
   );
 }
 
-function EditUser({ user, roleOptions, allWbs = [], isSelf, onSaved }) {
+function EditUser({ user, roleOptions, allWbs = [], isSelf, isAdmin, onSaved }) {
   const [roles, setRoles] = useState(rolesOfUser(user));
   const [site, setSite] = useState(user.site || "");
   const [clientName, setClientName] = useState(user.client || "");
@@ -230,6 +230,17 @@ function EditUser({ user, roleOptions, allWbs = [], isSelf, onSaved }) {
   };
   const toggleActive = async () => {
     if (await patch({ active: !user.active })) onSaved();
+  };
+  // Permanently remove a test user (admin only; the API blocks deletion of anyone
+  // who has filed reports).
+  const del = async () => {
+    if (!confirm(`Delete ${user.name} (${user.email})? This permanently removes the account and can't be undone.`)) return;
+    setBusy(true);
+    setErr("");
+    const res = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
+    setBusy(false);
+    if (!res.ok) { setErr((await res.json().catch(() => ({}))).error || "Could not delete."); return; }
+    onSaved();
   };
 
   return (
@@ -272,6 +283,11 @@ function EditUser({ user, roleOptions, allWbs = [], isSelf, onSaved }) {
         {!isSelf && (
           <button className="btn" style={{ fontSize: 13, color: user.active ? "#B03A2E" : "#2E7D46" }} disabled={busy} onClick={toggleActive}>
             {user.active ? "Deactivate" : "Reactivate"}
+          </button>
+        )}
+        {isAdmin && !isSelf && (
+          <button className="btn" style={{ fontSize: 13, color: "#B03A2E", marginLeft: "auto" }} disabled={busy} onClick={del} title="Permanently remove (test users only)">
+            Delete
           </button>
         )}
       </div>

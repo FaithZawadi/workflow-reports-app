@@ -5,6 +5,7 @@ import { PaperCard, SectionBar, Field, Textarea } from "./ui";
 import CheckItem, { CheckHeader, CHECK_TABLE_MINWIDTH, defaultStates } from "./CheckItem";
 import Photos from "./Photos";
 import { templatesForRoles, templateByCode, isSingleApproval } from "@/lib/templates";
+import { chainFor } from "@/lib/approvalChain";
 import { rolesOf } from "@/lib/roles";
 import { enqueueReport } from "@/lib/outbox";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
@@ -47,6 +48,8 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const [sites, setSites] = useState([]);
   const [supervisors, setSupervisors] = useState([]);
   const [managers, setManagers] = useState([]);
+  const [technicalManagers, setTechnicalManagers] = useState([]);
+  const [projectManagers, setProjectManagers] = useState([]);
   const [clientName, setClientName] = useState(edit ? edit.clientName || "" : profile.clientName || prefill.client || "");
   const [site, setSite] = useState(edit ? edit.site || "" : profile.site || prefill.site || "");
   const [supervisorEmails, setSupervisorEmails] = useState(
@@ -65,8 +68,11 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const review = () => {
     setMsg("");
     const single = tpl ? isSingleApproval(tpl.code) : false;
-    if (!supervisorEmails.some((e) => /\S+@\S+\.\S+/.test(e))) return setMsg(single ? "Add at least one Client." : "Add at least one Equipment User.");
-    if (!single && !/\S+@\S+\.\S+/.test(managerEmail)) return setMsg("Enter the Client/Manager's email.");
+    const ch = tpl ? chainFor(tpl.code) : null;
+    if (!supervisorEmails.some((e) => /\S+@\S+\.\S+/.test(e)))
+      return setMsg(ch ? `Add the ${ch.SUPERVISOR.label}.` : single ? "Add at least one Client." : "Add at least one Equipment User.");
+    if (!single && !/\S+@\S+\.\S+/.test(managerEmail))
+      return setMsg(ch ? `Add the ${ch.MANAGER.label}.` : "Enter the Client/Manager's email.");
     if (!clientName.trim()) return setMsg("Choose the client (plant).");
     setConfirming(true);
   };
@@ -81,6 +87,8 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       .then((d) => {
         setSupervisors(d.supervisors || []);
         setManagers(d.managers || []);
+        setTechnicalManagers(d.technicalManagers || []);
+        setProjectManagers(d.projectManagers || []);
       })
       .catch(() => {});
     fetch("/api/weighbridges")
@@ -281,11 +289,20 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   }
 
   const singleApproval = tpl ? isSingleApproval(tpl.code) : false;
+  // Role-locked chains (e.g. Technical Report → Technical Manager then Project
+  // Manager) relabel the two stages and route them to those role holders.
+  const chain = tpl ? chainFor(tpl.code) : null;
+  const stage1Label = chain ? `${chain.SUPERVISOR.label} — reviews first` : singleApproval ? "Client(s) — approves" : "Equipment User(s) — reviews first";
+  const stage2Label = chain ? `${chain.MANAGER.label} — approves` : "Client/Manager (approves after review)";
+  const stage1People = chain ? technicalManagers : supervisors;
+  const stage2People = chain ? projectManagers : managers;
   const approvalPanel = (
     <div className="card" style={{ borderColor: GOLD, padding: 16 }}>
       <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK }}>Approval route</div>
       <div className="muted" style={{ margin: "4px 0 12px" }}>
-        {singleApproval
+        {chain
+          ? `You → ${chain.SUPERVISOR.label} reviews → ${chain.MANAGER.label} approves. Each is emailed automatically.`
+          : singleApproval
           ? "You → Client approves. The Client is emailed automatically; their approval completes the report."
           : "You → Equipment User reviews → Client/Manager approves. Each is emailed automatically."}
       </div>
@@ -295,19 +312,22 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
         {site ? " - " + site : ""}
       </div>
       <MultiReviewerPicker
-        label={singleApproval ? "Client(s) — approves" : "Equipment User(s) — reviews first"}
-        people={supervisors}
+        label={stage1Label}
+        people={stage1People}
         value={supervisorEmails}
         onChange={setSupervisorEmails}
-        placeholder={singleApproval ? "client@company.com" : "equipment.user@company.com"}
+        placeholder={chain ? "technical.manager@qalibrated.com" : singleApproval ? "client@company.com" : "equipment.user@company.com"}
       />
+      {chain && stage1People.length === 0 && (
+        <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No {chain.SUPERVISOR.label} is registered yet — an admin can assign the role in Users.</div>
+      )}
       {!singleApproval && (
         <ReviewerPicker
-          label="Client/Manager (approves after review)"
-          people={managers}
+          label={stage2Label}
+          people={stage2People}
           value={managerEmail}
           onChange={setManagerEmail}
-          placeholder="client.manager@company.com"
+          placeholder={chain ? "project.manager@qalibrated.com" : "client.manager@company.com"}
         />
       )}
       {msg && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, margin: "8px 0" }}>{msg}</div>}
@@ -346,8 +366,8 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
               <div><b>Client:</b> {clientName || "—"}</div>
               <div><b>Site / location:</b> {site || "—"}</div>
               {tpl.code !== "TR01" && <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>}
-              <div><b>{singleApproval ? "Client" : "Equipment User"}{supervisorEmails.length > 1 ? "s" : ""}:</b> {supervisorEmails.join(", ") || "—"}</div>
-              {!singleApproval && <div><b>Client/Manager:</b> {managerEmail}</div>}
+              <div><b>{chain ? chain.SUPERVISOR.label : singleApproval ? "Client" : "Equipment User"}{supervisorEmails.length > 1 ? "s" : ""}:</b> {supervisorEmails.join(", ") || "—"}</div>
+              {!singleApproval && <div><b>{chain ? chain.MANAGER.label : "Client/Manager"}:</b> {managerEmail}</div>}
               <div><b>Entries filled:</b> {filledCount} · <b>Photos:</b> {photos.length}</div>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
