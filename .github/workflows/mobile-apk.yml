@@ -34,6 +34,11 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          # Pin to a stable Flutter whose Android toolchain matches the pinned
+          # plugin versions (share_plus 7.x etc.). The very latest stable pulls
+          # androidx.annotation-experimental 1.4.0, which demands compileSdk 34+
+          # and breaks the build against those plugins.
+          flutter-version: "3.24.5"
           cache: true
 
       - name: Generate platform folders
