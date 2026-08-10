@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { isClient, canPrepareQuotes, rolesOf } from "@/lib/roles";
+import { isClient, canPrepareQuotes, rolesOf, isTechnician } from "@/lib/roles";
 import QuotationNew from "@/components/QuotationNew";
 
 export const metadata = { title: "New quotation · QSL" };
@@ -8,7 +8,7 @@ export const metadata = { title: "New quotation · QSL" };
 export default async function NewQuotationPage({ searchParams }) {
   const claims = await getCurrentUser();
   if (!claims) redirect("/login");
-  const allowed = isClient(claims) || canPrepareQuotes(claims) || rolesOf(claims).includes("ADMIN");
+  const allowed = isClient(claims) || canPrepareQuotes(claims) || rolesOf(claims).includes("ADMIN") || isTechnician(claims);
   if (!allowed) redirect("/dashboard");
   return (
     <QuotationNew

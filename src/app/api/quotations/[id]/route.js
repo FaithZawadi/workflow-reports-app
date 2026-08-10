@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
-import { rolesOf, canPrepareQuotes, isClient } from "@/lib/roles";
+import { rolesOf, canPrepareQuotes, isClient, isTechnician } from "@/lib/roles";
 import { amountInWords, quoteTotals } from "@/lib/money";
 import { sendMail, quoteIssuedEmail, quoteDecisionEmail } from "@/lib/email";
 import { notifyEmails, notifyUsers } from "@/lib/notify";
@@ -10,9 +10,19 @@ import { notifyEmails, notifyUsers } from "@/lib/notify";
 function ownedByClient(user, q) {
   return isClient(user) && (q.requestedById === user.sub || (user.clientId && q.clientId === user.clientId));
 }
+// A Site Technician owns the quotations they created — they may view and prepare
+// only those, never anyone else's.
+function ownedByTech(user, q) {
+  return isTechnician(user) && q.requestedById === user.sub;
+}
+// Whoever may fully prepare/issue this quote: PM/TM/admin (any), or the Site
+// Technician who created it.
+function canPrepareThis(user, q) {
+  return canPrepareQuotes(user) || rolesOf(user).includes("ADMIN") || ownedByTech(user, q);
+}
 function canView(user, q) {
   const roles = rolesOf(user);
-  return roles.includes("ADMIN") || canPrepareQuotes(user) || ownedByClient(user, q);
+  return roles.includes("ADMIN") || canPrepareQuotes(user) || ownedByClient(user, q) || ownedByTech(user, q);
 }
 
 // DELETE — remove a quotation (e.g. clearing out test/dummy quotes). Admins and
@@ -63,7 +73,7 @@ export async function GET(_req, { params }) {
   return Response.json({
     quotation: q,
     permissions: {
-      canPrepare: canPrepareQuotes(user) || rolesOf(user).includes("ADMIN"),
+      canPrepare: canPrepareThis(user, q),
       canDecide: ownedByClient(user, q) && q.status === "QUOTED",
       // The owning client may attach/replace their LPO once the quote is issued.
       canUploadLpo: ownedByClient(user, q) && q.status !== "REQUESTED",
@@ -83,7 +93,7 @@ export async function PATCH(req, { params }) {
   if (!q) return Response.json({ error: "Not found." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const staff = canPrepareQuotes(user) || rolesOf(user).includes("ADMIN");
+  const staff = canPrepareThis(user, q);
 
   // --- LPO image upload / removal (client owner or staff) ---
   if (body.lpoImage !== undefined) {

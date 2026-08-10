@@ -84,7 +84,14 @@ export const isClientOnly = (input) => {
 export const canPrepareQuotes = (input) => intersects(input, QUOTE_ROLES);
 // Who may open the Quotations / Calibration-requests area at all: the QSL
 // preparers (PM/TM) and the clients (who see only their own). No other role.
-export const canSeeQuotations = (input) => intersects(input, [...QUOTE_ROLES, "ADMIN", "SUPERVISOR"]) || isClient(input);
+// PM/TM/admin see & prepare all quotations; supervisors get a scoped read view;
+// Site Technicians may raise & prepare their OWN quotations (see below); clients
+// raise requests.
+export const canSeeQuotations = (input) => intersects(input, [...QUOTE_ROLES, "ADMIN", "SUPERVISOR", "TECHNICIAN"]) || isClient(input);
+
+// A Site Technician may create and prepare quotations, but only ever sees the
+// ones they created — enforced by scope in the quotations API.
+export const isTechnician = (input) => rolesOf(input).includes("TECHNICIAN");
 
 // Roles allowed to create/assign tasks and register projects.
 export const TASK_MANAGER_ROLES = SCHEDULE_MANAGER_ROLES;

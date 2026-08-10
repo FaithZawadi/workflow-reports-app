@@ -17,7 +17,7 @@ const money = (n, cur) => `${cur || "KES"} ${Number(n || 0).toLocaleString()}`;
 export default function Quotations({ profile }) {
   const [rows, setRows] = useState(null);
   const client = isClient(profile);
-  const canStart = client || rolesOf(profile).includes("ADMIN") || rolesOf(profile).some((r) => ["PROJECT_MANAGER", "TECHNICAL_MANAGER"].includes(r));
+  const canStart = client || rolesOf(profile).some((r) => ["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "TECHNICIAN"].includes(r));
 
   useEffect(() => {
     fetch("/api/quotations")
