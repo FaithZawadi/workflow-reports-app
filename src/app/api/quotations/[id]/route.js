@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
-import { rolesOf, canPrepareQuotes, isClient, isTechnician } from "@/lib/roles";
+import { rolesOf, canPrepareQuotes, isClient, canRaiseOwnQuotes } from "@/lib/roles";
 import { amountInWords, quoteTotals } from "@/lib/money";
 import { sendMail, quoteIssuedEmail, quoteDecisionEmail } from "@/lib/email";
 import { notifyEmails, notifyUsers } from "@/lib/notify";
@@ -10,19 +10,19 @@ import { notifyEmails, notifyUsers } from "@/lib/notify";
 function ownedByClient(user, q) {
   return isClient(user) && (q.requestedById === user.sub || (user.clientId && q.clientId === user.clientId));
 }
-// A Site Technician owns the quotations they created — they may view and prepare
-// only those, never anyone else's.
-function ownedByTech(user, q) {
-  return isTechnician(user) && q.requestedById === user.sub;
+// A Technician / Sales user owns the quotations they created — they may view and
+// prepare only those, never anyone else's.
+function ownedByAuthor(user, q) {
+  return canRaiseOwnQuotes(user) && q.requestedById === user.sub;
 }
-// Whoever may fully prepare/issue this quote: PM/TM/admin (any), or the Site
-// Technician who created it.
+// Whoever may fully prepare/issue this quote: PM/TM/admin (any), or the
+// Technician / Sales user who created it.
 function canPrepareThis(user, q) {
-  return canPrepareQuotes(user) || rolesOf(user).includes("ADMIN") || ownedByTech(user, q);
+  return canPrepareQuotes(user) || rolesOf(user).includes("ADMIN") || ownedByAuthor(user, q);
 }
 function canView(user, q) {
   const roles = rolesOf(user);
-  return roles.includes("ADMIN") || canPrepareQuotes(user) || ownedByClient(user, q) || ownedByTech(user, q);
+  return roles.includes("ADMIN") || canPrepareQuotes(user) || ownedByClient(user, q) || ownedByAuthor(user, q);
 }
 
 // DELETE — remove a quotation (e.g. clearing out test/dummy quotes). Admins and

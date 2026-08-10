@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { nextSerial } from "@/lib/serial";
 import { recordAudit } from "@/lib/audit";
-import { rolesOf, canPrepareQuotes, isClient, isSupervisor, isTechnician } from "@/lib/roles";
+import { rolesOf, canPrepareQuotes, isClient, isSupervisor, canRaiseOwnQuotes } from "@/lib/roles";
 import { assignedClientIds } from "@/lib/rbac";
 import { sendMail, quoteRequestEmail } from "@/lib/email";
 import { notifyEmails } from "@/lib/notify";
@@ -12,8 +12,8 @@ import { notifyEmails } from "@/lib/notify";
 async function scopeFor(user) {
   const roles = rolesOf(user);
   if (roles.includes("ADMIN") || canPrepareQuotes(user)) return {};
-  // A Site Technician sees only the quotations they created.
-  if (isTechnician(user)) return { requestedById: user.sub };
+  // A Site Technician / Sales user sees only the quotations they created.
+  if (canRaiseOwnQuotes(user)) return { requestedById: user.sub };
   if (isClient(user)) return user.clientId ? { clientId: user.clientId } : { requestedById: user.sub };
   if (isSupervisor(user)) {
     const ids = await assignedClientIds(user);
@@ -61,7 +61,7 @@ export async function POST(req) {
     return res;
   }
   const roles = rolesOf(user);
-  if (!(isClient(user) || canPrepareQuotes(user) || roles.includes("ADMIN") || isTechnician(user)))
+  if (!(isClient(user) || canPrepareQuotes(user) || roles.includes("ADMIN") || canRaiseOwnQuotes(user)))
     return Response.json({ error: "Not allowed." }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));

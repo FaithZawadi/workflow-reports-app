@@ -46,6 +46,7 @@ const Map<String, String> kRoleLabel = {
   'TECHNICIAN': 'Site Technician',
   'ENGINEER': 'QSL Engineer',
   'SUPERVISOR': 'Equipment User',
+  'SALES': 'Sales',
   'MANAGER': 'Client/Manager',
   'PROJECT_MANAGER': 'Project Manager',
   'TECHNICAL_MANAGER': 'Technical Manager',

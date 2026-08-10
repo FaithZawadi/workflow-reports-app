@@ -33,12 +33,13 @@ export const SCHEDULE_MANAGER_ROLES = [
 
 // The staff roles a non-admin manager may create or edit (never admins or other
 // managers).
-export const MANAGER_ASSIGNABLE_ROLES = ["TECHNICIAN", "ENGINEER", "SUPERVISOR"];
+export const MANAGER_ASSIGNABLE_ROLES = ["TECHNICIAN", "ENGINEER", "SUPERVISOR", "SALES"];
 
 export const ALL_ROLES = [
   "TECHNICIAN",
   "ENGINEER",
   "SUPERVISOR",
+  "SALES",
   "MANAGER",
   "PROJECT_MANAGER",
   "TECHNICAL_MANAGER",
@@ -84,13 +85,16 @@ export const isClientOnly = (input) => {
 export const canPrepareQuotes = (input) => intersects(input, QUOTE_ROLES);
 // Who may open the Quotations / Calibration-requests area at all: the QSL
 // preparers (PM/TM) and the clients (who see only their own). No other role.
-// PM/TM/admin see & prepare all quotations; supervisors get a scoped read view;
-// Site Technicians may raise & prepare their OWN quotations (see below); clients
-// raise requests.
-export const canSeeQuotations = (input) => intersects(input, [...QUOTE_ROLES, "ADMIN", "SUPERVISOR", "TECHNICIAN"]) || isClient(input);
+// Roles that may raise & prepare their OWN quotations only (scoped to what they
+// created): Site Technicians and Sales. PM/TM/admin see & prepare everything.
+export const OWN_QUOTE_ROLES = ["TECHNICIAN", "SALES"];
+export const canRaiseOwnQuotes = (input) => intersects(input, OWN_QUOTE_ROLES);
 
-// A Site Technician may create and prepare quotations, but only ever sees the
-// ones they created — enforced by scope in the quotations API.
+// PM/TM/admin see & prepare all quotations; supervisors get a scoped read view;
+// Technicians & Sales see only their own; clients raise requests.
+export const canSeeQuotations = (input) =>
+  intersects(input, [...QUOTE_ROLES, "ADMIN", "SUPERVISOR", ...OWN_QUOTE_ROLES]) || isClient(input);
+
 export const isTechnician = (input) => rolesOf(input).includes("TECHNICIAN");
 
 // Roles allowed to create/assign tasks and register projects.
