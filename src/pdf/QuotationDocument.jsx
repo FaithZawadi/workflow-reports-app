@@ -107,7 +107,7 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
             )}
             <View style={s.brandText}>
               {COMPANY.tagline ? <Text style={s.tagline}>{COMPANY.tagline}</Text> : null}
-              <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO/IEC 17020:2012 · ILAC-MRA</Text>
+              <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO 9001:2015 · ILAC-MRA</Text>
               <Text style={s.contact}>{COMPANY.postal || COMPANY.address} · {COMPANY.website}</Text>
               <Text style={s.contact}>{COMPANY.email} · {COMPANY.phone}{COMPANY.pin ? ` · PIN ${COMPANY.pin}` : ""}</Text>
             </View>

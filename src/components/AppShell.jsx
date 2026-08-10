@@ -161,7 +161,7 @@ export default function AppShell({ user, children }) {
 
         <div className="sidebar-foot">
           <div style={{ fontWeight: 800, fontSize: 12 }}>{COMPANY.name}</div>
-          <div className="mono" style={{ fontSize: 10, opacity: 0.7, marginTop: 3 }}>KENAS ISO/IEC 17025 + 17020</div>
+          <div className="mono" style={{ fontSize: 10, opacity: 0.7, marginTop: 3 }}>KENAS ISO/IEC 17025:2017 · ISO 9001:2015</div>
         </div>
       </aside>
 
@@ -235,7 +235,7 @@ export default function AppShell({ user, children }) {
           <div style={{ fontWeight: 800, fontSize: 13, color: "var(--ink)" }}>{COMPANY.name}</div>
           <div className="mono" style={{ fontSize: 11, color: "var(--mute)", marginTop: 4 }}>{COMPANY.address} · {COMPANY.website}</div>
           <div className="mono" style={{ fontSize: 11, color: "var(--mute)", marginTop: 2 }}>{COMPANY.email} · {COMPANY.phone}</div>
-          <div className="mono" style={{ fontSize: 11, color: "var(--mute)", marginTop: 2 }}>KENAS ISO/IEC 17025 + 17020 · ILAC-MRA</div>
+          <div className="mono" style={{ fontSize: 11, color: "var(--mute)", marginTop: 2 }}>KENAS ISO/IEC 17025:2017 · ISO 9001:2015 · ILAC-MRA</div>
         </footer>
       </div>
 

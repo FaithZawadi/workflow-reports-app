@@ -36,9 +36,12 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Generate android platform folder
+      - name: Generate platform folders
         working-directory: mobile
-        run: flutter create --platforms=android .
+        # Both android and ios: the launcher-icons/native-splash config targets
+        # iOS too, so the ios/ scaffolding must exist for icon generation to run
+        # (only the Android APK is actually built below).
+        run: flutter create --platforms=android,ios .
 
       - name: Apply required Android permissions
         working-directory: mobile

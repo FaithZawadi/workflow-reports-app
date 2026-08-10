@@ -16,6 +16,8 @@ enum Role {
   TECHNICIAN
   ENGINEER
   SUPERVISOR
+  // Sales staff. Raise and prepare quotations, seeing only their own.
+  SALES
   MANAGER
   PROJECT_MANAGER
   TECHNICAL_MANAGER

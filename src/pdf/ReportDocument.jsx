@@ -214,7 +214,7 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
               </Text>
             )}
             <View>
-              <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO/IEC 17020:2012 · ILAC-MRA</Text>
+              <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO 9001:2015 · ILAC-MRA</Text>
               <Text style={s.contact}>
                 {COMPANY.address} · {COMPANY.website}
               </Text>

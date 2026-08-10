@@ -124,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   const Center(
-                    child: Text('Qalibrated Systems Ltd · KENAS ISO/IEC 17025', style: TextStyle(color: kMute, fontSize: 11)),
+                    child: Text('Qalibrated Systems Ltd · ISO/IEC 17025:2017 · ISO 9001:2015', style: TextStyle(color: kMute, fontSize: 11)),
                   ),
                 ],
               ),

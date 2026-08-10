@@ -8,7 +8,7 @@ export const COMPANY = {
   website: process.env.NEXT_PUBLIC_COMPANY_WEBSITE || "www.qalibrated.co.ke",
   email: process.env.NEXT_PUBLIC_COMPANY_EMAIL || "info@qalibrated.co.ke",
   phone: process.env.NEXT_PUBLIC_COMPANY_PHONE || "+254 714 999 996",
-  accreditation: "KENAS · ISO/IEC 17025 + 17020 · ILAC-MRA",
+  accreditation: "KENAS · ISO/IEC 17025:2017 · ISO 9001:2015 · ILAC-MRA",
   // Registration / tax identifier shown on quotations & invoices.
   pin: process.env.NEXT_PUBLIC_COMPANY_PIN || "P051889248C",
   // Postal / physical address block for the quotation footer.

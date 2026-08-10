@@ -47,7 +47,7 @@ class OnboardingScreen extends StatelessWidget {
                   child: ElevatedButton(onPressed: onStart, child: const Text('Get Started')),
                 ),
                 const SizedBox(height: 14),
-                const Text('Qalibrated Systems Ltd · KENAS ISO/IEC 17025', style: TextStyle(color: Color(0xFF7A7264), fontSize: 11)),
+                const Text('Qalibrated Systems Ltd · ISO/IEC 17025:2017 · ISO 9001:2015', style: TextStyle(color: Color(0xFF7A7264), fontSize: 11)),
                 const SizedBox(height: 18),
               ]),
             ),

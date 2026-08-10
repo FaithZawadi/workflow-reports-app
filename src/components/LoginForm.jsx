@@ -61,7 +61,7 @@ export default function LoginForm() {
             <div className="mono" style={{ fontSize: 10.5, color: "#9a9282", letterSpacing: ".02em", lineHeight: 1.6 }}>
               {COMPANY.name} · {COMPANY.address}<br />
               {COMPANY.website} · {COMPANY.email} · {COMPANY.phone}<br />
-              KENAS ISO/IEC 17025 + 17020 · ILAC-MRA
+              KENAS · ISO/IEC 17025:2017 · ISO 9001:2015 · ILAC-MRA
             </div>
           </div>
 
