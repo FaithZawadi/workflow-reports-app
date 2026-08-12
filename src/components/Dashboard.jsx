@@ -10,6 +10,43 @@ const greeting = () => {
   return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
 };
 
+// Compact money for KPI tiles: 1.2M / 340k / 900.
+const money = (n) => {
+  const v = Number(n || 0);
+  if (v >= 1e6) return `${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1)}M`;
+  if (v >= 1e3) return `${Math.round(v / 1e3)}k`;
+  return v.toLocaleString();
+};
+
+const MEDAL = ["#D4AF37", "#B8B8B8", "#CD7F32"];
+
+// Staff merit leaderboard — a ranked score bar with the contributing counts.
+function MeritBoard({ rows }) {
+  const max = Math.max(1, ...rows.map((r) => r.score || 0));
+  return (
+    <div style={{ display: "grid", gap: 10 }}>
+      {rows.map((r, i) => (
+        <div key={r.name} style={{ display: "grid", gridTemplateColumns: "22px 1fr auto", gap: 10, alignItems: "center" }}>
+          <span style={{ fontSize: 12, fontWeight: 900, textAlign: "center", color: MEDAL[i] || "#b6ab93", fontFamily: "var(--mono)" }}>{i + 1}</span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13, marginBottom: 4 }}>
+              <span style={{ color: INK, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</span>
+              <b style={{ flexShrink: 0, color: COAL }}>{r.score}</b>
+            </div>
+            <div style={{ height: 7, background: "#F0EADD", borderRadius: 5, overflow: "hidden" }}>
+              <div style={{ width: `${Math.max(4, (r.score / max) * 100)}%`, height: "100%", background: i < 3 ? GOLD : COAL, borderRadius: 5 }} />
+            </div>
+            <div style={{ fontSize: 11, color: MUTE, marginTop: 3 }}>
+              {r.filed} filed · {r.approved} approved{r.approvals ? ` · ${r.approvals} sign-offs` : ""}{r.photos ? ` · ${r.photos} photos` : ""}{r.rejections ? ` · ${r.rejections} returned` : ""}
+            </div>
+          </div>
+          <span aria-hidden style={{ fontSize: 16 }}>{i === 0 ? "🏆" : i < 3 ? "🎖" : ""}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const Card = ({ title, action, children, span }) => (
   <div className="card" style={{ padding: 16, gridColumn: span ? `span ${span}` : undefined }}>
     {title && (
@@ -62,6 +99,7 @@ export default function Dashboard({ profile }) {
   if (!d) return <div className="muted" style={{ marginTop: 24 }}>Loading dashboard…</div>;
 
   const roles = profile?.roles?.length ? profile.roles : [profile?.role].filter(Boolean);
+  const isAdmin = roles.includes("ADMIN");
   const isClient = d.isClient;
   const isReviewer = roles.some((r) => ["SUPERVISOR", "MANAGER"].includes(r));
   const canFile = !isClient && roles.some((r) => ["TECHNICIAN", "ENGINEER", "SUPERVISOR", "MANAGER", "ADMIN"].includes(r));
@@ -173,6 +211,36 @@ export default function Dashboard({ profile }) {
           </Card>
         )}
       </div>
+
+      {/* Admin: business at a glance + staff merits */}
+      {isAdmin && d.business && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".05em", color: MUTE, marginBottom: 8 }}>Business at a glance</div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Mini label="Active clients" value={d.business.activeClients} sub={`${d.business.activeSites} sites`} />
+            <Mini label="Active weighbridges" value={d.activeWeighbridges ?? "—"} sub="in service" />
+            <Mini label="Open tasks" value={d.business.openTasks} sub={`${d.business.overdueTasks} overdue`} color={d.business.overdueTasks ? FAIL : INK} />
+            <Mini label="Active contracts" value={d.business.activeContracts} sub="service agreements" />
+            <Mini label="Quote pipeline" value={money(d.business.pipelineValue)} sub="issued, awaiting decision" color={GOLD} />
+            <Mini label="Won (accepted)" value={money(d.business.wonValue)} sub="accepted quotes" color={PASS} />
+          </div>
+        </div>
+      )}
+
+      {isAdmin && (d.staffMerits?.length || d.topClients?.length) && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 12, marginTop: 12 }}>
+          {d.staffMerits?.length ? (
+            <Card title="Staff merits · last 120 days" span={2} action={<Link href="/reports-summary" style={{ fontSize: 11, color: GOLD, fontWeight: 700, textDecoration: "none" }}>Full report →</Link>}>
+              <MeritBoard rows={d.staffMerits} />
+            </Card>
+          ) : null}
+          {d.topClients?.length ? (
+            <Card title="Top clients · by reports">
+              <BarList items={d.topClients.map((c) => ({ label: c.name, value: c.count, href: `/dashboard?q=${encodeURIComponent(c.name)}` }))} />
+            </Card>
+          ) : null}
+        </div>
+      )}
 
       {/* Recent activity */}
       {d.recent.length > 0 && (

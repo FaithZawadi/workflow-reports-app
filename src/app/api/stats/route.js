@@ -115,6 +115,77 @@ export async function GET() {
     activeWeighbridges = await prisma.weighbridge.count({ where: { active: true } }).catch(() => 0);
   }
 
+  // --- Admin-only: staff merits + business-at-a-glance ---
+  let staffMerits = null;
+  let business = null;
+  let topClients = null;
+  if (isAdmin) {
+    try {
+      // Merit board over the last 120 days, limited to QSL's own staff. A user
+      // tied to a client is that client's staff, not a QSL merit candidate.
+      const meritSince = new Date();
+      meritSince.setDate(meritSince.getDate() - 120);
+      const [mReports, staffUsers] = await Promise.all([
+        prisma.report.findMany({
+          where: { reportDate: { gte: meritSince } },
+          select: { authorName: true, status: true, _count: { select: { photos: true } }, trailEvents: { select: { action: true, byName: true } } },
+        }),
+        prisma.user.findMany({ where: { clientId: null }, select: { name: true } }),
+      ]);
+      const internal = new Set(staffUsers.map((u) => u.name).filter(Boolean));
+      const m = new Map();
+      const ens = (n) => {
+        const k = n || "—";
+        if (!m.has(k)) m.set(k, { name: k, filed: 0, approved: 0, approvals: 0, rejections: 0, photos: 0 });
+        return m.get(k);
+      };
+      for (const r of mReports) {
+        const e = ens(r.authorName);
+        e.filed += 1;
+        if (r.status === "APPROVED") e.approved += 1;
+        e.photos += r._count?.photos || 0;
+        for (const ev of r.trailEvents || []) {
+          const a = (ev.action || "").toLowerCase();
+          if (a.includes("approved")) ens(ev.byName).approvals += 1;
+          else if (a.includes("rejected")) ens(ev.byName).rejections += 1;
+        }
+      }
+      staffMerits = [...m.values()]
+        .filter((e) => internal.size === 0 || internal.has(e.name))
+        .map((e) => ({ ...e, score: e.filed * 1 + e.approved * 2 + e.approvals * 2 + Math.round(e.photos * 0.2) - e.rejections }))
+        .filter((e) => e.filed || e.approvals)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 8);
+
+      const now = new Date();
+      const [activeClients, activeSites, openTasks, overdueTasks, activeContracts, quotedAgg, acceptedAgg, clientGroups] = await Promise.all([
+        prisma.client.count({ where: { active: true } }),
+        prisma.site.count({ where: { active: true } }),
+        prisma.task.count({ where: { doneAt: null } }),
+        prisma.task.count({ where: { doneAt: null, dueAt: { lt: now } } }),
+        prisma.contract.count({ where: { active: true } }),
+        prisma.quotation.aggregate({ _sum: { grandTotal: true }, where: { status: "QUOTED" } }),
+        prisma.quotation.aggregate({ _sum: { grandTotal: true }, where: { status: "ACCEPTED" } }),
+        prisma.report.groupBy({ by: ["clientName"], _count: { _all: true } }),
+      ]);
+      business = {
+        activeClients,
+        activeSites,
+        openTasks,
+        overdueTasks,
+        activeContracts,
+        pipelineValue: Math.round(quotedAgg?._sum?.grandTotal || 0),
+        wonValue: Math.round(acceptedAgg?._sum?.grandTotal || 0),
+      };
+      topClients = clientGroups
+        .map((g) => ({ name: g.clientName || "—", count: g._count._all }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6);
+    } catch {
+      // best-effort — dashboard still renders without the admin extras.
+    }
+  }
+
   // --- Recent activity (scoped reports) ---
   const recentReports = await prisma.report
     .findMany({ where, orderBy: { createdAt: "desc" }, take: 6, select: { serial: true, template: true, templateName: true, status: true, clientName: true, createdAt: true } })
@@ -146,6 +217,9 @@ export async function GET() {
     calibrationRequests,
     satisfaction,
     schedulesDue,
+    staffMerits,
+    business,
+    topClients,
     recent,
   });
 }
