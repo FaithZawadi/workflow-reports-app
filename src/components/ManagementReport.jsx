@@ -581,6 +581,7 @@ function StaffReport({ data }) {
       <span style={{ minWidth: 0 }}>
         <Link href={registryHref({ q: r.name })} style={{ color: INK, fontWeight: 600, textDecoration: "none" }}>{r.name}</Link>
         {showClient && r.clientName ? <span className="muted" style={{ display: "block", fontSize: 11 }}>{r.clientName}</span> : null}
+        {r.serving ? <span style={{ display: "block", fontSize: 11, color: "#8a6d00", fontWeight: 700 }}>serving {r.serving}</span> : null}
       </span>
     ) },
     { label: "Filed", w: 70, align: "center", cellStyle: () => ({ fontWeight: 800 }), key: "filed" },

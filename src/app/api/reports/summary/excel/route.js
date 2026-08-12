@@ -188,19 +188,20 @@ export async function GET(req) {
   /* ---- Staff productivity — QSL staff and client staff kept separate ---- */
   if (d.staff?.length) {
     const st = wb.addWorksheet("Staff", { properties: { defaultColWidth: 16 } });
-    headerRow(st, ["Person", "Organisation", "Reports filed", "Approvals given", "Rejections", "Findings raised", "Photos", "Avg approval (h)"]);
+    headerRow(st, ["Person", "Organisation", "Serving client", "Reports filed", "Approvals given", "Rejections", "Findings raised", "Photos", "Avg approval (h)"]);
     const internal = d.staffInternal || d.staff.filter((s) => s.org !== "CLIENT");
     const clientStaff = d.staffClient || d.staff.filter((s) => s.org === "CLIENT");
     const addGroup = (title, list) => {
       if (!list.length) return;
       const gr = st.addRow([title]);
       gr.font = { bold: true };
-      list.forEach((s) => st.addRow([s.name, s.clientName || (s.org === "CLIENT" ? "Client" : "Qalibrated Systems"), s.filed, s.approvals, s.rejections, s.findings, s.photos, s.avgTurnaround ?? ""]));
+      list.forEach((s) => st.addRow([s.name, s.clientName || (s.org === "CLIENT" ? "Client" : "Qalibrated Systems"), s.serving || "", s.filed, s.approvals, s.rejections, s.findings, s.photos, s.avgTurnaround ?? ""]));
     };
     addGroup("Qalibrated staff", internal);
     if (clientStaff.length) { st.addRow([]); addGroup("Client staff", clientStaff); }
     st.getColumn(1).width = 26;
     st.getColumn(2).width = 24;
+    st.getColumn(3).width = 22;
     st.views = [{ state: "frozen", ySplit: 1 }];
   }
 

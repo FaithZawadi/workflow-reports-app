@@ -6,6 +6,60 @@ import { assignableRoles, rolesOf } from "@/lib/roles";
 const rolesOfUser = (u) => (u.roles && u.roles.length ? u.roles : u.role ? [u.role] : []);
 const roleNames = (u) => rolesOfUser(u).map((r) => ROLE_LABEL[r] || r).join(", ");
 
+// Home-organisation chip: gold for QSL, coal for an external client's staff.
+function OrgBadge({ orgType, orgName }) {
+  const qsl = (orgType || "QSL") !== "CLIENT";
+  return (
+    <span
+      title={qsl ? "Qalibrated Systems staff" : `Employed by ${orgName || "a client"}`}
+      style={{
+        fontSize: 10,
+        fontWeight: 800,
+        textTransform: "uppercase",
+        letterSpacing: ".04em",
+        padding: "2px 7px",
+        borderRadius: 999,
+        background: qsl ? GOLD : COAL,
+        color: qsl ? COAL : GOLD,
+      }}
+    >
+      {qsl ? "QSL" : orgName || "Client"}
+    </span>
+  );
+}
+
+// Shared Organisation (home) + Serving-client controls used by add & edit forms.
+function OrgServingFields({ orgType, setOrgType, clientName, setClientName, servingClientId, setServingClientId, clients }) {
+  return (
+    <>
+      <L label="Home organisation">
+        <select className="input" value={orgType} onChange={(e) => setOrgType(e.target.value)}>
+          <option value="QSL">Qalibrated Systems (internal staff)</option>
+          <option value="CLIENT">A client organisation</option>
+        </select>
+      </L>
+      {orgType === "CLIENT" ? (
+        <L label="Employer (client they work for)">
+          <input className="input" list="qsl-clients" value={clientName} onChange={(e) => setClientName(e.target.value)} placeholder="e.g. TATA Chemicals" />
+        </L>
+      ) : (
+        <div />
+      )}
+      <L label="Serving client (deployed to)">
+        <select className="input" value={servingClientId || ""} onChange={(e) => setServingClientId(e.target.value)}>
+          <option value="">— none / internal —</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+      </L>
+      <datalist id="qsl-clients">
+        {clients.map((c) => <option key={c.id} value={c.name} />)}
+      </datalist>
+    </>
+  );
+}
+
 // A checkbox group for picking one or more roles.
 function RolePicker({ options, value, onChange }) {
   const toggle = (r) => {
@@ -46,6 +100,7 @@ export default function UsersAdmin({ profile }) {
   const isAdmin = rolesOf(profile).includes("ADMIN");
   const [users, setUsers] = useState(null);
   const [allWbs, setAllWbs] = useState([]);
+  const [clients, setClients] = useState([]);
   const [q, setQ] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -62,6 +117,7 @@ export default function UsersAdmin({ profile }) {
 
   useEffect(() => {
     load();
+    fetch("/api/clients").then((r) => r.json()).then((d) => setClients(d.clients || [])).catch(() => {});
     if (isAdmin) {
       fetch("/api/weighbridges?manage=1").then((r) => r.json()).then((d) => setAllWbs(d.weighbridges || [])).catch(() => {});
     }
@@ -70,7 +126,7 @@ export default function UsersAdmin({ profile }) {
   const shown = (users || []).filter((u) => {
     const s = q.trim().toLowerCase();
     if (!s) return true;
-    return [u.name, u.email, roleNames(u), u.client, u.site].some((v) => String(v || "").toLowerCase().includes(s));
+    return [u.name, u.email, roleNames(u), u.client, u.orgName, u.servingClient, u.site].some((v) => String(v || "").toLowerCase().includes(s));
   });
 
   return (
@@ -89,7 +145,7 @@ export default function UsersAdmin({ profile }) {
       </div>
 
       {err && <div className="err" style={{ margin: "10px 0" }}>{err}</div>}
-      {showAdd && <AddUser roleOptions={roleOptions} onCreated={() => { setShowAdd(false); load(); }} />}
+      {showAdd && <AddUser roleOptions={roleOptions} clients={clients} onCreated={() => { setShowAdd(false); load(); }} />}
 
       <input className="input" placeholder="Search name, email, role, client…" value={q} onChange={(e) => setQ(e.target.value)} style={{ margin: "10px 0 12px" }} />
 
@@ -100,22 +156,24 @@ export default function UsersAdmin({ profile }) {
           <div key={u.id} className="card" style={{ padding: 14, opacity: u.active ? 1 : 0.6 }}>
             <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
               <div>
-                <div style={{ fontWeight: 800, fontSize: 15, color: INK }}>
-                  {u.name}{" "}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 800, fontSize: 15, color: INK }}>{u.name}</span>
+                  <OrgBadge orgType={u.orgType} orgName={u.orgName || u.client} />
                   {u.id === profile.id && <span style={{ fontSize: 11, color: GOLD, fontWeight: 700 }}>(you)</span>}
-                  {!u.active && <span style={{ fontSize: 11, color: MUTE, fontWeight: 700 }}> · deactivated</span>}
+                  {!u.active && <span style={{ fontSize: 11, color: MUTE, fontWeight: 700 }}>· deactivated</span>}
                 </div>
                 <div className="muted" style={{ fontSize: 13 }}>{u.email}</div>
                 <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
                   {roleNames(u)}
-                  {u.client ? ` · ${u.client}` : ""}{u.site ? ` — ${u.site}` : ""}
+                  {u.servingClient ? <> · <span style={{ color: "#8a6d00", fontWeight: 700 }}>serving {u.servingClient}</span></> : ""}
+                  {u.site ? ` — ${u.site}` : ""}
                 </div>
               </div>
               <button className="btn" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => setEditing(editing === u.id ? null : u.id)}>
                 {editing === u.id ? "Cancel" : "Manage"}
               </button>
             </div>
-            {editing === u.id && <EditUser user={u} roleOptions={roleOptions} allWbs={allWbs} isSelf={u.id === profile.id} onSaved={() => { setEditing(null); load(); }} />}
+            {editing === u.id && <EditUser user={u} roleOptions={roleOptions} allWbs={allWbs} clients={clients} isSelf={u.id === profile.id} onSaved={() => { setEditing(null); load(); }} />}
           </div>
         ))}
         {users && shown.length === 0 && <div className="muted">No users match.</div>}
@@ -124,8 +182,8 @@ export default function UsersAdmin({ profile }) {
   );
 }
 
-function AddUser({ roleOptions, onCreated }) {
-  const [f, setF] = useState({ name: "", email: "", password: "", roles: [roleOptions[0] || "TECHNICIAN"], clientName: "", site: "", phone: "" });
+function AddUser({ roleOptions, clients = [], onCreated }) {
+  const [f, setF] = useState({ name: "", email: "", password: "", roles: [roleOptions[0] || "TECHNICIAN"], orgType: "QSL", clientName: "", servingClientId: "", site: "", phone: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [result, setResult] = useState(null); // { email, tempPassword, emailed }
@@ -164,7 +222,7 @@ function AddUser({ roleOptions, onCreated }) {
           <button className="btn" style={{ fontSize: 12 }} onClick={() => navigator.clipboard?.writeText(result.tempPassword)}>Copy</button>
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-          <button className="btn btn-primary" onClick={() => { setResult(null); setF({ name: "", email: "", password: "", roles: [roleOptions[0] || "TECHNICIAN"], clientName: "", site: "", phone: "" }); }}>Invite another</button>
+          <button className="btn btn-primary" onClick={() => { setResult(null); setF({ name: "", email: "", password: "", roles: [roleOptions[0] || "TECHNICIAN"], orgType: "QSL", clientName: "", servingClientId: "", site: "", phone: "" }); }}>Invite another</button>
           <button className="btn" onClick={onCreated}>Done</button>
         </div>
       </div>
@@ -181,8 +239,16 @@ function AddUser({ roleOptions, onCreated }) {
         <L label="Roles (choose one or more)">
           <RolePicker options={roleOptions} value={f.roles} onChange={(v) => set("roles", v)} />
         </L>
-        <L label="Client / plant (technicians)"><input className="input" value={f.clientName} onChange={(e) => set("clientName", e.target.value)} placeholder="e.g. TATA Chemicals Magadi" /></L>
-        <L label="Site (technicians)"><input className="input" value={f.site} onChange={(e) => set("site", e.target.value)} placeholder="e.g. Plant Gate 1" /></L>
+        <OrgServingFields
+          orgType={f.orgType}
+          setOrgType={(v) => set("orgType", v)}
+          clientName={f.clientName}
+          setClientName={(v) => set("clientName", v)}
+          servingClientId={f.servingClientId}
+          setServingClientId={(v) => set("servingClientId", v)}
+          clients={clients}
+        />
+        <L label="Site (e.g. plant gate)"><input className="input" value={f.site} onChange={(e) => set("site", e.target.value)} placeholder="e.g. Plant Gate 1" /></L>
         <L label="Phone (optional)"><input className="input" value={f.phone} onChange={(e) => set("phone", e.target.value)} /></L>
       </div>
       <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>An invitation email is sent with a temporary password. The user must set their own password on first sign-in.</p>
@@ -194,10 +260,12 @@ function AddUser({ roleOptions, onCreated }) {
   );
 }
 
-function EditUser({ user, roleOptions, allWbs = [], isSelf, onSaved }) {
+function EditUser({ user, roleOptions, allWbs = [], clients = [], isSelf, onSaved }) {
   const [roles, setRoles] = useState(rolesOfUser(user));
   const [site, setSite] = useState(user.site || "");
+  const [orgType, setOrgType] = useState(user.orgType || "QSL");
   const [clientName, setClientName] = useState(user.client || "");
+  const [servingClientId, setServingClientId] = useState(user.servingClientId || "");
   const [wbs, setWbs] = useState(() => new Set((user.weighbridges || []).map((w) => w.id)));
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
@@ -220,7 +288,7 @@ function EditUser({ user, roleOptions, allWbs = [], isSelf, onSaved }) {
 
   const saveDetails = async () => {
     if (!roles.length) { setErr("A user must have at least one role."); return; }
-    const payload = { roles, site, clientName };
+    const payload = { roles, site, orgType, clientName, servingClientId };
     if (allWbs.length > 0) payload.weighbridgeIds = [...wbs];
     if (await patch(payload, "Saved.")) onSaved();
   };
@@ -242,7 +310,15 @@ function EditUser({ user, roleOptions, allWbs = [], isSelf, onSaved }) {
             <RolePicker options={[...new Set([...roleOptions, ...roles])]} value={roles} onChange={setRoles} />
           )}
         </L>
-        <L label="Client / plant"><input className="input" value={clientName} onChange={(e) => setClientName(e.target.value)} /></L>
+        <OrgServingFields
+          orgType={orgType}
+          setOrgType={setOrgType}
+          clientName={clientName}
+          setClientName={setClientName}
+          servingClientId={servingClientId}
+          setServingClientId={setServingClientId}
+          clients={clients}
+        />
         <L label="Site"><input className="input" value={site} onChange={(e) => setSite(e.target.value)} /></L>
       </div>
       {allWbs.length > 0 && (

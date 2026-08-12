@@ -50,14 +50,33 @@ export async function PATCH(req, { params }) {
   }
   if (body.site !== undefined) data.site = String(body.site).trim() || null;
   if (body.phone !== undefined) data.phone = String(body.phone).trim() || null;
-  if (body.clientName !== undefined) {
-    const cn = String(body.clientName).trim();
-    if (cn) {
-      const c = await prisma.client.upsert({ where: { name: cn }, create: { name: cn }, update: {} });
-      data.clientId = c.id;
+
+  const resolveClient = async (idVal, nameVal) => {
+    const id = String(idVal || "").trim();
+    if (id) return id;
+    const nm = String(nameVal || "").trim();
+    if (!nm) return null;
+    const c = await prisma.client.upsert({ where: { name: nm }, create: { name: nm }, update: {} });
+    return c.id;
+  };
+
+  // Home organisation.
+  if (body.orgType !== undefined) {
+    data.orgType = String(body.orgType).toUpperCase() === "CLIENT" ? "CLIENT" : "QSL";
+  }
+  // Employer client (their home company). For QSL staff the field is cleared so
+  // clientId only ever means the person's employer.
+  if (body.clientName !== undefined || body.clientId !== undefined || body.orgType !== undefined) {
+    const effOrg = data.orgType || (body.orgType ? undefined : target.orgType) || "QSL";
+    if (effOrg === "CLIENT") {
+      data.clientId = await resolveClient(body.clientId, body.clientName);
     } else {
       data.clientId = null;
     }
+  }
+  // Serving / deployed-to client.
+  if (body.servingClientId !== undefined || body.servingClientName !== undefined) {
+    data.servingClientId = await resolveClient(body.servingClientId, body.servingClientName);
   }
   if (body.newPassword) {
     if (String(body.newPassword).length < 8)
@@ -74,7 +93,7 @@ export async function PATCH(req, { params }) {
   if (Object.keys(data).length === 0)
     return Response.json({ error: "Nothing to update." }, { status: 400 });
 
-  const u = await prisma.user.update({ where: { id: params.id }, data, include: { client: { select: { name: true } } } });
+  const u = await prisma.user.update({ where: { id: params.id }, data, include: { client: { select: { name: true } }, servingClient: { select: { id: true, name: true } } } });
 
   const changed = Object.keys(data)
     .map((k) => (k === "passwordHash" ? "password" : k))
@@ -88,6 +107,6 @@ export async function PATCH(req, { params }) {
   });
 
   return Response.json({
-    user: { id: u.id, email: u.email, name: u.name, role: u.role, roles: rolesOfRow(u), site: u.site, client: u.client?.name || null, active: u.active },
+    user: { id: u.id, email: u.email, name: u.name, role: u.role, roles: rolesOfRow(u), site: u.site, orgType: u.orgType || "QSL", orgName: u.orgType === "CLIENT" ? u.client?.name || "Client" : "Qalibrated Systems", client: u.client?.name || null, servingClientId: u.servingClientId || null, servingClient: u.servingClient?.name || null, active: u.active },
   });
 }

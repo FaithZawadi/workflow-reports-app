@@ -120,8 +120,18 @@ model User {
   site         String? // for technicians: their site within the plant
   active       Boolean  @default(true)
 
+  // Home organisation — where this person actually works. "QSL" = internal
+  // Qalibrated Systems staff; "CLIENT" = employed by one of our clients. This is
+  // deliberately separate from who they're serving: a QSL engineer can be
+  // deployed to a client site while remaining QSL staff.
+  orgType  String  @default("QSL") // QSL | CLIENT
+  // The employer client, set only for orgType = CLIENT (their home company).
   clientId String?
   client   Client? @relation(fields: [clientId], references: [id])
+  // The client this person is currently serving / deployed to (may differ from
+  // their employer — e.g. a QSL technician assigned to TATA Chemicals).
+  servingClientId String?
+  servingClient   Client? @relation("ServingClient", fields: [servingClientId], references: [id])
   // Client accounts this user manages (QSL account managers).
   managedClients Client[] @relation("ClientAccountManager")
 
@@ -165,6 +175,8 @@ model Client {
   accountManagerId String?
   accountManager   User?     @relation("ClientAccountManager", fields: [accountManagerId], references: [id])
   users        User[]
+  // Staff (QSL or otherwise) currently serving this client.
+  servedBy     User[]        @relation("ServingClient")
   reports      Report[]
   schedules    Schedule[]
   weighbridges Weighbridge[]

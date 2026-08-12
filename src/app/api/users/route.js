@@ -33,7 +33,11 @@ export async function GET() {
   const users = await prisma.user.findMany({
     where,
     orderBy: { createdAt: "desc" },
-    include: { client: { select: { name: true } }, weighbridges: { select: { id: true, label: true } } },
+    include: {
+      client: { select: { name: true } },
+      servingClient: { select: { id: true, name: true } },
+      weighbridges: { select: { id: true, label: true } },
+    },
   });
   return Response.json({
     users: users.map((u) => ({
@@ -43,7 +47,13 @@ export async function GET() {
       role: u.role,
       roles: rolesOfRow(u),
       site: u.site,
+      // Home organisation the person works for.
+      orgType: u.orgType || "QSL",
+      orgName: u.orgType === "CLIENT" ? u.client?.name || "Client" : "Qalibrated Systems",
       client: u.client?.name || null,
+      // The client they are currently serving / deployed to.
+      servingClientId: u.servingClientId || null,
+      servingClient: u.servingClient?.name || null,
       active: u.active,
       weighbridges: u.weighbridges,
     })),
@@ -82,20 +92,35 @@ export async function POST(req) {
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) return Response.json({ error: "A user with that email already exists." }, { status: 409 });
 
+  // Home organisation: QSL (internal) or a client (employed by them).
+  const orgType = String(body.orgType || "").toUpperCase() === "CLIENT" ? "CLIENT" : "QSL";
+  const upsertClientByName = async (nm) => {
+    const n = String(nm || "").trim();
+    if (!n) return null;
+    const c = await prisma.client.upsert({ where: { name: n }, create: { name: n }, update: {} });
+    return c.id;
+  };
+  const resolveClientId = async (idVal, nameVal) => {
+    const id = String(idVal || "").trim();
+    if (id) return id;
+    return upsertClientByName(nameVal);
+  };
+
+  // Employer client only applies to CLIENT-org people; for QSL staff the old
+  // "client / plant" field is treated as who they serve.
   let clientId = null;
-  if (clientName) {
-    const client = await prisma.client.upsert({
-      where: { name: clientName },
-      create: { name: clientName },
-      update: {},
-    });
-    clientId = client.id;
+  let servingClientId = await resolveClientId(body.servingClientId, body.servingClientName);
+  if (orgType === "CLIENT") {
+    clientId = await resolveClientId(body.clientId, clientName || body.employerClientName);
+    if (!servingClientId) servingClientId = clientId; // a client's own staff serve their own org
+  } else if (!servingClientId && clientName) {
+    servingClientId = await upsertClientByName(clientName);
   }
 
   const user = await prisma.user.create({
     // passwordChangedAt=null keeps the account flagged as never-rotated; the
     // mustChangePassword gate forces the change on first sign-in.
-    data: { email, name, passwordHash: await hashPassword(temp), passwordChangedAt: null, mustChangePassword: true, role, roles, site, clientId },
+    data: { email, name, passwordHash: await hashPassword(temp), passwordChangedAt: null, mustChangePassword: true, role, roles, site, orgType, clientId, servingClientId },
   });
   await recordAudit({
     actor: me,

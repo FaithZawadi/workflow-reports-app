@@ -486,10 +486,19 @@ async function buildOperations(user, from, to, clientFilter, siteFilter) {
 async function buildAffiliation() {
   const map = new Map();
   try {
-    const users = await prisma.user.findMany({ select: { name: true, clientId: true, client: { select: { name: true } } } });
+    const users = await prisma.user.findMany({
+      select: { name: true, orgType: true, client: { select: { name: true } }, servingClient: { select: { name: true } } },
+    });
     for (const u of users) {
       if (!u.name || map.has(u.name)) continue;
-      map.set(u.name, { internal: !u.clientId, clientName: u.client?.name || null });
+      const internal = (u.orgType || "QSL") !== "CLIENT";
+      map.set(u.name, {
+        internal,
+        // Employer only matters for a client's own staff.
+        clientName: internal ? null : u.client?.name || null,
+        // The client they're serving / deployed to (applies to QSL staff too).
+        serving: u.servingClient?.name || null,
+      });
     }
   } catch {
     // best-effort — an empty map means everyone is treated as internal.
@@ -497,12 +506,13 @@ async function buildAffiliation() {
   return map;
 }
 
-// Classify a staff name as QSL ("QSL") or another client's staff ("CLIENT").
-// Unknown names default to QSL so historical/system actors aren't misfiled.
+// Classify a staff name by home organisation — QSL (internal) vs another
+// client's staff ("CLIENT") — and note the client they serve. Unknown names
+// default to QSL so historical/system actors aren't misfiled.
 function orgTag(affiliation, name) {
   const a = affiliation?.get?.(name);
-  if (a && !a.internal) return { org: "CLIENT", clientName: a.clientName || null };
-  return { org: "QSL", clientName: null };
+  if (a && !a.internal) return { org: "CLIENT", clientName: a.clientName || null, serving: a.serving || null };
+  return { org: "QSL", clientName: null, serving: a?.serving || null };
 }
 
 function buildDimensions(reports, cur, operations, affiliation) {
