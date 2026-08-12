@@ -1,0 +1,35 @@
+-- Enrich Client with registration details and Site with location details.
+ALTER TABLE "Client"
+  ADD COLUMN IF NOT EXISTS "displayName" TEXT,
+  ADD COLUMN IF NOT EXISTS "clientType" TEXT,
+  ADD COLUMN IF NOT EXISTS "contactPerson" TEXT,
+  ADD COLUMN IF NOT EXISTS "contactEmail" TEXT,
+  ADD COLUMN IF NOT EXISTS "contactPhone" TEXT,
+  ADD COLUMN IF NOT EXISTS "billingEmail" TEXT,
+  ADD COLUMN IF NOT EXISTS "taxPin" TEXT,
+  ADD COLUMN IF NOT EXISTS "regNo" TEXT,
+  ADD COLUMN IF NOT EXISTS "address" TEXT,
+  ADD COLUMN IF NOT EXISTS "city" TEXT,
+  ADD COLUMN IF NOT EXISTS "country" TEXT DEFAULT 'Kenya',
+  ADD COLUMN IF NOT EXISTS "website" TEXT,
+  ADD COLUMN IF NOT EXISTS "notes" TEXT,
+  ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'ACTIVE',
+  ADD COLUMN IF NOT EXISTS "onboardedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "accountManagerId" TEXT;
+
+ALTER TABLE "Site"
+  ADD COLUMN IF NOT EXISTS "address" TEXT,
+  ADD COLUMN IF NOT EXISTS "city" TEXT,
+  ADD COLUMN IF NOT EXISTS "lat" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "lng" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "contactPerson" TEXT,
+  ADD COLUMN IF NOT EXISTS "contactPhone" TEXT,
+  ADD COLUMN IF NOT EXISTS "notes" TEXT;
+
+CREATE INDEX IF NOT EXISTS "Client_accountManagerId_idx" ON "Client"("accountManagerId");
+
+DO $$ BEGIN
+  ALTER TABLE "Client"
+    ADD CONSTRAINT "Client_accountManagerId_fkey"
+    FOREIGN KEY ("accountManagerId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;

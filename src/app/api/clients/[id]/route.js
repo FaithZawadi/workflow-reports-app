@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
+import { clientDetailData } from "@/lib/clientFields";
 
 // PATCH /api/clients/[id] — rename or activate/deactivate a client (admin).
 export async function PATCH(req, { params }) {
@@ -23,6 +24,7 @@ export async function PATCH(req, { params }) {
     data.name = n;
   }
   if (b.active !== undefined) data.active = !!b.active;
+  Object.assign(data, clientDetailData(b));
 
   const c = await prisma.client.update({ where: { id: params.id }, data });
   await recordAudit({ actor: user, action: "UPDATE", entity: "CLIENT", entityId: c.id, summary: `Updated client ${c.name}` });

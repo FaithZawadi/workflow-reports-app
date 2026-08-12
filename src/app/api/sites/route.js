@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { rolesOf } from "@/lib/roles";
 import { resolveClientByName, resolveSiteByName } from "@/lib/clientResolve";
+import { siteDetailData } from "@/lib/clientFields";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,13 @@ const shape = (s) => ({
   client: s.client?.name || null,
   clientId: s.clientId,
   active: s.active,
+  address: s.address ?? null,
+  city: s.city ?? null,
+  lat: s.lat ?? null,
+  lng: s.lng ?? null,
+  contactPerson: s.contactPerson ?? null,
+  contactPhone: s.contactPhone ?? null,
+  notes: s.notes ?? null,
 });
 
 // GET /api/sites            -> sites the current user may pick when filing
@@ -71,7 +79,11 @@ export async function POST(req) {
   }
   // Case-insensitive dedup: reuse an existing site with the same name for this
   // client instead of creating "Magadi" alongside "magadi".
-  const s = await resolveSiteByName(clientId, name);
+  let s = await resolveSiteByName(clientId, name);
+  const detail = siteDetailData(b);
+  if (Object.keys(detail).length) {
+    s = await prisma.site.update({ where: { id: s.id }, data: detail });
+  }
   await recordAudit({
     actor: user,
     action: "CREATE",

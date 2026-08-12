@@ -122,6 +122,8 @@ model User {
 
   clientId String?
   client   Client? @relation(fields: [clientId], references: [id])
+  // Client accounts this user manages (QSL account managers).
+  managedClients Client[] @relation("ClientAccountManager")
 
   reports     Report[]      @relation("AuthoredReports")
   trailEvents TrailEvent[]
@@ -143,6 +145,25 @@ model Client {
   id           String        @id @default(cuid())
   name         String        @unique
   active       Boolean       @default(true)
+  // Registration details — who the client is and how to reach them.
+  displayName  String?       // short / trading name for cards and lists
+  clientType   String?       // industry or category, e.g. "Weighbridge operator"
+  contactPerson String?
+  contactEmail String?
+  contactPhone String?
+  billingEmail String?
+  taxPin       String?       // KRA PIN / tax identifier
+  regNo        String?       // company registration number
+  address      String?       // head-office physical / postal address
+  city         String?
+  country      String?       @default("Kenya")
+  website      String?
+  notes        String?
+  status       String?       @default("ACTIVE") // ACTIVE | PROSPECT | INACTIVE
+  onboardedAt  DateTime?
+  // The QSL staffer who owns this account.
+  accountManagerId String?
+  accountManager   User?     @relation("ClientAccountManager", fields: [accountManagerId], references: [id])
   users        User[]
   reports      Report[]
   schedules    Schedule[]
@@ -154,6 +175,8 @@ model Client {
   calibrationRequests CalibrationRequest[]
   quotations   Quotation[]
   createdAt    DateTime      @default(now())
+
+  @@index([accountManagerId])
 }
 
 // A site / location registered by an administrator. Reports pick one from a
@@ -165,6 +188,14 @@ model Site {
   clientId  String?
   client    Client?  @relation(fields: [clientId], references: [id], onDelete: Cascade)
   active    Boolean  @default(true)
+  // Location details — a physical address and a map pin for the site.
+  address       String?
+  city          String?
+  lat           Float?
+  lng           Float?
+  contactPerson String?
+  contactPhone  String?
+  notes         String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

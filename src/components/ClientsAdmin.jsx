@@ -1,12 +1,21 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { GOLD, INK, MUTE, LINE } from "@/lib/theme";
+import { GOLD, INK, MUTE, LINE, PASS, WAIT } from "@/lib/theme";
 
 // Admin registry for clients (companies) and the sites/locations under each one.
-// Register a client once (e.g. "TATA Chemicals"), add its sites (Magadi, Kajiado,
-// Mombasa), and every report then rolls up per-site and to the overall client.
+// Register a client once (e.g. "TATA Chemicals"), capture its contacts / tax /
+// account manager, add its sites (with address + GPS), and every report then
+// rolls up per-site and to the overall client.
+
+const STATUS_META = {
+  ACTIVE: { label: "Active", color: PASS },
+  PROSPECT: { label: "Prospect", color: WAIT },
+  INACTIVE: { label: "Inactive", color: MUTE },
+};
+
 export default function ClientsAdmin() {
   const [rows, setRows] = useState(null);
+  const [staff, setStaff] = useState([]);
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
@@ -25,6 +34,11 @@ export default function ClientsAdmin() {
 
   useEffect(() => {
     load();
+    // QSL staff for the "account manager" dropdown (internal users only).
+    fetch("/api/users", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { users: [] }))
+      .then((d) => setStaff((d.users || []).filter((u) => !u.client && u.active)))
+      .catch(() => {});
   }, [load]);
 
   const addClient = async () => {
@@ -56,7 +70,7 @@ export default function ClientsAdmin() {
   const shown = (rows || []).filter((c) => {
     const t = q.trim().toLowerCase();
     if (!t) return true;
-    return [c.name, ...(c.sites || []).map((s) => s.name)].some((v) => String(v || "").toLowerCase().includes(t));
+    return [c.name, c.displayName, c.city, c.contactPerson, ...(c.sites || []).map((s) => s.name)].some((v) => String(v || "").toLowerCase().includes(t));
   });
 
   return (
@@ -65,7 +79,7 @@ export default function ClientsAdmin() {
         <div>
           <p className="eyebrow">Administration</p>
           <h1 className="h1">Clients &amp; sites</h1>
-          <p className="muted">Register each company once, then add its sites. Reports and statements roll up by site and to the overall client.</p>
+          <p className="muted">Register each company once — contacts, tax details, account manager — then add its sites with address and map location.</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn" onClick={load} style={{ fontSize: 12 }}>Refresh</button>
@@ -84,11 +98,11 @@ export default function ClientsAdmin() {
             <input className="input" autoFocus placeholder="e.g. TATA Chemicals" value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addClient()} style={{ flex: 1, minWidth: 200 }} />
             <button className="btn btn-dark" disabled={busy} onClick={addClient}>{busy ? "Saving…" : "Register client"}</button>
           </div>
-          <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>Register the company here (not the site). Add the individual sites below once it’s created.</p>
+          <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>Register the company here. Open its “Details” to capture contacts, tax number and account manager, and add its sites below.</p>
         </div>
       )}
 
-      <input className="input" placeholder="Search client or site…" value={q} onChange={(e) => setQ(e.target.value)} style={{ margin: "12px 0" }} />
+      <input className="input" placeholder="Search client, city, contact or site…" value={q} onChange={(e) => setQ(e.target.value)} style={{ margin: "12px 0" }} />
 
       {rows === null && <div className="muted">Loading clients…</div>}
       {rows && shown.length === 0 && (
@@ -99,18 +113,18 @@ export default function ClientsAdmin() {
 
       <div className="grid" style={{ gridTemplateColumns: "1fr", gap: 10 }}>
         {shown.map((c) => (
-          <ClientCard key={c.id} client={c} allClients={rows || []} open={openId === c.id} onToggle={() => setOpenId(openId === c.id ? null : c.id)} onChanged={load} />
+          <ClientCard key={c.id} client={c} allClients={rows || []} staff={staff} open={openId === c.id} onToggle={() => setOpenId(openId === c.id ? null : c.id)} onChanged={load} />
         ))}
       </div>
     </div>
   );
 }
 
-function ClientCard({ client: c, allClients = [], open, onToggle, onChanged }) {
+function ClientCard({ client: c, allClients = [], staff = [], open, onToggle, onChanged }) {
   const [editing, setEditing] = useState(false);
+  const [showSites, setShowSites] = useState(false);
   const [merging, setMerging] = useState(false);
   const [target, setTarget] = useState("");
-  const [name, setName] = useState(c.name);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
@@ -132,9 +146,9 @@ function ClientCard({ client: c, allClients = [], open, onToggle, onChanged }) {
     setErr("");
     const res = await fetch(`/api/clients/${c.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     setBusy(false);
-    if (!res.ok) return setErr((await res.json()).error || "Could not save.");
-    setEditing(false);
+    if (!res.ok) { setErr((await res.json()).error || "Could not save."); return false; }
     onChanged();
+    return true;
   };
 
   const del = async () => {
@@ -149,41 +163,32 @@ function ClientCard({ client: c, allClients = [], open, onToggle, onChanged }) {
 
   const sites = c.sites || [];
   const activeSites = sites.filter((s) => s.active);
+  const st = STATUS_META[c.status] || STATUS_META.ACTIVE;
 
   return (
     <div className="card" style={{ padding: 14, opacity: c.active ? 1 : 0.62 }}>
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
         <div style={{ minWidth: 0 }}>
-          {editing ? (
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <input className="input" value={name} onChange={(e) => setName(e.target.value)} style={{ minWidth: 200 }} />
-              <button className="btn btn-dark" disabled={busy} onClick={() => patch({ name: name.trim() })}>Save</button>
-              <button className="btn" onClick={() => { setEditing(false); setName(c.name); }}>Cancel</button>
-            </div>
-          ) : (
-            <>
-              <div style={{ fontWeight: 800, fontSize: 16, color: INK }}>
-                {c.name}
-                {!c.active && <span style={{ fontSize: 11, color: MUTE, fontWeight: 700 }}> · deactivated</span>}
-              </div>
-              <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
-                {activeSites.length} site{activeSites.length === 1 ? "" : "s"} · {c.reportCount} report{c.reportCount === 1 ? "" : "s"} · {c.weighbridgeCount} weighbridge{c.weighbridgeCount === 1 ? "" : "s"}
-              </div>
-            </>
-          )}
-        </div>
-        {!editing && (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <button className="btn" style={btnSm} onClick={onToggle}>{open ? "Hide sites" : `Sites (${sites.length})`}</button>
-            <button className="btn" style={btnSm} onClick={() => setEditing(true)}>Rename</button>
-            <button className="btn" style={btnSm} onClick={() => setMerging((v) => !v)}>Merge…</button>
-            <button className="btn" style={btnSm} onClick={() => patch({ active: !c.active })} disabled={busy}>{c.active ? "Deactivate" : "Activate"}</button>
-            <button className="btn" style={{ ...btnSm, color: "#B03A2E" }} onClick={del} disabled={busy}>Delete</button>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 800, fontSize: 16, color: INK }}>{c.name}</span>
+            <span style={{ fontSize: 10.5, fontWeight: 800, color: "#fff", background: st.color, padding: "2px 7px", borderRadius: 999, textTransform: "uppercase", letterSpacing: ".04em" }}>{st.label}</span>
+            {!c.active && <span style={{ fontSize: 11, color: MUTE, fontWeight: 700 }}>· deactivated</span>}
           </div>
-        )}
+          <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+            {c.clientType ? `${c.clientType} · ` : ""}{activeSites.length} site{activeSites.length === 1 ? "" : "s"} · {c.reportCount} report{c.reportCount === 1 ? "" : "s"} · {c.weighbridgeCount} weighbridge{c.weighbridgeCount === 1 ? "" : "s"}
+            {c.accountManager ? ` · AM: ${c.accountManager.name}` : ""}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button className="btn" style={btnSm} onClick={() => setEditing((v) => !v)}>{editing ? "Close" : "Details"}</button>
+          <button className="btn" style={btnSm} onClick={() => setShowSites((v) => !v)}>{showSites ? "Hide sites" : `Sites (${sites.length})`}</button>
+          <button className="btn" style={btnSm} onClick={() => setMerging((v) => !v)}>Merge…</button>
+          <button className="btn" style={btnSm} onClick={() => patch({ active: !c.active })} disabled={busy}>{c.active ? "Deactivate" : "Activate"}</button>
+          <button className="btn" style={{ ...btnSm, color: "#B03A2E" }} onClick={del} disabled={busy}>Delete</button>
+        </div>
       </div>
 
-      {merging && !editing && (
+      {merging && (
         <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${LINE}` }}>
           <div className="label" style={{ marginBottom: 6 }}>Merge “{c.name}” into…</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -202,18 +207,89 @@ function ClientCard({ client: c, allClients = [], open, onToggle, onChanged }) {
 
       {err && <div className="err" style={{ marginTop: 8, fontSize: 12 }}>{err}</div>}
 
-      {open && !editing && (
-        <SiteManager clientName={c.name} sites={sites} onChanged={onChanged} />
-      )}
+      {editing && <ClientDetailsForm client={c} staff={staff} onSave={patch} onDone={() => setEditing(false)} />}
 
-      {/* Quick site chips when collapsed */}
-      {!open && !editing && activeSites.length > 0 && (
+      {showSites && <SiteManager clientName={c.name} sites={sites} onChanged={onChanged} />}
+
+      {!showSites && !editing && activeSites.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
           {activeSites.map((s) => (
-            <span key={s.id} style={chip}>{s.name}</span>
+            <span key={s.id} style={chip} title={[s.address, s.city].filter(Boolean).join(", ")}>{s.name}{s.lat != null && s.lng != null ? " 📍" : ""}</span>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+const FIELDS = [
+  ["name", "Registered name", "text"],
+  ["displayName", "Trading / short name", "text"],
+  ["clientType", "Type / industry", "text"],
+  ["status", "Status", "status"],
+  ["contactPerson", "Primary contact", "text"],
+  ["contactEmail", "Contact email", "email"],
+  ["contactPhone", "Contact phone", "tel"],
+  ["billingEmail", "Billing email", "email"],
+  ["taxPin", "KRA PIN / tax ID", "text"],
+  ["regNo", "Company reg. no.", "text"],
+  ["website", "Website", "text"],
+  ["address", "Head-office address", "text"],
+  ["city", "City / town", "text"],
+  ["country", "Country", "text"],
+  ["accountManagerId", "Account manager", "am"],
+  ["onboardedAt", "Onboarded on", "date"],
+];
+
+function ClientDetailsForm({ client: c, staff, onSave, onDone }) {
+  const init = {};
+  for (const [k] of FIELDS) init[k] = c[k] ?? "";
+  init.onboardedAt = c.onboardedAt ? String(c.onboardedAt).slice(0, 10) : "";
+  init.status = c.status || "ACTIVE";
+  const [form, setForm] = useState(init);
+  const [notes, setNotes] = useState(c.notes || "");
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const save = async () => {
+    if (!String(form.name || "").trim()) return;
+    setBusy(true);
+    const ok = await onSave({ ...form, notes });
+    setBusy(false);
+    if (ok) onDone();
+  };
+
+  return (
+    <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${LINE}` }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 10 }}>
+        {FIELDS.map(([k, label, type]) => (
+          <div key={k}>
+            <label className="label" style={{ fontSize: 11.5 }}>{label}</label>
+            {type === "status" ? (
+              <select className="input" value={form.status} onChange={(e) => set("status", e.target.value)}>
+                <option value="ACTIVE">Active</option>
+                <option value="PROSPECT">Prospect</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
+            ) : type === "am" ? (
+              <select className="input" value={form.accountManagerId || ""} onChange={(e) => set("accountManagerId", e.target.value)}>
+                <option value="">— none —</option>
+                {staff.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            ) : (
+              <input className="input" type={type === "date" ? "date" : "text"} inputMode={type === "tel" ? "tel" : undefined} value={form[k] || ""} onChange={(e) => set(k, e.target.value)} />
+            )}
+          </div>
+        ))}
+      </div>
+      <label className="label" style={{ fontSize: 11.5, marginTop: 10, display: "block" }}>Notes</label>
+      <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything worth knowing about this client…" style={{ resize: "vertical" }} />
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <button className="btn btn-dark" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save details"}</button>
+        <button className="btn" onClick={onDone}>Cancel</button>
+      </div>
     </div>
   );
 }
@@ -222,6 +298,7 @@ function SiteManager({ clientName, sites, onChanged }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [editId, setEditId] = useState(null);
 
   const add = async () => {
     const n = name.trim();
@@ -251,14 +328,22 @@ function SiteManager({ clientName, sites, onChanged }) {
       {sites.length === 0 && <div className="muted" style={{ fontSize: 12.5, marginBottom: 8 }}>No sites yet — add this client’s locations below.</div>}
       <div style={{ display: "grid", gap: 6 }}>
         {sites.map((s) => (
-          <div key={s.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "7px 10px", background: "#FBF9F4", border: `1px solid ${LINE}`, borderRadius: 6, opacity: s.active ? 1 : 0.6 }}>
-            <span style={{ fontSize: 13.5, color: INK, fontWeight: 600 }}>
-              {s.name}{!s.active && <span style={{ color: MUTE, fontWeight: 400 }}> · off</span>}
-            </span>
-            <span style={{ display: "flex", gap: 6 }}>
-              <button className="btn" style={btnSm} onClick={() => toggleSite(s)}>{s.active ? "Deactivate" : "Activate"}</button>
-              <button className="btn" style={{ ...btnSm, color: "#B03A2E" }} onClick={() => removeSite(s)}>Remove</button>
-            </span>
+          <div key={s.id} style={{ background: "#FBF9F4", border: `1px solid ${LINE}`, borderRadius: 6, opacity: s.active ? 1 : 0.6 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "7px 10px" }}>
+              <span style={{ minWidth: 0 }}>
+                <span style={{ fontSize: 13.5, color: INK, fontWeight: 600 }}>{s.name}{!s.active && <span style={{ color: MUTE, fontWeight: 400 }}> · off</span>}</span>
+                {(s.city || s.address) && <span className="muted" style={{ fontSize: 12, display: "block" }}>{[s.address, s.city].filter(Boolean).join(", ")}</span>}
+                {s.lat != null && s.lng != null && (
+                  <a href={`https://www.google.com/maps?q=${s.lat},${s.lng}`} target="_blank" rel="noreferrer" style={{ fontSize: 11.5, color: "#2563eb", textDecoration: "none" }}>📍 {Number(s.lat).toFixed(5)}, {Number(s.lng).toFixed(5)}</a>
+                )}
+              </span>
+              <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                <button className="btn" style={btnSm} onClick={() => setEditId(editId === s.id ? null : s.id)}>{editId === s.id ? "Close" : "Edit"}</button>
+                <button className="btn" style={btnSm} onClick={() => toggleSite(s)}>{s.active ? "Deactivate" : "Activate"}</button>
+                <button className="btn" style={{ ...btnSm, color: "#B03A2E" }} onClick={() => removeSite(s)}>Remove</button>
+              </span>
+            </div>
+            {editId === s.id && <SiteEditor site={s} onDone={() => setEditId(null)} onChanged={onChanged} />}
           </div>
         ))}
       </div>
@@ -267,6 +352,71 @@ function SiteManager({ clientName, sites, onChanged }) {
         <button className="btn btn-dark" disabled={busy} onClick={add}>{busy ? "…" : "+ Add site"}</button>
       </div>
       {err && <div className="err" style={{ marginTop: 6, fontSize: 12 }}>{err}</div>}
+    </div>
+  );
+}
+
+function SiteEditor({ site: s, onDone, onChanged }) {
+  const [f, setF] = useState({
+    name: s.name || "",
+    address: s.address || "",
+    city: s.city || "",
+    lat: s.lat ?? "",
+    lng: s.lng ?? "",
+    contactPerson: s.contactPerson || "",
+    contactPhone: s.contactPhone || "",
+    notes: s.notes || "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) return setErr("Geolocation is not available in this browser.");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setF((x) => ({ ...x, lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) })),
+      () => setErr("Could not read your location (permission denied?)."),
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
+  const save = async () => {
+    setBusy(true);
+    setErr("");
+    const res = await fetch(`/api/sites/${s.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(f) });
+    setBusy(false);
+    if (!res.ok) return setErr((await res.json()).error || "Could not save.");
+    onChanged();
+    onDone();
+  };
+
+  return (
+    <div style={{ padding: "4px 10px 12px", borderTop: `1px dashed ${LINE}` }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8, marginTop: 8 }}>
+        <Field label="Site name"><input className="input" value={f.name} onChange={(e) => set("name", e.target.value)} /></Field>
+        <Field label="Address"><input className="input" value={f.address} onChange={(e) => set("address", e.target.value)} /></Field>
+        <Field label="City / town"><input className="input" value={f.city} onChange={(e) => set("city", e.target.value)} /></Field>
+        <Field label="Site contact"><input className="input" value={f.contactPerson} onChange={(e) => set("contactPerson", e.target.value)} /></Field>
+        <Field label="Contact phone"><input className="input" inputMode="tel" value={f.contactPhone} onChange={(e) => set("contactPhone", e.target.value)} /></Field>
+        <Field label="Latitude"><input className="input" inputMode="decimal" value={f.lat} onChange={(e) => set("lat", e.target.value)} placeholder="-1.2345" /></Field>
+        <Field label="Longitude"><input className="input" inputMode="decimal" value={f.lng} onChange={(e) => set("lng", e.target.value)} placeholder="36.8219" /></Field>
+      </div>
+      <Field label="Notes"><input className="input" value={f.notes} onChange={(e) => set("notes", e.target.value)} /></Field>
+      <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+        <button className="btn btn-dark" style={btnSm} disabled={busy} onClick={save}>{busy ? "Saving…" : "Save site"}</button>
+        <button className="btn" style={btnSm} type="button" onClick={useMyLocation}>Use my location</button>
+        <button className="btn" style={btnSm} onClick={onDone}>Cancel</button>
+      </div>
+      {err && <div className="err" style={{ marginTop: 6, fontSize: 12 }}>{err}</div>}
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label className="label" style={{ fontSize: 11.5 }}>{label}</label>
+      {children}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { rolesOf } from "@/lib/roles";
+import { clientDetailData } from "@/lib/clientFields";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,11 @@ export async function GET(req) {
     const list = await prisma.client.findMany({
       orderBy: [{ active: "desc" }, { name: "asc" }],
       include: {
-        sites: { orderBy: [{ active: "desc" }, { name: "asc" }], select: { id: true, name: true, active: true } },
+        sites: {
+          orderBy: [{ active: "desc" }, { name: "asc" }],
+          select: { id: true, name: true, active: true, address: true, city: true, lat: true, lng: true, contactPerson: true, contactPhone: true, notes: true },
+        },
+        accountManager: { select: { id: true, name: true } },
         _count: { select: { reports: true, weighbridges: true } },
       },
     });
@@ -30,6 +35,23 @@ export async function GET(req) {
         id: c.id,
         name: c.name,
         active: c.active,
+        displayName: c.displayName,
+        clientType: c.clientType,
+        contactPerson: c.contactPerson,
+        contactEmail: c.contactEmail,
+        contactPhone: c.contactPhone,
+        billingEmail: c.billingEmail,
+        taxPin: c.taxPin,
+        regNo: c.regNo,
+        address: c.address,
+        city: c.city,
+        country: c.country,
+        website: c.website,
+        notes: c.notes,
+        status: c.status,
+        onboardedAt: c.onboardedAt,
+        accountManagerId: c.accountManagerId,
+        accountManager: c.accountManager,
         sites: c.sites,
         reportCount: c._count.reports,
         weighbridgeCount: c._count.weighbridges,
@@ -64,7 +86,10 @@ export async function POST(req) {
     return Response.json({ client: { id: existing.id, name: existing.name } });
   }
 
-  const client = await prisma.client.create({ data: { name }, select: { id: true, name: true } });
+  const client = await prisma.client.create({
+    data: { name, ...clientDetailData(body) },
+    select: { id: true, name: true },
+  });
   await recordAudit({ actor: user, action: "CREATE", entity: "CLIENT", entityId: client.id, summary: `Registered client ${client.name}` });
   return Response.json({ client });
 }

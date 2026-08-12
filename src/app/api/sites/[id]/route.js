@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { resolveClientByName } from "@/lib/clientResolve";
+import { siteDetailData } from "@/lib/clientFields";
 
 // PATCH /api/sites/[id] — administrators edit a site / location.
 export async function PATCH(req, { params }) {
@@ -31,6 +32,7 @@ export async function PATCH(req, { params }) {
     }
   }
   if (b.active !== undefined) data.active = !!b.active;
+  Object.assign(data, siteDetailData(b));
 
   const s = await prisma.site.update({ where: { id: params.id }, data });
   await recordAudit({
