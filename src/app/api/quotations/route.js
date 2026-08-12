@@ -40,6 +40,7 @@ export async function GET() {
       id: true,
       number: true,
       clientName: true,
+      subject: true,
       status: true,
       grandTotal: true,
       currency: true,

@@ -17,6 +17,9 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
+  // "See earlier" reveals alerts that have already been read; by default the
+  // panel only lists the unread ones, so a read alert clears itself from view.
+  const [showEarlier, setShowEarlier] = useState(false);
   const ref = useRef(null);
 
   const load = useCallback(async () => {
@@ -43,6 +46,9 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  // Collapse "see earlier" again whenever the panel is closed.
+  useEffect(() => { if (!open) setShowEarlier(false); }, [open]);
+
   const markAll = async () => {
     try { await fetch("/api/notifications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ markAll: true }) }); } catch {}
     setItems((xs) => xs.map((i) => ({ ...i, read: true })));
@@ -51,22 +57,40 @@ export default function NotificationBell() {
   const openItem = async (n) => {
     if (!n.read) {
       fetch("/api/notifications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids: [n.id] }) }).catch(() => {});
+      setItems((xs) => xs.map((i) => (i.id === n.id ? { ...i, read: true } : i)));
       setUnread((u) => Math.max(0, u - 1));
     }
     setOpen(false);
     if (n.link) router.push(n.link);
   };
 
+  const unreadItems = items.filter((i) => !i.read);
+  const readItems = items.filter((i) => i.read);
+  const visible = showEarlier ? [...unreadItems, ...readItems] : unreadItems;
+
+  const row = (n) => (
+    <button key={n.id} onClick={() => openItem(n)} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", border: 0, borderBottom: "1px solid #f0ece1", background: n.read ? "#fff" : "#fdf6e3", cursor: "pointer" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+        <span style={{ width: 8, height: 8, borderRadius: "50%", background: TYPE_COLOR[n.type] || MUTE, marginTop: 5, flex: "none", opacity: n.read ? 0.4 : 1 }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: n.read ? 600 : 800, fontSize: 13, color: n.read ? MUTE : INK }}>{n.title}</div>
+          {n.body && <div style={{ fontSize: 12, color: MUTE, marginTop: 2 }}>{n.body}</div>}
+          <div style={{ fontSize: 11, color: "#a89f8d", marginTop: 3 }}>{ago(n.createdAt)}</div>
+        </div>
+      </div>
+    </button>
+  );
+
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button onClick={() => { setOpen((v) => !v); if (!open) load(); }} aria-label="Notifications" title="Notifications"
-        style={{ position: "relative", background: "none", border: 0, cursor: "pointer", color: "#fff", padding: 6, display: "flex" }}>
+        style={{ position: "relative", background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.18)", borderRadius: 8, cursor: "pointer", color: "#fff", padding: 6, display: "flex" }}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
         {unread > 0 && (
-          <span style={{ position: "absolute", top: 0, right: 0, minWidth: 16, height: 16, borderRadius: 8, background: FAIL, color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>
+          <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, background: FAIL, color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", boxShadow: "0 0 0 2px " + COAL }}>
             {unread > 9 ? "9+" : unread}
           </span>
         )}
@@ -74,24 +98,24 @@ export default function NotificationBell() {
       {open && (
         <div style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: 340, maxWidth: "86vw", background: "#fff", color: INK, border: "1px solid #e6e0d2", borderRadius: 10, boxShadow: "0 12px 34px rgba(0,0,0,.24)", zIndex: 60, overflow: "hidden" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: COAL, color: "#fff" }}>
-            <span style={{ fontWeight: 800, fontSize: 13, textTransform: "uppercase", letterSpacing: ".04em" }}>Notifications</span>
+            <span style={{ fontWeight: 800, fontSize: 13, textTransform: "uppercase", letterSpacing: ".04em" }}>
+              Notifications{unread > 0 ? ` · ${unread}` : ""}
+            </span>
             {unread > 0 && <button onClick={markAll} style={{ background: "none", border: 0, color: GOLD, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Mark all read</button>}
           </div>
           <div style={{ maxHeight: 380, overflowY: "auto" }}>
-            {items.length === 0 && <div style={{ padding: 20, textAlign: "center", color: MUTE, fontSize: 13 }}>No notifications yet.</div>}
-            {items.map((n) => (
-              <button key={n.id} onClick={() => openItem(n)} style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", border: 0, borderBottom: "1px solid #f0ece1", background: n.read ? "#fff" : "#fdf6e3", cursor: "pointer" }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: TYPE_COLOR[n.type] || MUTE, marginTop: 5, flex: "none" }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 800, fontSize: 13, color: INK }}>{n.title}</div>
-                    {n.body && <div style={{ fontSize: 12, color: MUTE, marginTop: 2 }}>{n.body}</div>}
-                    <div style={{ fontSize: 11, color: "#a89f8d", marginTop: 3 }}>{ago(n.createdAt)}</div>
-                  </div>
-                </div>
-              </button>
-            ))}
+            {visible.length === 0 && (
+              <div style={{ padding: 20, textAlign: "center", color: MUTE, fontSize: 13 }}>
+                {readItems.length ? "You're all caught up." : "No notifications yet."}
+              </div>
+            )}
+            {visible.map(row)}
           </div>
+          {readItems.length > 0 && (
+            <button onClick={() => setShowEarlier((v) => !v)} style={{ display: "block", width: "100%", textAlign: "center", padding: "9px 12px", border: 0, borderTop: "1px solid #eee6d6", background: "#faf7ef", color: COAL, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              {showEarlier ? "Hide earlier alerts" : `See earlier alerts (${readItems.length})`}
+            </button>
+          )}
         </div>
       )}
     </div>
