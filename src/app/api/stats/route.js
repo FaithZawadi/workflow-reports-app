@@ -56,6 +56,35 @@ export async function GET() {
   });
   const reportsTrend = Object.entries(trendMap).map(([date, count]) => ({ date, count }));
 
+  // --- 6-month volume (scoped) for the monthly bar chart ---
+  let monthlyTrend = null;
+  if (!client) {
+    const monthStartFor = (offset) => {
+      const dt = new Date();
+      dt.setMonth(dt.getMonth() - offset, 1);
+      dt.setHours(0, 0, 0, 0);
+      return dt;
+    };
+    const sixAgo = monthStartFor(5);
+    const monthRows = await prisma.report
+      .findMany({ where: { AND: [where, { reportDate: { gte: sixAgo } }] }, select: { reportDate: true, createdAt: true } })
+      .catch(() => []);
+    const buckets = [];
+    const idx = {};
+    for (let i = 5; i >= 0; i--) {
+      const dt = monthStartFor(i);
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      idx[key] = buckets.length;
+      buckets.push({ label: dt.toLocaleString("en-GB", { month: "short" }), count: 0 });
+    }
+    for (const r of monthRows) {
+      const dt = new Date(r.reportDate || r.createdAt);
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}`;
+      if (key in idx) buckets[idx[key]].count += 1;
+    }
+    monthlyTrend = buckets;
+  }
+
   // --- Headline quality + volume metrics (scoped) ---
   const approved = reportsByStatus.APPROVED || 0;
   const approvalRate = totalReports ? Math.round((approved / totalReports) * 100) : 0;
@@ -208,6 +237,7 @@ export async function GET() {
     reportsByStatus,
     reportsByTemplate,
     reportsTrend,
+    monthlyTrend,
     approvalRate,
     reportsThisWeek,
     reportsThisMonth,

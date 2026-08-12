@@ -14,17 +14,46 @@ function Maybe({ href, children, style }) {
 export function StatTile({ label, value, sub, tone = "ink", icon, href }) {
   const color = { ink: INK, pass: PASS, fail: FAIL, wait: WAIT, gold: "#8a6d00" }[tone] || INK;
   const bg = { ink: "#fff", pass: "#eef6f0", fail: "#fdf1ef", wait: "#fbf5e6", gold: "#fdf6e3" }[tone] || "#fff";
+  const accent = { ink: "#cfc8ba", pass: PASS, fail: FAIL, wait: WAIT, gold: GOLD }[tone] || "#cfc8ba";
   return (
-    <Maybe href={href}>
-      <div className="card" style={{ padding: 14, background: bg, minWidth: 0, cursor: href ? "pointer" : "default" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".03em", color: MUTE }}>{label}</div>
-          {icon ? <span style={{ fontSize: 16 }} aria-hidden>{icon}</span> : null}
+    <Maybe href={href} style={{ display: "block", height: "100%" }}>
+      <div className="card" style={{ padding: 14, paddingLeft: 16, background: bg, minWidth: 0, height: "100%", display: "flex", flexDirection: "column", cursor: href ? "pointer" : "default", position: "relative", overflow: "hidden" }}>
+        <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: accent }} />
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 6, minHeight: 30 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".03em", color: MUTE, lineHeight: 1.25 }}>{label}</div>
+          {icon ? <span style={{ fontSize: 16, flexShrink: 0 }} aria-hidden>{icon}</span> : null}
         </div>
         <div style={{ fontSize: 30, fontWeight: 900, color, lineHeight: 1.1, marginTop: 6 }}>{value}</div>
-        {sub ? <div style={{ fontSize: 12, color: MUTE, marginTop: 2 }}>{sub}</div> : null}
+        {/* Reserve the sub line so tiles with and without it stay the same height. */}
+        <div style={{ fontSize: 12, color: MUTE, marginTop: "auto", paddingTop: 4, minHeight: 18 }}>{sub || " "}</div>
       </div>
     </Maybe>
+  );
+}
+
+// Vertical bar chart. bars = [{ label, value, href? }]. Modern monthly/weekly view.
+export function Bars({ bars = [], color = GOLD, height = 150 }) {
+  const max = Math.max(1, ...bars.map((b) => b.value || 0));
+  return (
+    <div style={{ width: "100%" }}>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height, padding: "0 2px" }}>
+        {bars.map((b, i) => {
+          const h = Math.max(3, Math.round(((b.value || 0) / max) * (height - 22)));
+          const Col = (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 5, minWidth: 0, height: "100%", justifyContent: "flex-end" }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: INK }}>{b.value || 0}</span>
+              <div title={`${b.label}: ${b.value || 0}`} style={{ width: "72%", maxWidth: 34, height: h, background: `linear-gradient(180deg, ${color}, ${color}cc)`, borderRadius: "5px 5px 0 0", transition: "height .5s ease" }} />
+            </div>
+          );
+          return b.href ? <Link key={i} href={b.href} style={{ flex: 1, textDecoration: "none", display: "flex" }}>{Col}</Link> : <div key={i} style={{ flex: 1, display: "flex" }}>{Col}</div>;
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 8, padding: "6px 2px 0", borderTop: `1px solid ${LINE}`, marginTop: 6 }}>
+        {bars.map((b, i) => (
+          <div key={i} style={{ flex: 1, textAlign: "center", fontSize: 10.5, color: MUTE, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{b.label}</div>
+        ))}
+      </div>
+    </div>
   );
 }
 

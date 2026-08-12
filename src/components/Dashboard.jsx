@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { StatTile, Donut, BarList, TrendArea, Gauge } from "./charts";
+import { StatTile, Donut, BarList, TrendArea, Gauge, Bars } from "./charts";
 import { Pill } from "./ui";
 import { ROLE_LABEL, COAL, GOLD, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
@@ -58,13 +58,16 @@ const Panel = ({ title, action, children, span, center = false, minH = 300 }) =>
 
 // A small labelled metric for the strips.
 const Mini = ({ label, value, sub, color, accent }) => (
-  <div style={{ flex: "1 1 150px", minWidth: 140, background: "#fff", border: "1px solid var(--line)", borderRadius: 14, padding: "13px 15px", position: "relative", overflow: "hidden" }}>
-    <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: accent || "transparent" }} />
+  <div style={{ height: "100%", minWidth: 0, background: "#fff", border: "1px solid var(--line)", borderRadius: 14, padding: "13px 15px", paddingLeft: 16, position: "relative", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+    <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: accent || "#cfc8ba" }} />
     <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: ".05em", textTransform: "uppercase", color: MUTE }}>{label}</div>
     <div style={{ fontSize: 25, fontWeight: 900, color: color || INK, marginTop: 4, lineHeight: 1 }}>{value}</div>
-    {sub ? <div style={{ fontSize: 11.5, color: MUTE, marginTop: 4 }}>{sub}</div> : null}
+    <div style={{ fontSize: 11.5, color: MUTE, marginTop: "auto", paddingTop: 4 }}>{sub || " "}</div>
   </div>
 );
+
+// Uniform strip grid — every card equal height and width.
+const stripGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gridAutoRows: "1fr", gap: 12 };
 
 const MEDAL = ["#D4AF37", "#B8B8B8", "#CD7F32"];
 
@@ -183,8 +186,8 @@ export default function Dashboard({ profile }) {
         </div>
       </div>
 
-      {/* KPI tiles */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 12, marginTop: 14 }}>
+      {/* KPI tiles — equal height + width */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(165px,1fr))", gridAutoRows: "1fr", gap: 12, marginTop: 14 }}>
         {tiles}
       </div>
 
@@ -192,7 +195,7 @@ export default function Dashboard({ profile }) {
       {isAdmin && d.business && (
         <div style={{ marginTop: 16 }}>
           <div style={{ fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".05em", color: MUTE, marginBottom: 8 }}>Business at a glance</div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <div style={stripGrid}>
             <Mini label="Active clients" value={d.business.activeClients} sub={`${d.business.activeSites} sites`} accent={COAL} />
             <Mini label="Weighbridges" value={d.activeWeighbridges ?? "—"} sub="in service" accent={COAL} />
             <Mini label="Open tasks" value={d.business.openTasks} sub={`${d.business.overdueTasks} overdue`} color={d.business.overdueTasks ? FAIL : INK} accent={d.business.overdueTasks ? FAIL : "#cfc8ba"} />
@@ -205,7 +208,7 @@ export default function Dashboard({ profile }) {
 
       {/* Quality / volume strip (non-client) */}
       {!isClient && !isAdmin && (
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
+        <div style={{ ...stripGrid, marginTop: 12 }}>
           <Mini label="This week" value={d.reportsThisWeek ?? 0} sub="reports filed" />
           <Mini label="This month" value={d.reportsThisMonth ?? 0} sub="reports filed" />
           <Mini label="Approval rate" value={`${d.approvalRate ?? 0}%`} sub={`${s.APPROVED || 0} of ${d.totalReports}`} color={PASS} accent={PASS} />
@@ -223,6 +226,11 @@ export default function Dashboard({ profile }) {
         {!isClient && (
           <Panel title="Report status" center>
             {statusSegments.length ? <Donut segments={statusSegments} centerLabel="reports" /> : <Empty />}
+          </Panel>
+        )}
+        {!isClient && d.monthlyTrend?.length > 0 && (
+          <Panel title="Reports · by month" center>
+            {d.monthlyTrend.some((m) => m.count) ? <div style={{ width: "100%" }}><Bars bars={d.monthlyTrend.map((m) => ({ label: m.label, value: m.count }))} /></div> : <Empty>No reports in the last 6 months.</Empty>}
           </Panel>
         )}
         {!isClient && (
