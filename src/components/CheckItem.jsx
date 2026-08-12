@@ -19,7 +19,7 @@ export function colorFor(key) {
 // room since comments can be long.
 // Item column is generous so each check sits on one line; result stays as tight
 // as the pills allow; Remarks takes the rest (it wraps for long comments).
-const gridCols = (n) => `minmax(240px,1.9fr) ${n >= 3 ? 216 : 148}px minmax(150px,1fr)`;
+const gridCols = (n) => `minmax(190px,1.1fr) ${n >= 3 ? 216 : 148}px minmax(240px,1.6fr)`;
 export const CHECK_TABLE_MINWIDTH = 760;
 
 const cellBase = {

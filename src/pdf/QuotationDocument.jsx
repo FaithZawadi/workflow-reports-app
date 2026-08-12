@@ -226,15 +226,11 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
           ) : null}
         </View>
 
-        {/* Scan-for-details QR — at the foot of the quotation, not the header */}
+        {/* Verify QR — the code only, no caption. */}
         {qrSrc ? (
           <View style={s.qrBlock} wrap={false}>
             {/* eslint-disable-next-line jsx-a11y/alt-text */}
             <Image src={qrSrc} style={s.qrImg} />
-            <View style={s.qrText}>
-              <Text style={s.qrTitle}>Scan for details</Text>
-              <Text style={s.qrSub}>Point your phone camera at this code for a summary of this quotation — client, validity and total.</Text>
-            </View>
           </View>
         ) : null}
 
