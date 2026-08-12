@@ -192,6 +192,26 @@ export async function PATCH(req, { params }) {
   if (body.fileNo !== undefined) data.fileNo = String(body.fileNo || "").trim() || null;
   if (body.paymentDetails !== undefined) data.paymentDetails = String(body.paymentDetails || "").trim() || null;
   if (body.terms !== undefined) data.terms = String(body.terms || "").trim() || null;
+  // Re-issuing a quote that was already issued once is an amendment — log who
+  // amended it, when, why, and the value change, and bump the revision number.
+  const isAmendment = issue && !!q.quotedAt;
+  if (isAmendment) {
+    const prevLog = Array.isArray(q.amendments) ? q.amendments : [];
+    const rev = (q.revision || 0) + 1;
+    data.revision = rev;
+    data.amendments = [
+      ...prevLog,
+      {
+        rev,
+        byName: user.name,
+        at: new Date().toISOString(),
+        note: String(body.amendReason || "").trim() || null,
+        prevTotal: q.grandTotal,
+        grandTotal: totals.grandTotal,
+        currency,
+      },
+    ];
+  }
   if (issue) {
     data.status = "QUOTED";
     data.preparedByName = user.name;
@@ -207,7 +227,11 @@ export async function PATCH(req, { params }) {
     action: "UPDATE",
     entity: "QUOTATION",
     entityId: q.number,
-    summary: issue ? `Quotation ${q.number} issued (${currency} ${totals.grandTotal.toLocaleString()})` : `Quotation ${q.number} draft saved`,
+    summary: isAmendment
+      ? `Quotation ${q.number} amended to Rev ${updated.revision} by ${user.name} (${currency} ${totals.grandTotal.toLocaleString()})`
+      : issue
+        ? `Quotation ${q.number} issued (${currency} ${totals.grandTotal.toLocaleString()})`
+        : `Quotation ${q.number} draft saved`,
   });
 
   // On issue, email the client the quote.

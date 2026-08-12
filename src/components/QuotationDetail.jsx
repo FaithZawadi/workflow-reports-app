@@ -37,6 +37,8 @@ export default function QuotationDetail({ id, profile }) {
   const [fileNo, setFileNo] = useState("");
   const [paymentDetails, setPaymentDetails] = useState(DEFAULT_PAYMENT_DETAILS);
   const [terms, setTerms] = useState(DEFAULT_QUOTE_TERMS);
+  // Reason captured when re-issuing an already-issued quote (an amendment).
+  const [amendReason, setAmendReason] = useState("");
 
   const load = () =>
     fetch(`/api/quotations/${id}`)
@@ -92,6 +94,7 @@ export default function QuotationDetail({ id, profile }) {
           validUntil: validUntil || null, issue,
           contactPerson: contactPerson.trim(), contactEmail: contactEmail.trim(), contactPhone: contactPhone.trim(),
           subject: subject.trim(), fileNo: fileNo.trim(), paymentDetails: paymentDetails.trim(), terms: terms.trim(),
+          amendReason: amendReason.trim(),
         }),
       });
       const d = await res.json();
@@ -108,6 +111,7 @@ export default function QuotationDetail({ id, profile }) {
         window.location.href = `mailto:${encodeURIComponent(d.contactEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
       }
       await load();
+      setAmendReason("");
       setNote(issue ? "Quotation issued. Your email app should open, ready to send — or use the share buttons above (Email / WhatsApp)." : "Draft saved.");
     } catch {
       setNote("Network problem — try again.");
@@ -197,7 +201,12 @@ export default function QuotationDetail({ id, profile }) {
       </button>
       <PaperCard>
         <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <span className="mono" style={{ fontSize: 13, fontWeight: 700, background: COAL, color: GOLD, padding: "4px 8px" }}>{q.number}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span className="mono" style={{ fontSize: 13, fontWeight: 700, background: COAL, color: GOLD, padding: "4px 8px" }}>{q.number}</span>
+            {q.revision > 0 && (
+              <span title={`Amended ${q.revision} time${q.revision === 1 ? "" : "s"}`} style={{ fontSize: 11, fontWeight: 800, background: GOLD, color: COAL, padding: "3px 7px", borderRadius: 999 }}>Rev {q.revision}</span>
+            )}
+          </span>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <StatusBadge status={q.status} map={QUOTE_STATUS} />
             {q.status !== "REQUESTED" && (
@@ -327,11 +336,22 @@ export default function QuotationDetail({ id, profile }) {
             </div>
 
             <Totals totals={totals} currency={currency} vatRate={vatRate} freight={freight} words={previewWords} />
+
+            {/* Amendment history + a reason box when re-issuing an issued quote. */}
+            {q.amendments?.length ? <RevisionHistory amendments={q.amendments} /> : null}
+            {q.status === "QUOTED" && (
+              <label className="field" style={{ marginTop: 10 }}>
+                <span className="label">Reason for amendment (shown on the revised quote)</span>
+                <input className="input" value={amendReason} onChange={(e) => setAmendReason(e.target.value)} placeholder="e.g. Revised scope — added load-cell replacement" />
+                <span className="muted" style={{ fontSize: 11 }}>Re-issuing records a new revision (Rev {(q.revision || 0) + 1}) with your name, the date and this reason.</span>
+              </label>
+            )}
+
             {note && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, margin: "8px 0" }}>{note}</div>}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
               <button className="btn" onClick={() => save(false)} disabled={busy} style={{ fontSize: 13 }}>Save draft</button>
               <button className="btn btn-primary" onClick={() => save(true)} disabled={busy} style={{ flex: 1, minWidth: 160 }}>
-                {q.status === "QUOTED" ? "Re-issue to client" : "Issue to client"}
+                {q.status === "QUOTED" ? "Re-issue amended quote" : "Issue to client"}
               </button>
             </div>
           </>
@@ -362,6 +382,7 @@ export default function QuotationDetail({ id, profile }) {
                 </div>
                 <Totals totals={{ subtotal: q.subtotal, vatAmount: q.vatAmount, grandTotal: q.grandTotal }} currency={q.currency} vatRate={q.vatRate} freight={q.freight} words={q.amountInWords} />
                 {q.notes && <div className="muted" style={{ fontSize: 13, marginTop: 8 }}><b>Notes:</b> {q.notes}</div>}
+                {q.amendments?.length ? <RevisionHistory amendments={q.amendments} /> : null}
               </>
             )}
             {q.status === "REQUESTED" && (
@@ -427,6 +448,33 @@ export default function QuotationDetail({ id, profile }) {
           </div>
         )}
       </PaperCard>
+    </div>
+  );
+}
+
+function RevisionHistory({ amendments }) {
+  const list = [...amendments].sort((a, b) => (b.rev || 0) - (a.rev || 0));
+  return (
+    <div style={{ marginTop: 14 }}>
+      <SectionBar>Amendment history</SectionBar>
+      <div style={{ display: "grid", gap: 8, marginTop: 4 }}>
+        {list.map((a, i) => {
+          const delta = a.grandTotal != null && a.prevTotal != null ? Number(a.grandTotal) - Number(a.prevTotal) : null;
+          return (
+            <div key={i} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "baseline", padding: "8px 10px", background: "#FBF9F4", border: "1px solid #e6e0d2", borderRadius: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, background: GOLD, color: COAL, padding: "2px 7px", borderRadius: 999 }}>Rev {a.rev}</span>
+              <span style={{ fontSize: 13, color: INK, fontWeight: 700 }}>{a.byName || "—"}</span>
+              <span className="muted" style={{ fontSize: 12 }}>{a.at ? new Date(a.at).toLocaleString() : ""}</span>
+              {delta != null && delta !== 0 && (
+                <span style={{ fontSize: 12, fontWeight: 700, color: delta > 0 ? FAIL : PASS }}>
+                  {delta > 0 ? "▲" : "▼"} {a.currency || ""} {Math.abs(delta).toLocaleString()}
+                </span>
+              )}
+              {a.note && <span style={{ fontSize: 13, color: INK, flexBasis: "100%" }}>{a.note}</span>}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -65,6 +65,14 @@ const s = StyleSheet.create({
   qrText: { flex: 1 },
   qrTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4 },
   qrSub: { fontSize: 7.5, color: MUTE, marginTop: 2, lineHeight: 1.3, maxWidth: 260 },
+  // Amendment / revision history block.
+  amendWrap: { marginTop: 12, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1" },
+  amendTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4, padding: 6, borderBottomWidth: 0.5, borderBottomColor: GOLD },
+  amendRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#EAE3D4", paddingVertical: 3, paddingHorizontal: 6 },
+  amendRev: { width: "12%", fontSize: 8, fontFamily: "Helvetica-Bold", color: COAL },
+  amendWho: { width: "26%", fontSize: 8 },
+  amendWhen: { width: "26%", fontSize: 7.5, color: MUTE, fontFamily: "Courier" },
+  amendNote: { width: "36%", fontSize: 8 },
 });
 
 function fmt(d, withTime) {
@@ -89,6 +97,7 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
   const items = Array.isArray(q.items) ? q.items : [];
   const paymentDetails = q.paymentDetails || DEFAULT_PAYMENT_DETAILS;
   const terms = q.terms || DEFAULT_QUOTE_TERMS;
+  const amendments = Array.isArray(q.amendments) ? [...q.amendments].sort((a, b) => (b.rev || 0) - (a.rev || 0)) : [];
 
   return (
     <Document>
@@ -114,7 +123,7 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
           </View>
           <View style={s.metaBox}>
             <View style={s.metaLine}><Text style={s.metaK}>DATE</Text><Text style={s.metaV}>{fmt(q.quotedAt || q.createdAt)}</Text></View>
-            <View style={s.metaLine}><Text style={s.metaK}>NO.</Text><Text style={s.metaV}>{q.number}</Text></View>
+            <View style={s.metaLine}><Text style={s.metaK}>NO.</Text><Text style={s.metaV}>{q.number}{q.revision > 0 ? `  Rev ${q.revision}` : ""}</Text></View>
             <View style={s.metaLine}><Text style={s.metaK}>FILE NO.</Text><Text style={s.metaV}>{q.fileNo || "-"}</Text></View>
             <View style={[s.metaLine, { borderBottomWidth: 0 }]}><Text style={s.metaK}>VALID TO</Text><Text style={s.metaV}>{q.validUntil ? fmt(q.validUntil) : "-"}</Text></View>
           </View>
@@ -225,6 +234,27 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
             </Text>
           ) : null}
         </View>
+
+        {/* Amendment history — who revised the quote, when and why. */}
+        {amendments.length ? (
+          <View style={s.amendWrap} wrap={false}>
+            <Text style={s.amendTitle}>Amendment history</Text>
+            <View style={[s.amendRow, { backgroundColor: "#F5EEDD" }]}>
+              <Text style={[s.amendRev, { fontFamily: "Helvetica-Bold" }]}>Rev</Text>
+              <Text style={[s.amendWho, { fontFamily: "Helvetica-Bold" }]}>Amended by</Text>
+              <Text style={[s.amendWhen, { fontFamily: "Helvetica-Bold", color: INK }]}>Date</Text>
+              <Text style={[s.amendNote, { fontFamily: "Helvetica-Bold" }]}>Reason</Text>
+            </View>
+            {amendments.map((a, i) => (
+              <View style={s.amendRow} key={i} wrap={false}>
+                <Text style={s.amendRev}>{a.rev}</Text>
+                <Text style={s.amendWho}>{a.byName || "-"}</Text>
+                <Text style={s.amendWhen}>{a.at ? fmt(a.at, true) : "-"}</Text>
+                <Text style={s.amendNote}>{a.note || "-"}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
 
         {/* Verify QR — the code only, no caption. */}
         {qrSrc ? (

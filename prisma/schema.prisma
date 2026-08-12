@@ -620,6 +620,12 @@ model Quotation {
   quotedAt       DateTime?
   decidedAt      DateTime?
 
+  // Amendment / revision tracking. `revision` is 0 for the first issue and
+  // increments each time an already-issued quote is re-issued. `amendments` is
+  // an append-only log: [{ rev, byName, at, note, prevTotal, grandTotal, currency }].
+  revision   Int    @default(0)
+  amendments Json?
+
   // The client's Local Purchase Order, uploaded as an image (base64 data URL,
   // capped at ~2 MB). Attached by the client around acceptance.
   lpoImage      String?   @db.Text
