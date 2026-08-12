@@ -58,9 +58,13 @@ const s = StyleSheet.create({
   narrativeLabel: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: MUTE, textTransform: "uppercase" },
   narrativeText: { fontSize: 8.5, marginTop: 1.5, lineHeight: 1.25 },
   // Appealing narrative card: subtle paper fill + gold left accent.
-  narrCard: { marginTop: 5, paddingVertical: 5, paddingHorizontal: 8, backgroundColor: "#FBF8F1", borderLeftWidth: 2.5, borderLeftColor: GOLD, borderRadius: 2 },
-  narrLabel: { fontSize: 8, fontFamily: "Helvetica-Bold", color: COAL, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 2 },
-  narrText: { fontSize: 8.5, lineHeight: 1.3, color: INK },
+  // Structured topic → response table for the job narrative.
+  narrTable: { marginTop: 3, borderWidth: 0.5, borderColor: "#E4DCCB" },
+  narrRow: { flexDirection: "row", alignItems: "stretch" },
+  narrRowDiv: { borderTopWidth: 0.5, borderTopColor: "#E4DCCB" },
+  narrKey: { width: "23%", backgroundColor: "#F5EEDD", padding: 4, fontSize: 8, fontFamily: "Helvetica-Bold", color: COAL, textTransform: "uppercase", letterSpacing: 0.3, borderRightWidth: 0.5, borderRightColor: "#E4DCCB" },
+  narrVal: { width: "77%", padding: 4 },
+  narrText: { fontSize: 8.5, lineHeight: 1.35, color: INK },
   bulletRow: { flexDirection: "row", marginTop: 1 },
   bulletDot: { fontSize: 8.5, color: GOLD, width: 9, fontFamily: "Helvetica-Bold" },
   bulletText: { fontSize: 8.5, flex: 1, lineHeight: 1.3, color: INK },
@@ -267,27 +271,40 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
           ))}
         </View>
 
-        {/* Narrative fields — clean gold-accent cards; dash/bullet lines render
-            as a tidy bulleted list. */}
-        {narrativeFields.map(([k, v]) => {
-          const lines = String(v).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-          const bulleted = lines.length > 1 && lines.every((l) => /^[-•*]/.test(l));
-          return (
-            <View style={s.narrCard} key={k} wrap={false}>
-              <Text style={s.narrLabel}>{labelFor(k)}</Text>
-              {bulleted ? (
-                lines.map((l, i) => (
-                  <View style={s.bulletRow} key={i}>
-                    <Text style={s.bulletDot}>•</Text>
-                    <Text style={s.bulletText}>{l.replace(/^[-•*]\s*/, "")}</Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={s.narrText}>{String(v)}</Text>
-              )}
+        {/* Job narrative — a structured topic → response table. Each field is a
+            labelled row (topic on the left, response on the right); dash/bullet
+            lines render as a tidy bulleted list. */}
+        {narrativeFields.length > 0 && (
+          <View wrap={false}>
+            <View style={s.sectionBar}>
+              <View style={s.swatch} />
+              <Text style={s.sectionTitle}>{isTechReport ? "Job details" : "Details"}</Text>
             </View>
-          );
-        })}
+            <View style={s.narrTable}>
+              {narrativeFields.map(([k, v], ri) => {
+                const lines = String(v).split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+                const bulleted = lines.length > 1 && lines.every((l) => /^[-•*]/.test(l));
+                return (
+                  <View style={[s.narrRow, ri > 0 && s.narrRowDiv]} key={k} wrap={false}>
+                    <Text style={s.narrKey}>{labelFor(k)}</Text>
+                    <View style={s.narrVal}>
+                      {bulleted ? (
+                        lines.map((l, i) => (
+                          <View style={s.bulletRow} key={i}>
+                            <Text style={s.bulletDot}>•</Text>
+                            <Text style={s.bulletText}>{l.replace(/^[-•*]\s*/, "")}</Text>
+                          </View>
+                        ))
+                      ) : (
+                        <Text style={s.narrText}>{String(v)}</Text>
+                      )}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
 
         {/* checklists — one result column per state (OK/ATTN/N/A, PASS/ADJ/FAIL, …) */}
         {checklistSections.map(({ sec, idx }) => {
