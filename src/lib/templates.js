@@ -323,7 +323,7 @@ export const TEMPLATES = [
     name: "Technical Report",
     cadence: "Field service / calibration visit",
     who: "Technician (approved by Project Manager)",
-    desc: "In-house field service report: nature of visit, machine details, fault, findings, correction, result, parts and job-time / mileage (QSL Technical Report).",
+    desc: "In-house field service report: nature of visit, machine details, fault, findings, correction, result and parts (QSL Technical Report).",
     sections: [
       {
         type: "fields",
@@ -349,13 +349,6 @@ export const TEMPLATES = [
       { type: "textarea", k: "finalResult", label: "Final result" },
       { type: "textarea", k: "partsToOrder", label: "Parts to order" },
       { type: "textarea", k: "customerComments", label: "Customer comments" },
-      {
-        type: "rows",
-        key: "jobTime",
-        title: "Field job time — mileage details",
-        cols: ["MV/EV/DN/LPO no.", "Time in", "Time out", "Time spent", "KM out", "KM in", "KM covered"],
-        rows: 4,
-      },
     ],
   },
 ];
