@@ -165,9 +165,9 @@ export default function Dashboard({ profile }) {
   const gridCharts = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14, marginTop: 14 };
 
   return (
-    <div style={{ marginTop: 12 }}>
+    <div style={{ marginTop: 12, display: "flex", flexDirection: "column" }}>
       {/* Hero */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
+      <div style={{ order: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
         <div>
           <p className="eyebrow">{ROLE_LABEL[d.role] || d.role}</p>
           <h1 className="h1">{greeting()}, {(d.name || "").split(" ")[0]}</h1>
@@ -187,13 +187,13 @@ export default function Dashboard({ profile }) {
       </div>
 
       {/* KPI tiles — equal height + width */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(165px,1fr))", gridAutoRows: "1fr", gap: 12, marginTop: 14 }}>
+      <div style={{ order: 3, display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(165px,1fr))", gridAutoRows: "1fr", gap: 12, marginTop: 16 }}>
         {tiles}
       </div>
 
       {/* Admin: business at a glance */}
       {isAdmin && d.business && (
-        <div style={{ marginTop: 16 }}>
+        <div style={{ order: 4, marginTop: 16 }}>
           <div style={{ fontSize: 11.5, fontWeight: 800, textTransform: "uppercase", letterSpacing: ".05em", color: MUTE, marginBottom: 8 }}>Business at a glance</div>
           <div style={stripGrid}>
             <Mini label="Active clients" value={d.business.activeClients} sub={`${d.business.activeSites} sites`} accent={COAL} />
@@ -208,7 +208,7 @@ export default function Dashboard({ profile }) {
 
       {/* Quality / volume strip (non-client) */}
       {!isClient && !isAdmin && (
-        <div style={{ ...stripGrid, marginTop: 12 }}>
+        <div style={{ ...stripGrid, order: 5, marginTop: 12 }}>
           <Mini label="This week" value={d.reportsThisWeek ?? 0} sub="reports filed" />
           <Mini label="This month" value={d.reportsThisMonth ?? 0} sub="reports filed" />
           <Mini label="Approval rate" value={`${d.approvalRate ?? 0}%`} sub={`${s.APPROVED || 0} of ${d.totalReports}`} color={PASS} accent={PASS} />
@@ -216,8 +216,8 @@ export default function Dashboard({ profile }) {
         </div>
       )}
 
-      {/* Charts — one uniform grid */}
-      <div style={gridCharts}>
+      {/* Charts — one uniform grid (leads the dashboard) */}
+      <div style={{ ...gridCharts, order: 2 }}>
         {!isClient && (
           <Panel title="Reports · last 14 days" span={2} center>
             {d.reportsTrend?.some((p) => p.count) ? <div style={{ width: "100%" }}><TrendArea points={d.reportsTrend} /></div> : <Empty>No reports filed in the last 14 days.</Empty>}
@@ -272,7 +272,7 @@ export default function Dashboard({ profile }) {
 
       {/* Admin: staff merits + top clients (uniform grid) */}
       {isAdmin && (d.staffMerits?.length || d.topClients?.length) && (
-        <div style={gridCharts}>
+        <div style={{ ...gridCharts, order: 6 }}>
           {d.staffMerits?.length ? (
             <Panel title="Staff merits · last 120 days" span={2} action={<Link href="/reports-summary" style={{ fontSize: 11, color: "#8a6d00", fontWeight: 700, textDecoration: "none" }}>Full report →</Link>}>
               <MeritBoard rows={d.staffMerits} />
@@ -288,7 +288,7 @@ export default function Dashboard({ profile }) {
 
       {/* Recent activity */}
       {d.recent.length > 0 && (
-        <div style={{ marginTop: 14 }}>
+        <div style={{ order: 7, marginTop: 16 }}>
           <Panel title="Recent activity" minH={0} action={<Link href="/dashboard" style={{ fontSize: 11, color: "#8a6d00", fontWeight: 700, textDecoration: "none" }}>All reports →</Link>}>
             <div style={{ display: "grid", gap: 2, width: "100%" }}>
               {d.recent.map((r) => (
@@ -308,7 +308,7 @@ export default function Dashboard({ profile }) {
 
       {/* Client empty-state help */}
       {isClient && d.recent.length === 0 && (
-        <div className="card" style={{ padding: 20, marginTop: 12, textAlign: "center", color: MUTE }}>
+        <div className="card" style={{ order: 8, padding: 20, marginTop: 12, textAlign: "center", color: MUTE }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: INK }}>Welcome</div>
           <p style={{ fontSize: 13, marginTop: 6 }}>Request a calibration or a quotation from the menu — you&apos;ll see their status update here.</p>
         </div>
