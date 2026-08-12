@@ -480,7 +480,32 @@ async function buildOperations(user, from, to, clientFilter, siteFilter) {
 // The deeper, per-dimension report tabs — staff productivity, weighbridge
 // (equipment) history, client account statements and compliance/adherence — all
 // derived from the reports already loaded plus the operations snapshot.
-function buildDimensions(reports, cur, operations) {
+// Load a name -> affiliation map for every user, so staff breakdowns can be
+// split into QSL (internal) staff and other clients' staff. Keyed by name
+// because the approvals trail only records the actor's name.
+async function buildAffiliation() {
+  const map = new Map();
+  try {
+    const users = await prisma.user.findMany({ select: { name: true, clientId: true, client: { select: { name: true } } } });
+    for (const u of users) {
+      if (!u.name || map.has(u.name)) continue;
+      map.set(u.name, { internal: !u.clientId, clientName: u.client?.name || null });
+    }
+  } catch {
+    // best-effort — an empty map means everyone is treated as internal.
+  }
+  return map;
+}
+
+// Classify a staff name as QSL ("QSL") or another client's staff ("CLIENT").
+// Unknown names default to QSL so historical/system actors aren't misfiled.
+function orgTag(affiliation, name) {
+  const a = affiliation?.get?.(name);
+  if (a && !a.internal) return { org: "CLIENT", clientName: a.clientName || null };
+  return { org: "QSL", clientName: null };
+}
+
+function buildDimensions(reports, cur, operations, affiliation) {
   const staff = new Map();
   const wbh = new Map();
   const clients = new Map();
@@ -527,8 +552,10 @@ function buildDimensions(reports, cur, operations) {
   }
 
   const staffArr = [...staff.values()]
-    .map((s) => ({ name: s.name, filed: s.filed, approvals: s.approvals, rejections: s.rejections, findings: s.findings, photos: s.photos, avgTurnaround: s.tN ? Number((s.tSum / s.tN).toFixed(1)) : null }))
+    .map((s) => ({ name: s.name, filed: s.filed, approvals: s.approvals, rejections: s.rejections, findings: s.findings, photos: s.photos, avgTurnaround: s.tN ? Number((s.tSum / s.tN).toFixed(1)) : null, ...orgTag(affiliation, s.name) }))
     .sort((a, b) => b.filed + b.approvals - (a.filed + a.approvals));
+  const staffInternal = staffArr.filter((s) => s.org !== "CLIENT");
+  const staffClient = staffArr.filter((s) => s.org === "CLIENT");
 
   const svc = (m) => [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   const weighbridgeHistory = [...wbh.values()]
@@ -562,7 +589,7 @@ function buildDimensions(reports, cur, operations) {
     contractUpcomingList: con?.upcomingList || [],
   };
 
-  return { staff: staffArr, weighbridgeHistory, clients: clientsArr, compliance };
+  return { staff: staffArr, staffInternal, staffClient, weighbridgeHistory, clients: clientsArr, compliance };
 }
 
 // Build the role-scoped management report for a date range. Returns a plain
@@ -616,6 +643,11 @@ export async function buildManagementReport(user, { from, to, client, site, incl
     orderBy: [{ reportDate: "desc" }, { createdAt: "desc" }],
     include: { trailEvents: { orderBy: { at: "asc" } }, _count: { select: { photos: true } } },
   });
+
+  // Staff affiliation — split QSL's own people from other clients' staff on the
+  // people/staff breakdowns. A user with no clientId is internal (QSL); one tied
+  // to a client is that client's own staff.
+  const affiliation = await buildAffiliation();
 
   const prevWin = previousWindow(from, to);
   let prevReports = [];
@@ -747,7 +779,10 @@ export async function buildManagementReport(user, { from, to, client, site, incl
   };
 
   const operations = await buildOperations(user, from, to, client || null, site || null);
-  const dimensions = buildDimensions(reports, cur, operations);
+  const dimensions = buildDimensions(reports, cur, operations, affiliation);
+
+  // Tag the "top people" leaderboard with QSL vs client affiliation.
+  const byAuthorTagged = byAuthor.map((a) => ({ ...a, ...orgTag(affiliation, a.name) }));
 
   // Services delivered by type — the itemised "what was done" for the period.
   const servicesDelivered = byTemplate.map((t) => ({ code: t.code, name: t.name, count: t.count }));
@@ -811,7 +846,9 @@ export async function buildManagementReport(user, { from, to, client, site, incl
     byWeighbridge,
     byClient,
     byTemplate,
-    byAuthor,
+    byAuthor: byAuthorTagged,
+    staffInternal: dimensions.staffInternal,
+    staffClient: dimensions.staffClient,
     topFindings,
     findings: cur.findings,
     findingsCount: cur.findingsCount,

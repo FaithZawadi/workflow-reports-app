@@ -572,24 +572,38 @@ function StatLine({ label, value }) {
 }
 
 function StaffReport({ data }) {
-  const rows = data.staff || [];
+  // Prefer the pre-split lists; fall back to the flat list for older payloads.
+  const internal = data.staffInternal || (data.staff || []).filter((s) => s.org !== "CLIENT");
+  const clientStaff = data.staffClient || (data.staff || []).filter((s) => s.org === "CLIENT");
+
+  const cols = (showClient) => [
+    { label: "Person", render: (r) => (
+      <span style={{ minWidth: 0 }}>
+        <Link href={registryHref({ q: r.name })} style={{ color: INK, fontWeight: 600, textDecoration: "none" }}>{r.name}</Link>
+        {showClient && r.clientName ? <span className="muted" style={{ display: "block", fontSize: 11 }}>{r.clientName}</span> : null}
+      </span>
+    ) },
+    { label: "Filed", w: 70, align: "center", cellStyle: () => ({ fontWeight: 800 }), key: "filed" },
+    { label: "Approvals", w: 92, align: "center", key: "approvals" },
+    { label: "Rejections", w: 92, align: "center", key: "rejections" },
+    { label: "Findings", w: 82, align: "center", render: (r) => r.findings || "—", cellStyle: (r) => ({ color: r.findings ? FAIL : MUTE }) },
+    { label: "Photos", w: 72, align: "center", key: "photos" },
+    { label: "Avg approval", w: 104, align: "center", render: (r) => (r.avgTurnaround != null ? `${r.avgTurnaround}h` : "—") },
+  ];
+
   return (
-    <Card title="Staff productivity" note={`${rows.length} ${rows.length === 1 ? "person" : "people"} · reports filed & approvals given`}>
-      {rows.length ? (
-        <Table
-          rows={rows}
-          cols={[
-            { label: "Person", render: (r) => <Link href={registryHref({ q: r.name })} style={{ color: INK, fontWeight: 600, textDecoration: "none" }}>{r.name}</Link> },
-            { label: "Filed", w: 70, align: "center", cellStyle: () => ({ fontWeight: 800 }), key: "filed" },
-            { label: "Approvals", w: 92, align: "center", key: "approvals" },
-            { label: "Rejections", w: 92, align: "center", key: "rejections" },
-            { label: "Findings", w: 82, align: "center", render: (r) => r.findings || "—", cellStyle: (r) => ({ color: r.findings ? FAIL : MUTE }) },
-            { label: "Photos", w: 72, align: "center", key: "photos" },
-            { label: "Avg approval", w: 104, align: "center", render: (r) => (r.avgTurnaround != null ? `${r.avgTurnaround}h` : "—") },
-          ]}
-        />
-      ) : <Empty />}
-    </Card>
+    <div style={{ display: "grid", gap: 16 }}>
+      <Card title="Qalibrated staff" note={`${internal.length} ${internal.length === 1 ? "person" : "people"} · QSL team — reports filed & approvals given`}>
+        {internal.length ? <Table rows={internal} cols={cols(false)} /> : <Empty />}
+      </Card>
+      <Card title="Client staff" note={clientStaff.length ? `${clientStaff.length} ${clientStaff.length === 1 ? "person" : "people"} from client organisations` : "none in this period"}>
+        {clientStaff.length ? (
+          <Table rows={clientStaff} cols={cols(true)} />
+        ) : (
+          <div style={{ fontSize: 13, color: MUTE, fontStyle: "italic" }}>No client-side staff activity in this period.</div>
+        )}
+      </Card>
+    </div>
   );
 }
 
