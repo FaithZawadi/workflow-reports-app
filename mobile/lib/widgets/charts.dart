@@ -257,3 +257,109 @@ class _GaugePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _GaugePainter old) => old.frac != frac;
 }
+
+// Vertical bar chart — monthly volume. bars = [Segment(label, value, color)].
+class MonthBars extends StatelessWidget {
+  final List<Segment> bars;
+  final Color color;
+  const MonthBars({super.key, required this.bars, this.color = kGold});
+  @override
+  Widget build(BuildContext context) {
+    num maxV = 1;
+    for (final b in bars) {
+      if (b.value > maxV) maxV = b.value;
+    }
+    return Column(children: [
+      SizedBox(
+        height: 150,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (final b in bars)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('${b.value.toInt()}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: kInk)),
+                      const SizedBox(height: 4),
+                      Container(
+                        height: 3 + (b.value / maxV) * 118,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [color, color.withOpacity(0.8)]),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 6),
+      const Divider(height: 1),
+      const SizedBox(height: 6),
+      Row(children: [
+        for (final b in bars)
+          Expanded(child: Text(b.label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10.5, color: kMute, fontWeight: FontWeight.w700))),
+      ]),
+    ]);
+  }
+}
+
+// Staff merit leaderboard — rank, score bar and the contributing counts.
+class MeritList extends StatelessWidget {
+  final List<dynamic> rows;
+  const MeritList({super.key, required this.rows});
+  @override
+  Widget build(BuildContext context) {
+    const medals = [Color(0xFFD4AF37), Color(0xFFB8B8B8), Color(0xFFCD7F32)];
+    num maxScore = 1;
+    for (final r in rows) {
+      final sc = (r['score'] ?? 0) as num;
+      if (sc > maxScore) maxScore = sc;
+    }
+    return Column(children: [
+      for (int i = 0; i < rows.length; i++)
+        Padding(
+          padding: EdgeInsets.only(top: i == 0 ? 0 : 12),
+          child: Row(
+            children: [
+              SizedBox(width: 20, child: Text('${i + 1}', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: i < 3 ? medals[i] : kMute))),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Expanded(child: Text('${rows[i]['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kInk))),
+                      Text('${(rows[i]['score'] ?? 0)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: kCoal)),
+                    ]),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: LinearProgressIndicator(
+                        value: (((rows[i]['score'] ?? 0) as num) / maxScore).clamp(0.04, 1.0).toDouble(),
+                        minHeight: 7,
+                        backgroundColor: const Color(0xFFF0EADD),
+                        valueColor: AlwaysStoppedAnimation(i < 3 ? kGold : kCoal),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${rows[i]['filed']} filed · ${rows[i]['approved']} approved'
+                      '${((rows[i]['approvals'] ?? 0) as num) > 0 ? ' · ${rows[i]['approvals']} sign-offs' : ''}',
+                      style: const TextStyle(fontSize: 11, color: kMute),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+    ]);
+  }
+}

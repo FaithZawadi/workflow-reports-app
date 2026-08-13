@@ -87,6 +87,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final templates = (d['reportsByTemplate'] as List?) ?? [];
     final recent = (d['recent'] as List?) ?? [];
     final isClient = d['isClient'] == true;
+    final isAdmin = roles.contains('ADMIN');
+    // New sections mirrored from the web dashboard.
+    final monthly = (d['monthlyTrend'] as List?) ?? [];
+    final business = d['business'] as Map?;
+    final merits = (d['staffMerits'] as List?) ?? [];
 
     final int total = ((d['totalReports'] ?? 0) as num).toInt();
     final kpis = <Widget>[
@@ -115,21 +120,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _roleDropdown(roles),
         ],
 
-        if (_show('kpis') && kpis.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.55,
-            children: kpis,
-          ),
-        ],
-
+        // Charts lead the dashboard (matching the web app).
         if (_show('trend') && !isClient) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           ChartCard(title: 'Reports · last 14 days', child: Trend(values: trend)),
         ],
         if (_show('status') && !isClient) ...[
@@ -139,6 +132,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Segment('Manager approval', st('PENDING_MANAGER'), kGold, onTap: () => widget.onOpenReports(status: 'PENDING_MANAGER')),
             Segment('Approved', st('APPROVED'), kPass, onTap: () => widget.onOpenReports(status: 'APPROVED')),
             Segment('Rejected', st('REJECTED'), kFail, onTap: () => widget.onOpenReports(status: 'REJECTED')),
+          ])),
+        ],
+        if (_show('trend') && !isClient && monthly.any((m) => ((m['count'] ?? 0) as num) > 0)) ...[
+          const SizedBox(height: 12),
+          ChartCard(title: 'Reports · by month', child: MonthBars(bars: [
+            for (final m in monthly) Segment('${m['label']}', (m['count'] ?? 0) as num, kGold),
           ])),
         ],
         if (_show('templates') && !isClient && templates.isNotEmpty) ...[
@@ -171,6 +170,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (_show('templates') && satisfaction != null) ...[
           const SizedBox(height: 12),
           ChartCard(title: 'Customer satisfaction', child: Center(child: Gauge(value: ((satisfaction['average'] ?? 0) as num).toDouble(), max: 5, label: '${satisfaction['count']} surveys'))),
+        ],
+
+        // KPI tiles fall below the graphs.
+        if (_show('kpis') && kpis.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.55,
+            children: kpis,
+          ),
+        ],
+
+        // Business at a glance (admin).
+        if (isAdmin && business != null) ...[
+          const SizedBox(height: 16),
+          const Text('BUSINESS AT A GLANCE', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800, color: kMute, letterSpacing: 0.5)),
+          const SizedBox(height: 8),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.55,
+            children: [
+              StatTile(label: 'Active clients', value: '${business['activeClients'] ?? 0}', tone: kCoal, sub: '${business['activeSites'] ?? 0} sites'),
+              StatTile(label: 'Open tasks', value: '${business['openTasks'] ?? 0}', tone: ((business['overdueTasks'] ?? 0) as num) > 0 ? kFail : kInk, sub: '${business['overdueTasks'] ?? 0} overdue'),
+              StatTile(label: 'Contracts', value: '${business['activeContracts'] ?? 0}', tone: kCoal, sub: 'agreements'),
+              StatTile(label: 'Quote pipeline', value: _money(business['pipelineValue']), tone: const Color(0xFF8A6D00), sub: 'awaiting decision'),
+              StatTile(label: 'Won (accepted)', value: _money(business['wonValue']), tone: kPass, sub: 'accepted quotes'),
+            ],
+          ),
+        ],
+
+        // Staff merits (admin).
+        if (isAdmin && merits.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          ChartCard(title: 'Staff merits · last 120 days', child: MeritList(rows: merits)),
         ],
 
         if (_show('recent') && recent.isNotEmpty) ...[
@@ -238,5 +279,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   static String _greeting() {
     final h = DateTime.now().hour;
     return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  }
+
+  // Compact money for KPI tiles: 1.5M / 340k / 900.
+  static String _money(dynamic n) {
+    final double v = n is num ? n.toDouble() : (double.tryParse('$n') ?? 0);
+    if (v >= 1e6) return '${(v / 1e6).toStringAsFixed(v >= 1e7 ? 0 : 1)}M';
+    if (v >= 1e3) return '${(v / 1e3).round()}k';
+    return v.toStringAsFixed(0);
   }
 }
