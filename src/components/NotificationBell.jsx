@@ -84,13 +84,13 @@ export default function NotificationBell() {
   return (
     <div ref={ref} style={{ position: "relative" }}>
       <button onClick={() => { setOpen((v) => !v); if (!open) load(); }} aria-label="Notifications" title="Notifications"
-        style={{ position: "relative", background: "rgba(255,255,255,.12)", border: "1px solid rgba(255,255,255,.18)", borderRadius: 8, cursor: "pointer", color: "#fff", padding: 6, display: "flex" }}>
+        style={{ position: "relative", background: open ? "#efeadd" : "rgba(0,0,0,.04)", border: "1px solid #e6e0d2", borderRadius: 8, cursor: "pointer", color: COAL, padding: 6, display: "flex" }}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
         {unread > 0 && (
-          <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, background: FAIL, color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", boxShadow: "0 0 0 2px " + COAL }}>
+          <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, background: FAIL, color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", boxShadow: "0 0 0 2px #fff" }}>
             {unread > 9 ? "9+" : unread}
           </span>
         )}
