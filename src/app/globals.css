@@ -50,6 +50,20 @@ input, textarea, select { font-family: inherit; }
 .grid { display: grid; gap: 12px; }
 @media (min-width: 780px) { .md-2 { grid-template-columns: 1fr 1fr; } .md-3 { grid-template-columns: 1fr 1fr 1fr; } }
 
+/* Responsive dashboard/report card grid. One column on phones (so a spanning
+   card never overflows a single track), two then three columns as space allows.
+   minmax(0,1fr) lets wide chart children shrink instead of pushing the page
+   into a horizontal scroll. */
+.chart-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.chart-grid > .cell-span2 { grid-column: auto; }
+@media (min-width: 640px) {
+  .chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .chart-grid > .cell-span2 { grid-column: span 2; }
+}
+@media (min-width: 1000px) {
+  .chart-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 /* Login: single column on phones, branded split panel on wider screens */
 .login-shell { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
 .login-card { width: 100%; max-width: 440px; }
@@ -194,7 +208,9 @@ img { max-width: 100%; }
 .profile-pop-item.danger { color: var(--fail); }
 .profile-pop-item.danger svg { color: var(--fail); }
 
-.app-content { flex: 1; width: 100%; max-width: 1120px; margin: 0 auto; padding: 12px 16px 40px; }
+.app-content { flex: 1; min-width: 0; width: 100%; max-width: 1120px; margin: 0 auto; padding: 12px 16px 40px; overflow-x: clip; }
+/* Long unbroken strings (emails, tokens, URLs) wrap instead of widening the page. */
+.app-content .card, .app-content .muted, .app-content h1, .app-content .h1 { overflow-wrap: anywhere; }
 
 @media (min-width: 768px) {
   .app-body { display: flex; align-items: stretch; }

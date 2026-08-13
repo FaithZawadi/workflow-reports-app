@@ -22,10 +22,10 @@ const money = (n) => {
 // as a single system: same header, same body height, chart vertically centred.
 const Panel = ({ title, action, children, span, center = false, minH = 300 }) => (
   <section
-    className="card"
+    className={"card" + (span ? " cell-span2" : "")}
     style={{
       padding: 0,
-      gridColumn: span ? `span ${span}` : undefined,
+      minWidth: 0,
       display: "flex",
       flexDirection: "column",
       overflow: "hidden",
@@ -162,8 +162,6 @@ export default function Dashboard({ profile }) {
 
   const rel = updatedAt ? `updated ${Math.max(1, Math.round((Date.now() - updatedAt) / 1000))}s ago` : "";
 
-  const gridCharts = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 14, marginTop: 14 };
-
   return (
     <div style={{ marginTop: 12, display: "flex", flexDirection: "column" }}>
       {/* Hero */}
@@ -217,7 +215,7 @@ export default function Dashboard({ profile }) {
       )}
 
       {/* Charts — one uniform grid (leads the dashboard) */}
-      <div style={{ ...gridCharts, order: 2 }}>
+      <div className="chart-grid" style={{ order: 2, marginTop: 16 }}>
         {!isClient && (
           <Panel title="Reports · last 14 days" span={2} center>
             {d.reportsTrend?.some((p) => p.count) ? <div style={{ width: "100%" }}><TrendArea points={d.reportsTrend} /></div> : <Empty>No reports filed in the last 14 days.</Empty>}
@@ -272,7 +270,7 @@ export default function Dashboard({ profile }) {
 
       {/* Admin: staff merits + top clients (uniform grid) */}
       {isAdmin && (d.staffMerits?.length || d.topClients?.length) && (
-        <div style={{ ...gridCharts, order: 6 }}>
+        <div className="chart-grid" style={{ order: 6, marginTop: 16 }}>
           {d.staffMerits?.length ? (
             <Panel title="Staff merits · last 120 days" span={2} action={<Link href="/reports-summary" style={{ fontSize: 11, color: "#8a6d00", fontWeight: 700, textDecoration: "none" }}>Full report →</Link>}>
               <MeritBoard rows={d.staffMerits} />
