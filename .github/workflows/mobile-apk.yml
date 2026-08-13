@@ -77,16 +77,26 @@ jobs:
         run: |
           cat >> android/build.gradle <<'GRADLE'
 
-          subprojects {
-              afterEvaluate { proj ->
-                  if (proj.hasProperty("android")) {
-                      proj.android {
-                          compileSdkVersion 34
-                          if (proj.android.namespace == null) {
-                              namespace proj.group.toString()
-                          }
+          // Force a consistent compileSdk (and a namespace fallback) on the app
+          // and every plugin module. The default Flutter android/build.gradle
+          // does `subprojects { evaluationDependsOn(':app') }`, which evaluates
+          // :app before this block runs — so calling afterEvaluate on it would
+          // throw "already evaluated". Guard with the project's execution state.
+          def qslPinAndroid = { proj ->
+              if (proj.hasProperty("android")) {
+                  proj.android {
+                      compileSdkVersion 34
+                      if (proj.android.namespace == null) {
+                          namespace proj.group.toString()
                       }
                   }
+              }
+          }
+          subprojects { proj ->
+              if (proj.state.executed) {
+                  qslPinAndroid(proj)
+              } else {
+                  proj.afterEvaluate { qslPinAndroid(proj) }
               }
           }
           GRADLE

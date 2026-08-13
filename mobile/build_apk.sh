@@ -64,6 +64,35 @@ if changed:
     open(p, "w", encoding="utf-8").write(xml)
 PY
 
+# 2b) Pin a consistent compileSdk (and a namespace fallback) on the app and every
+#     plugin module, so no plugin trips on "compileSdkVersion is not specified" or
+#     "compiled against android-33". Guarded so re-runs don't append twice, and
+#     state-checked so it never calls afterEvaluate on an already-evaluated project
+#     (the default build.gradle pre-evaluates :app via evaluationDependsOn).
+if ! grep -q "qslPinAndroid" android/build.gradle; then
+  cat >> android/build.gradle <<'GRADLE'
+
+def qslPinAndroid = { proj ->
+    if (proj.hasProperty("android")) {
+        proj.android {
+            compileSdkVersion 34
+            if (proj.android.namespace == null) {
+                namespace proj.group.toString()
+            }
+        }
+    }
+}
+subprojects { proj ->
+    if (proj.state.executed) {
+        qslPinAndroid(proj)
+    } else {
+        proj.afterEvaluate { qslPinAndroid(proj) }
+    }
+}
+GRADLE
+  echo "▶ Pinned compileSdk 34 for all Android modules."
+fi
+
 # 3) Dependencies, launcher icon and native splash.
 flutter pub get
 dart run flutter_launcher_icons

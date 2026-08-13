@@ -9,6 +9,13 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  # `flutter create` regenerates a default test/widget_test.dart scaffold that
+  # references a `MyApp` this project doesn't have (and flutter_test, which isn't
+  # a dependency). It's not part of the app, so keep it out of analysis.
+  exclude:
+    - test/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
