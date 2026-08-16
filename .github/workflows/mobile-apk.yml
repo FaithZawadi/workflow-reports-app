@@ -93,9 +93,13 @@ jobs:
               }
           }
           subprojects { proj ->
-              if (proj.state.executed) {
-                  qslPinAndroid(proj)
-              } else {
+              // Skip any project Flutter has already evaluated (e.g. :app): its
+              // compileSdk has been read, so setting it now fails with "too late
+              // to set compileSdk". :app already carries a valid compileSdk from
+              // Flutter. Plugin modules that lack one are pinned in afterEvaluate,
+              // which (registered here, before each plugin's build.gradle applies
+              // the Android plugin) runs before AGP reads compileSdk.
+              if (!proj.state.executed) {
                   proj.afterEvaluate { qslPinAndroid(proj) }
               }
           }

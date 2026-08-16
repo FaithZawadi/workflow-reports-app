@@ -83,9 +83,10 @@ def qslPinAndroid = { proj ->
     }
 }
 subprojects { proj ->
-    if (proj.state.executed) {
-        qslPinAndroid(proj)
-    } else {
+    // Skip projects Flutter already evaluated (e.g. :app) — their compileSdk has
+    // been read, so setting it now fails with "too late to set compileSdk". Only
+    // plugin modules (evaluated later) need the pin, applied in afterEvaluate.
+    if (!proj.state.executed) {
         proj.afterEvaluate { qslPinAndroid(proj) }
     }
 }
