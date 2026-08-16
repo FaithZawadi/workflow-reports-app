@@ -312,11 +312,11 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
             { key: "ok", label: sec.yes || "OK" },
             { key: "problem", label: sec.no || "NO" },
           ];
-          // The Item column is wide enough to keep each check on a single line;
-          // result columns stay narrow; Remarks takes the rest (it wraps freely).
-          const stateW = `${(13 / states.length).toFixed(2)}%`;
-          const itemW = "54%";
-          const remarksW = `${(100 - 54 - 13).toFixed(0)}%`; // 33%
+          // Item stays only as wide as it needs (so the result column sits close
+          // to the text); result columns stay narrow; Remarks takes the rest.
+          const stateW = `${(12 / states.length).toFixed(2)}%`;
+          const itemW = "44%";
+          const remarksW = `${(100 - 44 - 12).toFixed(0)}%`; // 44%
           const itemCell = { fontSize: 7.5 };
           const tickKeys = new Set(["ok", "pass"]);
           const vline = { borderRightWidth: 0.5, borderColor: "#AFAFAF" };

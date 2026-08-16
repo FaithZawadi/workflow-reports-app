@@ -201,7 +201,7 @@ export default function ReportDetail({ serial, profile }) {
               <SectionBar>{sec.title}</SectionBar>
               <div style={{ overflowX: "auto" }}>
                 <div style={{ minWidth: 480, maxWidth: 980, border: "1px solid #e6e0d2", borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "minmax(220px,1.9fr) 104px minmax(180px,1.4fr)", background: COAL, color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(190px,1.05fr) 76px minmax(240px,2fr)", background: COAL, color: "#fff", fontSize: 11, fontWeight: 800, textTransform: "uppercase" }}>
                     <span style={{ padding: "6px 10px", borderRight: "1px solid #2c2720" }}>Item</span>
                     <span style={{ padding: "6px 10px", borderRight: "1px solid #2c2720", textAlign: "center" }}>Result</span>
                     <span style={{ padding: "6px 10px" }}>Remarks</span>
@@ -212,7 +212,7 @@ export default function ReportDetail({ serial, profile }) {
                     const st = states.find((s) => s.key === v?.state);
                     const isGood = st && st.key === states[0].key;
                     return (
-                      <div key={ii} style={{ display: "grid", gridTemplateColumns: "minmax(220px,1.9fr) 104px minmax(180px,1.4fr)", fontSize: 14, borderTop: "1px solid #eae4d6" }}>
+                      <div key={ii} style={{ display: "grid", gridTemplateColumns: "minmax(190px,1.05fr) 76px minmax(240px,2fr)", fontSize: 14, borderTop: "1px solid #eae4d6" }}>
                         <span style={{ padding: "10px 12px", borderRight: "1px solid #eae4d6", color: INK, lineHeight: 1.35 }}>{it}</span>
                         <span style={{ padding: "10px 8px", borderRight: "1px solid #eae4d6", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           {st ? (
