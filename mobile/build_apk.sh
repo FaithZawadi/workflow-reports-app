@@ -64,13 +64,25 @@ if changed:
     open(p, "w", encoding="utf-8").write(xml)
 PY
 
-# 2b) Pin a consistent compileSdk (and a namespace fallback) on the app and every
-#     plugin module, so no plugin trips on "compileSdkVersion is not specified" or
-#     "compiled against android-33". Guarded so re-runs don't append twice, and
-#     state-checked so it never calls afterEvaluate on an already-evaluated project
-#     (the default build.gradle pre-evaluates :app via evaluationDependsOn).
-if ! grep -q "qslPinAndroid" android/build.gradle; then
-  cat >> android/build.gradle <<'GRADLE'
+# 2b) On a legacy Groovy-DSL Android project, pin a consistent compileSdk (and a
+#     namespace fallback) on every plugin module, so none trips on
+#     "compileSdkVersion is not specified". Newer Flutter (3.29+) uses the Kotlin
+#     DSL (android/build.gradle.kts) and propagates compileSdk to plugins itself,
+#     so nothing is injected there. IMPORTANT: never create a build.gradle where
+#     none exists — a Groovy build.gradle sitting next to build.gradle.kts shadows
+#     the real root and breaks the build.
+
+# Clean up a stray Groovy build.gradle an earlier version of this script may have
+# written next to a Kotlin-DSL root (it holds only our block — no real root config).
+if [ -f android/build.gradle ] && grep -q "qslPinAndroid" android/build.gradle \
+   && ! grep -qE "allprojects|rootProject|buildscript" android/build.gradle; then
+  rm -f android/build.gradle
+  echo "▶ Removed a stray android/build.gradle left by an earlier run."
+fi
+
+if [ -f android/build.gradle ]; then
+  if ! grep -q "qslPinAndroid" android/build.gradle; then
+    cat >> android/build.gradle <<'GRADLE'
 
 def qslPinAndroid = { proj ->
     if (proj.hasProperty("android")) {
@@ -91,7 +103,10 @@ subprojects { proj ->
     }
 }
 GRADLE
-  echo "▶ Pinned compileSdk 34 for all Android modules."
+    echo "▶ Pinned compileSdk 34 for all Android modules (Groovy DSL)."
+  fi
+else
+  echo "▶ Kotlin-DSL Android project (build.gradle.kts) — Flutter handles compileSdk; skipping pin."
 fi
 
 # 3) Dependencies, launcher icon and native splash.
