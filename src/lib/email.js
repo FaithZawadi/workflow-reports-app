@@ -48,15 +48,11 @@ function actionBlock(links, report) {
   if (!links) return `Open the report to review and approve or reject it:\n${appUrl()}/reports/${report.serial}`;
   if (!links.hasToken)
     return `Open the report to review and approve or reject it:\n${links.review}`;
-  return `Review the report, then approve or reject it (you can add a comment) — no sign-in needed:
+  return `View the report — Approve and Reject are at the bottom of it (you can add a comment), no sign-in needed:
 
-  ✓ APPROVE:  ${links.approve}
-  ✗ REJECT:   ${links.reject}
-
-Or open the full report first:
   ${links.open}
 
-(These links are private to you and expire in 14 days.)`;
+(This link is private to you and expires in 14 days.)`;
 }
 
 // ---- HTML email (branded, button-driven — no raw links on show) -------------
@@ -77,21 +73,17 @@ function emailShell(headline, innerHtml) {
   </td></tr></table></body></html>`;
 }
 
-// Approve / Reject buttons (and a quiet "open report" link) — the URLs are on the
-// buttons, never shown as text.
+// A single "View report" button. The reviewer must open and read the report
+// first; Approve / Reject then live at the foot of that report page (no sign-in
+// needed when a token is present). We deliberately no longer approve straight
+// from the email — the decision comes after the report has been viewed.
 function actionButtons(links, report) {
   const review = links?.review || `${appUrl()}/reports/${report.serial}`;
-  if (!links || !links.hasToken) {
-    return `<table role="presentation" cellpadding="0" cellspacing="0"><tr>
-      <td><a href="${esc(review)}" style="display:inline-block;background:#161310;color:#f5a800;text-decoration:none;font-weight:800;font-size:14px;padding:12px 22px;border-radius:8px;">Open report to review</a></td>
-    </tr></table>`;
-  }
+  const view = links?.hasToken ? links.open : review;
   return `<table role="presentation" cellpadding="0" cellspacing="0"><tr>
-      <td style="padding-right:10px;"><a href="${esc(links.approve)}" style="display:inline-block;background:#2E7D46;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 24px;border-radius:8px;">✓ Approve</a></td>
-      <td><a href="${esc(links.reject)}" style="display:inline-block;background:#B03A2E;color:#ffffff;text-decoration:none;font-weight:800;font-size:14px;padding:12px 24px;border-radius:8px;">✗ Reject</a></td>
+      <td><a href="${esc(view)}" style="display:inline-block;background:#161310;color:#f5a800;text-decoration:none;font-weight:800;font-size:14px;padding:12px 24px;border-radius:8px;">View report</a></td>
     </tr></table>
-    <div style="margin-top:12px;"><a href="${esc(links.open)}" style="color:#6b6355;font-size:12.5px;">Open the full report first →</a></div>
-    <div style="margin-top:10px;color:#6b6355;font-size:11px;">These buttons are private to you and expire in 14 days. You can add a comment before rejecting.</div>`;
+    <div style="margin-top:10px;color:#6b6355;font-size:11px;">Open the report to review it${links?.hasToken ? " — Approve and Reject are at the bottom, no sign-in needed. This link is private to you and expires in 14 days." : "."}</div>`;
 }
 
 function metaRows(rows) {
