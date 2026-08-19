@@ -78,12 +78,8 @@ export default function QuotationDetail({ id, profile }) {
     setNote("");
     const clean = items.filter((it) => String(it.description).trim());
     if (issue && clean.length === 0) return setNote("Add at least one line item before issuing.");
-    // Issuing needs the client's email so we can send it to them.
-    if (issue && !contactEmail.trim()) {
-      setNote("Add the client's email below so the quotation can be sent to them.");
-      document.getElementById("qd-client-email")?.focus();
-      return;
-    }
+    // Email is optional — some clients only have WhatsApp. Issuing still mints
+    // the shareable PDF link so it can be sent by WhatsApp or downloaded.
     setBusy(true);
     try {
       const res = await fetch(`/api/quotations/${id}`, {
@@ -112,7 +108,13 @@ export default function QuotationDetail({ id, profile }) {
       }
       await load();
       setAmendReason("");
-      setNote(issue ? "Quotation issued. Your email app should open, ready to send — or use the share buttons above (Email / WhatsApp)." : "Draft saved.");
+      setNote(
+        issue
+          ? contactEmail.trim()
+            ? "Quotation issued. Your email app should open, ready to send — or use the share buttons above (Email / WhatsApp / Download PDF)."
+            : "Quotation issued. No email on file — share it via WhatsApp or Download PDF using the buttons above."
+          : "Draft saved."
+      );
     } catch {
       setNote("Network problem — try again.");
     }
@@ -265,13 +267,14 @@ export default function QuotationDetail({ id, profile }) {
               <label className="field"><span className="label">Contact person</span>
                 <input className="input" value={contactPerson} onChange={(e) => setContactPerson(e.target.value)} placeholder="e.g. Jane Doe" />
               </label>
-              <label className="field"><span className="label">Client email (needed to issue)</span>
-                <input id="qd-client-email" className="input" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="client@company.com" />
+              <label className="field"><span className="label">Client email (optional)</span>
+                <input id="qd-client-email" className="input" type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="leave blank to share by WhatsApp / PDF" />
               </label>
               <label className="field"><span className="label">Client phone (for WhatsApp)</span>
                 <input className="input" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="e.g. +254 7XX XXX XXX" />
               </label>
             </div>
+            <p className="muted" style={{ fontSize: 12, marginTop: -4 }}>No email? Leave it blank — you can still issue the quote and share the PDF by WhatsApp or download it.</p>
             <div className="grid md-2">
               <label className="field"><span className="label">Subject / job</span>
                 <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Calibration & verification of weighbridge" />
