@@ -9,6 +9,7 @@ import { createApprovalLinks } from "@/lib/approvalToken";
 import { addCycle } from "@/lib/schedule";
 import { recordAudit } from "@/lib/audit";
 import { isValidImageUpload, MAX_IMAGE_BYTES } from "@/lib/upload";
+import { evalGeofence } from "@/lib/geofence";
 import { chainFor, stageRole, stageLabel } from "@/lib/approvalChain";
 import { FILER_ROLES, rolesOf } from "@/lib/roles";
 import { notifyEmails, notifyUsers, oversight } from "@/lib/notify";
@@ -209,6 +210,31 @@ export async function POST(req) {
     data.weekly = { diffs, limit: data.values.limit ?? null, worst, pass };
   }
 
+  // --- Geofencing: record where the report was filed and compare it to the
+  // site's fence (proof of on-site attendance). Best-effort — the filer may
+  // decline location, or the site may have no coordinates/radius. ---
+  const fLat = Number(body.filedLat);
+  const fLng = Number(body.filedLng);
+  const fAcc = Number(body.filedAccuracy);
+  const hasFiled = !Number.isNaN(fLat) && !Number.isNaN(fLng) && (fLat !== 0 || fLng !== 0);
+  let siteRec = null;
+  if (site) {
+    siteRec = await prisma.site
+      .findFirst({
+        where: { name: { equals: site, mode: "insensitive" }, OR: [{ clientId }, { clientId: null }] },
+        orderBy: { clientId: "desc" }, // prefer the client's own site over a global one
+        select: { lat: true, lng: true, geofenceRadius: true },
+      })
+      .catch(() => null);
+  }
+  const geo = evalGeofence({
+    filedLat: hasFiled ? fLat : null,
+    filedLng: hasFiled ? fLng : null,
+    siteLat: siteRec?.lat ?? null,
+    siteLng: siteRec?.lng ?? null,
+    radiusM: siteRec?.geofenceRadius ?? null,
+  });
+
   const serial = await nextSerial(tpl.code);
   const authorName = user.name;
 
@@ -233,6 +259,15 @@ export async function POST(req) {
       site: site || null,
       reportDate,
       weighbridgeId: String(body.weighbridgeId || "").trim() || null,
+      // Geofence snapshot for this filing.
+      filedLat: hasFiled ? fLat : null,
+      filedLng: hasFiled ? fLng : null,
+      filedAccuracy: hasFiled && !Number.isNaN(fAcc) ? fAcc : null,
+      siteLat: siteRec?.lat ?? null,
+      siteLng: siteRec?.lng ?? null,
+      siteRadiusM: siteRec?.geofenceRadius ?? null,
+      geofenceStatus: geo.status,
+      geofenceDistanceM: geo.distanceM,
       authorId: user.sub,
       authorName,
       supervisorEmail,

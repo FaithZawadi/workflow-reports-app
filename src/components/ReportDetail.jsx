@@ -5,6 +5,7 @@ import Lightbox from "./Lightbox";
 import { templateByCode, isSingleApproval } from "@/lib/templates";
 import { defaultStates, colorFor } from "./CheckItem";
 import { COAL, GOLD, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
+import { GEOFENCE_META, fmtDistance } from "@/lib/geofence";
 
 export default function ReportDetail({ serial, profile }) {
   const [rep, setRep] = useState(null);
@@ -112,6 +113,7 @@ export default function ReportDetail({ serial, profile }) {
           <IdChip label="Client" value={rep.clientName || "—"} />
           <IdChip label="Site / branch" value={rep.site || "—"} />
           <IdChip label="Weighbridge" value={rep.weighbridgeId || "not stated"} mono />
+          <GeofenceChip rep={rep} />
         </div>
         <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
           by <b>{rep.authorName}</b> · {new Date(rep.reportDate || rep.createdAt).toLocaleDateString()}
@@ -338,6 +340,24 @@ export default function ReportDetail({ serial, profile }) {
 }
 
 // A labelled identifier chip — Client / Site / Weighbridge on the report header.
+// Geofence result chip — proof of where the report was filed vs the site fence.
+function GeofenceChip({ rep }) {
+  const status = rep?.geofenceStatus;
+  if (!status || status === "NO_LOCATION" || status === "NO_FENCE") return null;
+  const meta = GEOFENCE_META[status] || {};
+  const tone = { pass: PASS, fail: FAIL, ink: INK, mute: MUTE }[meta.tone] || INK;
+  const bg = meta.tone === "pass" ? "#eef6f0" : meta.tone === "fail" ? "#fdf1ef" : "#FBF8F0";
+  const dist = rep.geofenceDistanceM != null ? ` · ${fmtDistance(rep.geofenceDistanceM)}` : "";
+  const mapHref = rep.filedLat != null && rep.filedLng != null ? `https://www.google.com/maps?q=${rep.filedLat},${rep.filedLng}` : null;
+  const inner = (
+    <span style={{ display: "inline-flex", flexDirection: "column", gap: 1, background: bg, border: `1px solid ${tone}`, borderRadius: 8, padding: "5px 11px", minWidth: 0 }}>
+      <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: ".06em", textTransform: "uppercase", color: MUTE }}>Location</span>
+      <span style={{ fontSize: 13.5, fontWeight: 800, color: tone }}>{meta.icon} {meta.label}{dist}</span>
+    </span>
+  );
+  return mapHref ? <a href={mapHref} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }} title="View on the map">{inner}</a> : inner;
+}
+
 function IdChip({ label, value, mono }) {
   return (
     <span style={{ display: "inline-flex", flexDirection: "column", gap: 1, background: "#FBF8F0", border: `1px solid ${GOLD}`, borderRadius: 8, padding: "5px 11px", minWidth: 0 }}>

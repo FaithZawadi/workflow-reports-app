@@ -24,7 +24,7 @@ export async function GET(req) {
       include: {
         sites: {
           orderBy: [{ active: "desc" }, { name: "asc" }],
-          select: { id: true, name: true, active: true, address: true, city: true, lat: true, lng: true, contactPerson: true, contactPhone: true, notes: true },
+          select: { id: true, name: true, active: true, address: true, city: true, lat: true, lng: true, geofenceRadius: true, contactPerson: true, contactPhone: true, notes: true },
         },
         accountManager: { select: { id: true, name: true } },
         _count: { select: { reports: true, weighbridges: true } },

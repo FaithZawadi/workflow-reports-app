@@ -62,5 +62,14 @@ export function siteDetailData(body = {}) {
       }
     }
   }
+  // Geofence radius (metres) — integer, or null to clear.
+  if (body.geofenceRadius !== undefined) {
+    if (body.geofenceRadius === "" || body.geofenceRadius === null) {
+      data.geofenceRadius = null;
+    } else {
+      const n = Math.round(Number(body.geofenceRadius));
+      data.geofenceRadius = isNaN(n) || n <= 0 ? null : n;
+    }
+  }
   return data;
 }

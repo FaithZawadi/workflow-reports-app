@@ -363,6 +363,7 @@ function SiteEditor({ site: s, onDone, onChanged }) {
     city: s.city || "",
     lat: s.lat ?? "",
     lng: s.lng ?? "",
+    geofenceRadius: s.geofenceRadius ?? "",
     contactPerson: s.contactPerson || "",
     contactPhone: s.contactPhone || "",
     notes: s.notes || "",
@@ -400,7 +401,9 @@ function SiteEditor({ site: s, onDone, onChanged }) {
         <Field label="Contact phone"><input className="input" inputMode="tel" value={f.contactPhone} onChange={(e) => set("contactPhone", e.target.value)} /></Field>
         <Field label="Latitude"><input className="input" inputMode="decimal" value={f.lat} onChange={(e) => set("lat", e.target.value)} placeholder="-1.2345" /></Field>
         <Field label="Longitude"><input className="input" inputMode="decimal" value={f.lng} onChange={(e) => set("lng", e.target.value)} placeholder="36.8219" /></Field>
+        <Field label="Geofence radius (m)"><input className="input" inputMode="numeric" value={f.geofenceRadius} onChange={(e) => set("geofenceRadius", e.target.value)} placeholder="e.g. 200" /></Field>
       </div>
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>Set a radius (metres) around the pin to flag reports filed away from site. Leave blank for no fence — location is still recorded.</p>
       <Field label="Notes"><input className="input" value={f.notes} onChange={(e) => set("notes", e.target.value)} /></Field>
       <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
         <button className="btn btn-dark" style={btnSm} disabled={busy} onClick={save}>{busy ? "Saving…" : "Save site"}</button>

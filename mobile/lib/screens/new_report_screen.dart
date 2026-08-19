@@ -86,6 +86,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
     if (_client.text.trim().isEmpty) return showError(context, 'Choose the client (plant).');
     setState(() => _busy = true);
     try {
+      // Best-effort location capture for geofencing (proof of on-site attendance).
+      final loc = await _currentLocation();
       final serial = await context.read<Session>().api.submitReport({
         'template': _tpl!['code'],
         'weighbridgeId': _weighbridge.text.trim(),
@@ -98,6 +100,9 @@ class _NewReportScreenState extends State<NewReportScreen> {
         'grids': _grids,
         'runs': _runs,
         'photos': _photos,
+        if (loc != null) 'filedLat': loc['lat'],
+        if (loc != null) 'filedLng': loc['lng'],
+        if (loc != null) 'filedAccuracy': loc['acc'],
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Submitted $serial'), backgroundColor: kPass));
@@ -106,6 +111,20 @@ class _NewReportScreenState extends State<NewReportScreen> {
     } catch (e) {
       showError(context, e.toString());
       setState(() => _busy = false);
+    }
+  }
+
+  // Current GPS for geofencing — mirrors the photo-capture permission flow.
+  // Returns null if unavailable or the user declines; submission proceeds either way.
+  Future<Map<String, dynamic>?> _currentLocation() async {
+    try {
+      var perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) return null;
+      final pos = await Geolocator.getCurrentPosition();
+      return {'lat': pos.latitude, 'lng': pos.longitude, 'acc': pos.accuracy};
+    } catch (_) {
+      return null;
     }
   }
 

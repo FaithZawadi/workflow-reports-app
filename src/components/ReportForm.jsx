@@ -182,6 +182,19 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
     setBusy(true);
     setMsg(isEdit ? "Saving changes…" : "Submitting…");
 
+    // Best-effort location capture for geofencing (proof of on-site attendance).
+    // Only on a new submission; a denial or timeout just leaves it unset.
+    const geo = isEdit
+      ? null
+      : await new Promise((resolve) => {
+          if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null);
+          navigator.geolocation.getCurrentPosition(
+            (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy }),
+            () => resolve(null),
+            { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+          );
+        });
+
     const payload = {
       template: tpl.code,
       scheduleId: scheduleId || undefined,
@@ -195,6 +208,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       grids,
       runs,
       photos,
+      ...(geo ? { filedLat: geo.lat, filedLng: geo.lng, filedAccuracy: geo.acc } : {}),
     };
 
     // Editing an existing report — save the correction (online only) and return

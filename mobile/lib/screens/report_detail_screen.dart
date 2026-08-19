@@ -171,6 +171,36 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
         ]),
       );
 
+  // Geofence result chip — on-site / off-site / located. Empty when there's no
+  // location or no fence.
+  List<Widget> _geoChips(Map<String, dynamic> r) {
+    final status = r['geofenceStatus'];
+    const meta = {
+      'INSIDE': ['On-site', kPass, '📍'],
+      'OUTSIDE': ['Off-site', kFail, '⚠'],
+      'LOCATED': ['Location recorded', kInk, '📍'],
+    };
+    final m = meta[status];
+    if (m == null) return const [];
+    final label = m[0] as String;
+    final color = m[1] as Color;
+    final icon = m[2] as String;
+    final dist = r['geofenceDistanceM'];
+    final distStr = dist == null
+        ? ''
+        : (dist < 1000 ? ' · $dist m' : ' · ${(dist / 1000).toStringAsFixed(1)} km');
+    return [
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(color: const Color(0xFFFBF8F0), border: Border.all(color: color), borderRadius: BorderRadius.circular(8)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+          const Text('LOCATION', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: .6, color: kMute)),
+          Text('$icon $label$distStr', style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: color)),
+        ]),
+      ),
+    ];
+  }
+
   Widget _body(ReportDetail d) {
     final r = d.report;
     final data = Map<String, dynamic>.from(r['data'] ?? {});
@@ -223,6 +253,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
         _idChip('CLIENT', '${r['clientName'] ?? '—'}'),
         _idChip('SITE / BRANCH', (r['site'] ?? '') != '' ? '${r['site']}' : '—'),
         _idChip('WEIGHBRIDGE', (r['weighbridgeId'] ?? '') != '' ? '${r['weighbridgeId']}' : 'not stated'),
+        ..._geoChips(r),
       ]),
       const SizedBox(height: 6),
       Text('by ${r['authorName'] ?? "-"}', style: const TextStyle(color: kMute, fontSize: 12)),

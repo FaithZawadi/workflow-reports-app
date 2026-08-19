@@ -17,6 +17,7 @@ const shape = (s) => ({
   city: s.city ?? null,
   lat: s.lat ?? null,
   lng: s.lng ?? null,
+  geofenceRadius: s.geofenceRadius ?? null,
   contactPerson: s.contactPerson ?? null,
   contactPhone: s.contactPhone ?? null,
   notes: s.notes ?? null,

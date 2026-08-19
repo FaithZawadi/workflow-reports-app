@@ -205,6 +205,10 @@ model Site {
   city          String?
   lat           Float?
   lng           Float?
+  // Geofence radius in metres around (lat,lng). When set, a report filed for
+  // this site records whether the filer was inside the fence (proof of on-site
+  // attendance). Null = no fence (location is still recorded, just no verdict).
+  geofenceRadius Int?
   contactPerson String?
   contactPhone  String?
   notes         String?
@@ -477,6 +481,20 @@ model Report {
 
   photos      Photo[]
   trailEvents TrailEvent[]
+
+  // Geofencing — where the report was filed from, and how that compares to the
+  // site's fence. Captured at submission (best-effort; the filer may decline
+  // location). siteLat/siteLng/siteRadiusM snapshot the fence used, so the
+  // verdict stays meaningful even if the site is edited later. geofenceStatus is
+  // one of INSIDE | OUTSIDE | LOCATED | NO_FENCE | NO_LOCATION.
+  filedLat          Float?
+  filedLng          Float?
+  filedAccuracy     Float?
+  siteLat           Float?
+  siteLng           Float?
+  siteRadiusM       Int?
+  geofenceStatus    String?
+  geofenceDistanceM Int?
 
   // Set when an overdue pending approval was auto-escalated, so we don't re-nag.
   escalatedAt DateTime?

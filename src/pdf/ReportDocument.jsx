@@ -3,6 +3,7 @@ import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from "@react
 import { templateByCode } from "@/lib/templates";
 import { chainFor } from "@/lib/approvalChain";
 import { COMPANY } from "@/lib/company";
+import { geofenceSummary } from "@/lib/geofence";
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -162,6 +163,15 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
       report.managerEmail || "-",
     ],
   ];
+  // Geofence line — proof of where the report was filed, when captured.
+  const geoLabel = geofenceSummary(report.geofenceStatus, report.geofenceDistanceM, report.site);
+  if (geoLabel) {
+    const coords =
+      report.filedLat != null && report.filedLng != null
+        ? `${Number(report.filedLat).toFixed(5)}, ${Number(report.filedLng).toFixed(5)}`
+        : "-";
+    meta.push(["Filed location", geoLabel, "GPS", coords]);
+  }
   const checklistSections = (tpl?.sections || [])
     .map((sec, idx) => ({ sec, idx }))
     .filter(({ sec }) => sec.type === "checklist");
