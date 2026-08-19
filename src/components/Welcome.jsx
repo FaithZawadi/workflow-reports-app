@@ -27,6 +27,9 @@ export default function Welcome() {
           </span>
         </div>
 
+        <p className="welcome-rise" style={{ animationDelay: "0.1s", margin: "0 0 4px", fontSize: 12, fontWeight: 800, letterSpacing: ".14em", textTransform: "uppercase", color: "#f5a800" }}>
+          Qalibrated Systems · Reports
+        </p>
         {COMPANY.tagline ? <p className="welcome-tagline welcome-rise" style={{ animationDelay: "0.15s" }}>{COMPANY.tagline}</p> : null}
 
         <h1 className="welcome-title welcome-rise" style={{ animationDelay: "0.28s" }}>
@@ -36,8 +39,9 @@ export default function Welcome() {
         </h1>
 
         <p className="welcome-sub welcome-rise" style={{ animationDelay: "0.42s" }}>
-          Digital inspections, ISO/IEC 17025 calibration records, approvals, scheduling and
-          branded reports — on the web and installable on your phone.
+          <strong>Qalibrated Systems Reports</strong> — digital weighbridge &amp; scale inspections,
+          ISO/IEC 17025 calibration records, approvals, scheduling and branded PDF reports, on the web
+          and installable on your phone.
         </p>
 
         <div className="welcome-chips">

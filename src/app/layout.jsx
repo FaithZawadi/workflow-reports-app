@@ -8,15 +8,17 @@ const SITE_NAME = "Qalibrated Systems — Weighbridge Maintenance Management";
 const DESCRIPTION =
   "Qalibrated Systems (QSL) is a weighbridge and scale maintenance management platform: digital daily/weekly/monthly inspections, calibration & verification records (ISO/IEC 17025), approvals, quotations, scheduling and client service statements.";
 const KEYWORDS = [
+  "Qalibrated", "Qalibrated Systems", "Qalibrated Reports", "Qalibrated Systems Reports",
+  "QSL", "QSL Reports", "qalibrated login", "reports.qalibrated.com",
   "weighbridge maintenance", "weighbridge calibration", "scale calibration Kenya",
   "ISO/IEC 17025", "weighbridge inspection software", "maintenance management system",
-  "calibration records", "Qalibrated Systems", "QSL", "weighbridge service reports",
+  "calibration records", "weighbridge service reports",
 ];
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Qalibrated Systems — Weighbridge Maintenance Management",
+    default: "Qalibrated Systems Reports — Weighbridge & Scale Maintenance",
     template: "%s · Qalibrated Systems",
   },
   description: DESCRIPTION,
@@ -55,6 +57,14 @@ export const metadata = {
     follow: true,
     googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
   },
+  // Search Console / Bing ownership verification. Set GOOGLE_SITE_VERIFICATION
+  // (and optionally BING_SITE_VERIFICATION) to the code your webmaster console
+  // gives you — this stamps the <meta name="google-site-verification"> tag so you
+  // can verify the site and submit the sitemap to force indexing.
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+    other: process.env.BING_SITE_VERIFICATION ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION } : undefined,
+  },
   category: "technology",
 };
 
@@ -70,8 +80,26 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      name: "Qalibrated Reports",
+      alternateName: ["Qalibrated Systems", "Qalibrated Systems Reports", "QSL Reports"],
+      url: SITE_URL,
+      description: DESCRIPTION,
+      inLanguage: "en",
+      publisher: { "@id": `${SITE_URL}/#org` },
+      // Sitelinks search box — lets Google offer an in-site search from results.
+      potentialAction: {
+        "@type": "SearchAction",
+        target: { "@type": "EntryPoint", urlTemplate: `${SITE_URL}/dashboard?q={search_term_string}` },
+        "query-input": "required name=search_term_string",
+      },
+    },
+    {
       "@type": "Organization",
+      "@id": `${SITE_URL}/#org`,
       name: "Qalibrated Systems Ltd",
+      alternateName: ["Qalibrated", "Qalibrated Reports", "QSL"],
       url: SITE_URL,
       logo: `${SITE_URL}/icons/icon-512.png`,
       description: DESCRIPTION,

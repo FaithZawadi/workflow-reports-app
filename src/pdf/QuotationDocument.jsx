@@ -91,13 +91,15 @@ function fmt(d, withTime) {
 }
 const money = (n) => Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-export function QuotationDocument({ quotation, logoSrc, qrSrc }) {
+// `internal` — when true (an authenticated QSL staff download) the amendment
+// history is included; the client-facing share PDF (/d/<token>) omits it.
+export function QuotationDocument({ quotation, logoSrc, qrSrc, internal = false }) {
   const q = quotation;
   const st = STATUS[q.status] || { label: q.status, color: INK };
   const items = Array.isArray(q.items) ? q.items : [];
   const paymentDetails = q.paymentDetails || DEFAULT_PAYMENT_DETAILS;
   const terms = q.terms || DEFAULT_QUOTE_TERMS;
-  const amendments = Array.isArray(q.amendments) ? [...q.amendments].sort((a, b) => (b.rev || 0) - (a.rev || 0)) : [];
+  const amendments = internal && Array.isArray(q.amendments) ? [...q.amendments].sort((a, b) => (b.rev || 0) - (a.rev || 0)) : [];
 
   return (
     <Document>

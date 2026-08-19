@@ -7,6 +7,7 @@ import { QUOTE_STATUS } from "./Quotations";
 import ShareButtons from "./ShareButtons";
 import { quoteTotals, amountInWords } from "@/lib/money";
 import { DEFAULT_PAYMENT_DETAILS, DEFAULT_QUOTE_TERMS } from "@/lib/company";
+import { isClient } from "@/lib/roles";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
 const BLANK = { description: "", qty: 1, unit: "EA", unitPrice: 0 };
@@ -14,6 +15,8 @@ const money = (n) => Number(n || 0).toLocaleString("en-US", { minimumFractionDig
 
 export default function QuotationDetail({ id, profile }) {
   const router = useRouter();
+  // Amendment history is internal-only — never shown to a client viewer.
+  const staffViewer = !isClient(profile);
   const [q, setQ] = useState(null);
   const [perm, setPerm] = useState({});
   const [err, setErr] = useState("");
@@ -341,7 +344,7 @@ export default function QuotationDetail({ id, profile }) {
             <Totals totals={totals} currency={currency} vatRate={vatRate} freight={freight} words={previewWords} />
 
             {/* Amendment history + a reason box when re-issuing an issued quote. */}
-            {q.amendments?.length ? <RevisionHistory amendments={q.amendments} /> : null}
+            {staffViewer && q.amendments?.length ? <RevisionHistory amendments={q.amendments} /> : null}
             {q.status === "QUOTED" && (
               <label className="field" style={{ marginTop: 10 }}>
                 <span className="label">Reason for amendment (shown on the revised quote)</span>
@@ -385,7 +388,7 @@ export default function QuotationDetail({ id, profile }) {
                 </div>
                 <Totals totals={{ subtotal: q.subtotal, vatAmount: q.vatAmount, grandTotal: q.grandTotal }} currency={q.currency} vatRate={q.vatRate} freight={q.freight} words={q.amountInWords} />
                 {q.notes && <div className="muted" style={{ fontSize: 13, marginTop: 8 }}><b>Notes:</b> {q.notes}</div>}
-                {q.amendments?.length ? <RevisionHistory amendments={q.amendments} /> : null}
+                {staffViewer && q.amendments?.length ? <RevisionHistory amendments={q.amendments} /> : null}
               </>
             )}
             {q.status === "REQUESTED" && (
