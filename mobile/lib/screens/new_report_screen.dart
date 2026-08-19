@@ -66,7 +66,13 @@ class _NewReportScreenState extends State<NewReportScreen> {
       try { _clients = await api.getClients(); } catch (_) {}
       try { _weighbridges = await api.getWeighbridges(); } catch (_) {}
       final u = context.read<Session>().user!;
-      if (u.clientName != null) _client.text = u.clientName!;
+      // Prefill the client for a single assignment; with several, leave it blank
+      // so the technician chooses from the dropdown.
+      if (u.assignedClients.length == 1) {
+        _client.text = '${u.assignedClients.first['name'] ?? ''}';
+      } else if (u.assignedClients.isEmpty && (u.clientName ?? '').isNotEmpty) {
+        _client.text = u.clientName!;
+      }
       // The technician's assigned site (branch) auto-fills.
       if ((u.site ?? '').isNotEmpty) _site.text = u.site!;
       // Auto-select the weighbridge when the technician has a single assigned
@@ -177,6 +183,10 @@ class _NewReportScreenState extends State<NewReportScreen> {
         _readonlyField('Client (company)', _client.text),
         _readonlyField('Site / branch', _site.text),
         Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(needsWeighbridge ? 'From your assignment. Just pick the weighbridge below.' : 'From your assignment.', style: const TextStyle(color: kMute, fontSize: 12))),
+      ] else if (_multiAssigned) ...[
+        // Technician assigned to several clients — pick one (every template).
+        _clientDropdown(),
+        _field('Site / branch', _site),
       ] else ...[
         _field('Client (company)', _client),
         _field('Site / branch', _site),
@@ -234,11 +244,44 @@ class _NewReportScreenState extends State<NewReportScreen> {
   }
 
   // Technicians file for their own assigned client + site (read-only).
-  bool get _lockAssignment {
+  List<Map<String, dynamic>> get _assignedClients => context.read<Session>().user?.assignedClients ?? const [];
+
+  bool get _isTech {
     final u = context.read<Session>().user;
     if (u == null) return false;
     final roles = u.roles.isNotEmpty ? u.roles : [u.role];
-    return roles.contains('TECHNICIAN') && !roles.contains('ADMIN') && ((u.clientName ?? '').isNotEmpty || (u.site ?? '').isNotEmpty);
+    return roles.contains('TECHNICIAN') && !roles.contains('ADMIN');
+  }
+
+  // One assignment → lock the client (read-only). Several → a dropdown limited to
+  // the assigned clients. Neither → the free client field.
+  bool get _lockAssignment {
+    if (!_isTech) return false;
+    final u = context.read<Session>().user!;
+    return _assignedClients.length == 1 || (_assignedClients.isEmpty && ((u.clientName ?? '').isNotEmpty || (u.site ?? '').isNotEmpty));
+  }
+
+  bool get _multiAssigned => _isTech && _assignedClients.length > 1;
+
+  // Client picker limited to the technician's assigned clients (all templates).
+  Widget _clientDropdown() {
+    final names = _assignedClients.map((c) => '${c['name'] ?? ''}').where((n) => n.isNotEmpty).toList();
+    final value = names.contains(_client.text) ? _client.text : null;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Client (company) · your assignments', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMute)),
+        const SizedBox(height: 4),
+        DropdownButtonFormField<String>(
+          value: value,
+          isExpanded: true,
+          decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)),
+          hint: const Text('Select a client'),
+          items: [for (final n in names) DropdownMenuItem(value: n, child: Text(n))],
+          onChanged: (v) => setState(() { _client.text = v ?? ''; _site.text = ''; }),
+        ),
+      ]),
+    );
   }
 
   // ---- generic inputs ----

@@ -16,7 +16,10 @@ class AppUser {
   final String id, email, name, role;
   final List<String> roles;
   final String? clientId, clientName, site;
-  AppUser({required this.id, required this.email, required this.name, required this.role, required this.roles, this.clientId, this.clientName, this.site});
+  // Every client this user may file reports for (serving / employer / assigned
+  // weighbridge clients). Each entry: {id, name}.
+  final List<Map<String, dynamic>> assignedClients;
+  AppUser({required this.id, required this.email, required this.name, required this.role, required this.roles, this.clientId, this.clientName, this.site, this.assignedClients = const []});
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
         id: j['id'] ?? '',
         email: j['email'] ?? '',
@@ -26,8 +29,9 @@ class AppUser {
         clientId: j['clientId'],
         clientName: j['clientName'],
         site: j['site'],
+        assignedClients: (j['assignedClients'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? const [],
       );
-  Map<String, dynamic> toJson() => {'id': id, 'email': email, 'name': name, 'role': role, 'roles': roles, 'clientId': clientId, 'clientName': clientName, 'site': site};
+  Map<String, dynamic> toJson() => {'id': id, 'email': email, 'name': name, 'role': role, 'roles': roles, 'clientId': clientId, 'clientName': clientName, 'site': site, 'assignedClients': assignedClients};
 }
 
 class ReportSummary {

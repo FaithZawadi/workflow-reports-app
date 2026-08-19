@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { assignedClientsFor } from "@/lib/assignments";
 
 export async function GET() {
   const claims = await getCurrentUser();
@@ -12,6 +13,8 @@ export async function GET() {
   });
   if (!user || !user.active) return Response.json({ user: null }, { status: 200 });
 
+  const { assignedClients, primaryName } = await assignedClientsFor(user.id);
+
   return Response.json({
     user: {
       id: user.id,
@@ -20,7 +23,10 @@ export async function GET() {
       role: user.role,
       roles: user.roles && user.roles.length ? user.roles : [user.role],
       clientId: user.clientId,
-      clientName: user.client?.name || null,
+      // The client to show/prefill — the serving/employer/assigned client.
+      clientName: primaryName || user.client?.name || null,
+      // Every client this user may file for (for the client picker).
+      assignedClients,
       site: user.site,
     },
   });

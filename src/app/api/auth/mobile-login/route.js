@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth";
 import { claimsFromUser } from "@/lib/auth";
+import { assignedClientsFor } from "@/lib/assignments";
 import { signSession, mobileMaxAgeSeconds, MOBILE_TTL_DAYS } from "@/lib/jwt";
 import { hit, reset, clientIp } from "@/lib/rateLimit";
 
@@ -35,6 +36,7 @@ export async function POST(req) {
 
   // Long-lived token so the field app stays signed in (stored encrypted on-device).
   const token = await signSession(claimsFromUser(user), { expiresIn: `${MOBILE_TTL_DAYS}d` });
+  const { assignedClients, primaryName } = await assignedClientsFor(user.id);
   return Response.json({
     token,
     expiresInSeconds: mobileMaxAgeSeconds,
@@ -45,7 +47,8 @@ export async function POST(req) {
       role: user.role,
       roles: user.roles && user.roles.length ? user.roles : [user.role],
       clientId: user.clientId,
-      clientName: user.client?.name || null,
+      clientName: primaryName || user.client?.name || null,
+      assignedClients,
       site: user.site || null,
     },
   });

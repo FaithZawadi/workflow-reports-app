@@ -126,7 +126,16 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   // A technician files for their OWN assigned client + site. Those auto-fill and
   // are locked (read-only), so the only thing they choose is the weighbridge.
   const roles = profile.roles && profile.roles.length ? profile.roles : (profile.role ? [profile.role] : []);
-  const lockAssignment = !isEdit && roles.includes("TECHNICIAN") && !roles.includes("ADMIN") && !!(profile.clientName || profile.site);
+  // The client(s) this technician is assigned to (from the server). Drives the
+  // client field for every template — including the Technical Report, which has
+  // no weighbridge to infer the client from.
+  const assignedClients = Array.isArray(profile.assignedClients) ? profile.assignedClients : [];
+  const isTech = roles.includes("TECHNICIAN") && !roles.includes("ADMIN");
+  // One assignment → lock to it (read-only). Several → a dropdown limited to
+  // their assigned clients. Neither → the full client picker below.
+  const singleAssigned = !isEdit && isTech && (assignedClients.length === 1 || (assignedClients.length === 0 && !!(profile.clientName || profile.site)));
+  const multiAssigned = !isEdit && isTech && assignedClients.length > 1;
+  const lockAssignment = singleAssigned;
 
   const setV = (k, v) => setValues((s) => ({ ...s, [k]: v }));
 
@@ -431,14 +440,15 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
             </>
           ) : (
             <>
-              {/* Same Client/Site fields for supervisors/managers/admins. */}
+              {/* Client / Site. A technician assigned to several clients picks from
+                  just those; supervisors/managers/admins see the full registry. */}
               <div className="grid md-2">
                 <label className="field">
-                  <span className="label">Client (company)</span>
+                  <span className="label">Client (company){multiAssigned ? " · your assignments" : ""}</span>
                   <select className="input" value={clientName} onChange={(e) => { setClientName(e.target.value); setSite(""); }}>
                     <option value="">— select client —</option>
-                    {clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    {clientName && !clients.some((c) => c.name === clientName) && <option value={clientName}>{clientName}</option>}
+                    {(multiAssigned ? assignedClients : clients).map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    {clientName && !(multiAssigned ? assignedClients : clients).some((c) => c.name === clientName) && <option value={clientName}>{clientName}</option>}
                   </select>
                 </label>
                 <label className="field">

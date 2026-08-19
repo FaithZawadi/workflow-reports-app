@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { canFileReports } from "@/lib/roles";
+import { assignedClientsFor } from "@/lib/assignments";
 import ReportForm from "@/components/ReportForm";
 
 export const metadata = { title: "New report · QSL Reports" };
@@ -10,11 +10,12 @@ export default async function NewReportPage({ searchParams }) {
   const claims = await getCurrentUser();
   if (!claims || !canFileReports(claims)) redirect("/dashboard");
 
-  let clientName = null;
-  if (claims.clientId) {
-    const c = await prisma.client.findUnique({ where: { id: claims.clientId } });
-    clientName = c?.name || null;
-  }
+  // The client(s) this user is assigned to (serving client, employer, and the
+  // clients of any weighbridges they own). Drives the client field for EVERY
+  // template — including the Technical Report — and lets a technician assigned
+  // to several clients pick one. Prefill only when there's a single assignment.
+  const { assignedClients } = await assignedClientsFor(claims.sub);
+  const clientName = assignedClients.length === 1 ? assignedClients[0].name : null;
 
   const profile = {
     role: claims.role,
@@ -22,6 +23,7 @@ export default async function NewReportPage({ searchParams }) {
     name: claims.name,
     clientId: claims.clientId,
     clientName,
+    assignedClients,
     site: claims.site,
   };
 
