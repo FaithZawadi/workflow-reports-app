@@ -573,6 +573,18 @@ model Counter {
   value Int    @default(0)
 }
 
+// Application-wide settings an admin edits in System Settings. A single row
+// (id "app") holding a JSON blob keyed by group (company, finance, reports,
+// workflow). The shape and defaults live in src/lib/settings.js so the schema
+// never churns as settings are added.
+model Setting {
+  id            String   @id
+  data          Json     @default("{}")
+  updatedAt     DateTime @updatedAt
+  updatedById   String?
+  updatedByName String?
+}
+
 // A calibration request raised by a CLIENT (CRF-NAWI). Lists the instruments to
 // be calibrated and the client's declaration; the QSL laboratory (PM / TM) then
 // completes the review checklist and accepts or rejects it.

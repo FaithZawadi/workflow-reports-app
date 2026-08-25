@@ -6,6 +6,7 @@ import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl } from "@/lib/qr";
 import { getCurrentUser } from "@/lib/auth";
 import { isClient } from "@/lib/roles";
+import { syncCompany } from "@/lib/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +30,7 @@ export async function GET(_req, { params }) {
   // staff session (never for a client, and never when opened without login).
   const viewer = await getCurrentUser().catch(() => null);
   const internal = !!viewer && !isClient(viewer);
+  await syncCompany(); // reflect any branding changes from System Settings
   const buffer = await renderToBuffer(React.createElement(QuotationDocument, { quotation: q, logoSrc: logoDataUrl(), qrSrc, internal }));
 
   return new Response(buffer, {

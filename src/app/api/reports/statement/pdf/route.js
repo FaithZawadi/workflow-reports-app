@@ -5,6 +5,7 @@ import { canGenerateReports } from "@/lib/roles";
 import { buildManagementReport } from "@/lib/managementReport";
 import { ClientStatementDocument } from "@/pdf/ClientStatementDocument";
 import { logoDataUrl } from "@/lib/logo";
+import { syncCompany } from "@/lib/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +52,7 @@ export async function GET(req) {
   const slug = (statementName || "ALL").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase() || "ALL";
   const statementRef = `QSL-STMT-${stampMonth}-${slug}`;
 
+  await syncCompany(); // reflect any branding changes from System Settings
   const buffer = await renderToBuffer(
     React.createElement(ClientStatementDocument, {
       data,

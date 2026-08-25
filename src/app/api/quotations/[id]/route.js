@@ -6,6 +6,7 @@ import { rolesOf, canPrepareQuotes, isClient, canRaiseOwnQuotes } from "@/lib/ro
 import { amountInWords, quoteTotals } from "@/lib/money";
 import { sendMail, quoteIssuedEmail, quoteDecisionEmail } from "@/lib/email";
 import { notifyEmails, notifyUsers } from "@/lib/notify";
+import { getSettings } from "@/lib/settings";
 
 function ownedByClient(user, q) {
   return isClient(user) && (q.requestedById === user.sub || (user.clientId && q.clientId === user.clientId));
@@ -161,7 +162,8 @@ export async function PATCH(req, { params }) {
     }))
     .filter((it) => it.description);
 
-  const currency = String(body.currency || q.currency || "KES").trim() || "KES";
+  const settings = await getSettings();
+  const currency = String(body.currency || q.currency || settings.finance.currency || "KES").trim() || "KES";
   const vatRate = body.vatRate != null ? Number(body.vatRate) : q.vatRate;
   const freight = body.freight != null ? Number(body.freight) : q.freight;
   const totals = quoteTotals(items, vatRate, freight);
@@ -180,7 +182,11 @@ export async function PATCH(req, { params }) {
     grandTotal: totals.grandTotal,
     amountInWords: amountInWords(totals.grandTotal, currency),
     notes: String(body.notes || "").trim() || null,
-    validUntil: body.validUntil ? new Date(body.validUntil) : q.validUntil,
+    // Default the validity window from settings when issuing without an explicit
+    // date (issue date + configured validity days).
+    validUntil: body.validUntil
+      ? new Date(body.validUntil)
+      : q.validUntil || (issue ? new Date(Date.now() + (settings.finance.quoteValidityDays || 30) * 86400000) : null),
   };
   // Client contact details may be captured/updated when issuing.
   if (body.contactEmail !== undefined) data.contactEmail = String(body.contactEmail || "").trim() || null;
@@ -192,6 +198,12 @@ export async function PATCH(req, { params }) {
   if (body.fileNo !== undefined) data.fileNo = String(body.fileNo || "").trim() || null;
   if (body.paymentDetails !== undefined) data.paymentDetails = String(body.paymentDetails || "").trim() || null;
   if (body.terms !== undefined) data.terms = String(body.terms || "").trim() || null;
+  // When issuing without payment/terms text, fall back to the configured
+  // defaults so every issued quote carries them.
+  if (issue) {
+    if (!data.paymentDetails && !q.paymentDetails && settings.finance.paymentDetails) data.paymentDetails = settings.finance.paymentDetails;
+    if (!data.terms && !q.terms && settings.finance.quoteTerms) data.terms = settings.finance.quoteTerms;
+  }
   // Re-issuing a quote that was already issued once is an amendment — log who
   // amended it, when, why, and the value change, and bump the revision number.
   const isAmendment = issue && !!q.quotedAt;

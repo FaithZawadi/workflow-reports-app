@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { getSettings } from "./settings";
 
 let transporter = null;
 
@@ -22,6 +23,14 @@ function getTransport() {
 // Returns { sent: boolean, reason?: string }. Never throws — a failed email
 // must not break the workflow; the event is still recorded in the audit trail.
 export async function sendMail({ to, subject, text, html }) {
+  // Admin master switch — an administrator can turn all outgoing email off (or
+  // on, if SMTP is configured) in System Settings, without a redeploy.
+  try {
+    const settings = await getSettings();
+    if (!settings.workflow.emailEnabled) return { sent: false, reason: "email disabled by settings" };
+  } catch {
+    // settings unavailable — fall back to the env-based transport guard below
+  }
   const t = getTransport();
   if (!t) return { sent: false, reason: "email disabled" };
   if (!to) return { sent: false, reason: "no recipient" };

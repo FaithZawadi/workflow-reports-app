@@ -6,6 +6,7 @@ import { rolesOf, canPrepareQuotes, isClient } from "@/lib/roles";
 import { CalibrationRequestDocument } from "@/pdf/CalibrationRequestDocument";
 import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl, verifyUrl } from "@/lib/qr";
+import { syncCompany } from "@/lib/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,7 @@ export async function GET(_req, { params }) {
     verifyUrl(`/calibration-requests/${request.id}`),
   ].join("\n");
   const qrSrc = await qrDataUrl(qrText);
+  await syncCompany(); // reflect any branding changes from System Settings
   const buffer = await renderToBuffer(
     React.createElement(CalibrationRequestDocument, { request, logoSrc: logoDataUrl(), qrSrc })
   );

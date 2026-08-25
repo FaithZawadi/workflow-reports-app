@@ -6,6 +6,7 @@ import { rolesOf, canPrepareQuotes, isClient, isSupervisor, canRaiseOwnQuotes } 
 import { assignedClientIds } from "@/lib/rbac";
 import { sendMail, quoteRequestEmail } from "@/lib/email";
 import { notifyEmails } from "@/lib/notify";
+import { getSettings } from "@/lib/settings";
 
 // Returns the Prisma `where` for what a user may READ, or null if no access.
 // Equipment Users get a read-only view scoped to their weighbridges' clients.
@@ -102,12 +103,16 @@ export async function POST(req) {
   }
   if (!clientName) return Response.json({ error: "Client is required." }, { status: 400 });
 
-  const number = await nextSerial("Q");
+  const settings = await getSettings();
+  const number = await nextSerial(settings.finance.quotePrefix || "Q");
   const created = await prisma.quotation.create({
     data: {
       number,
       clientId,
       clientName,
+      // Seed the finance defaults from System Settings (a quote can override).
+      currency: settings.finance.currency || "KES",
+      vatRate: settings.finance.vatRate ?? 16,
       // The CLIENT's contact details — do NOT fall back to the signed-in staff.
       contactPerson: String(body.contactPerson || cr?.contactPerson || "").trim() || null,
       contactEmail: String(body.contactEmail || cr?.email || "").trim() || null,

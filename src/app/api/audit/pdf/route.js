@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { AuditLogDocument } from "@/pdf/AuditLogDocument";
 import { logoDataUrl } from "@/lib/logo";
+import { syncCompany } from "@/lib/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +48,7 @@ export async function GET(req) {
   if (q) parts.push(`"${q}"`);
   const filterLabel = parts.join(" · ");
 
+  await syncCompany(); // reflect any branding changes from System Settings
   const buffer = await renderToBuffer(
     React.createElement(AuditLogDocument, {
       logs,

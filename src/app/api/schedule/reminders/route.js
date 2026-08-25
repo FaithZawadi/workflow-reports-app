@@ -11,13 +11,15 @@ import {
   escalationEmail,
 } from "@/lib/contracts";
 import { notifyUsers } from "@/lib/notify";
+import { getSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
 // Email the client contact + QSL Technical Manager several times before each
 // contract service falls due. Idempotent: each lead-time is recorded per cycle.
 async function processContracts(now) {
-  const leads = reminderLeadDays();
+  const settings = await getSettings();
+  const leads = reminderLeadDays(settings.workflow.contractReminderDays);
   const contracts = await prisma.contract.findMany({ where: { active: true } });
   const results = [];
   for (const c of contracts) {
@@ -41,7 +43,8 @@ async function processContracts(now) {
 // Escalate reports that have sat at one approval stage too long. Once only
 // (escalatedAt), so it doesn't repeat every run.
 async function processEscalations(now, alertList) {
-  const cutoff = new Date(now.getTime() - escalateAfterDays() * 86400000);
+  const settings = await getSettings();
+  const cutoff = new Date(now.getTime() - escalateAfterDays(settings.workflow.escalateAfterDays) * 86400000);
   const stale = await prisma.report.findMany({
     where: { status: { in: ["PENDING_SUPERVISOR", "PENDING_MANAGER"] }, createdAt: { lt: cutoff }, escalatedAt: null },
   });

@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { TRAINING_ROLES } from "@/lib/roles";
 import { TrainingFeedbackBook } from "@/pdf/TrainingFeedbackDocument";
 import { logoDataUrl } from "@/lib/logo";
+import { syncCompany } from "@/lib/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export async function GET() {
   const list = await prisma.trainingFeedback.findMany({ orderBy: { createdAt: "desc" }, take: 1000 });
   if (!list.length) return Response.json({ error: "No feedback recorded yet." }, { status: 404 });
 
+  await syncCompany(); // reflect any branding changes from System Settings
   const buffer = await renderToBuffer(React.createElement(TrainingFeedbackBook, { list, logoSrc: logoDataUrl() }));
 
   return new Response(buffer, {

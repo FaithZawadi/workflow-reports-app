@@ -5,6 +5,7 @@ import { canFileReports, canApproveClients } from "@/lib/roles";
 import { resolveSiteByName } from "@/lib/clientResolve";
 import { siteDetailData } from "@/lib/clientFields";
 import { notifyUsers } from "@/lib/notify";
+import { getSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -38,8 +39,12 @@ export async function POST(req) {
   }
 
   // Approval routing. Managers/admins register directly; others need a chosen
-  // approver and the client stays PENDING until that manager approves it.
-  const selfApproves = canApproveClients(user);
+  // approver and the client stays PENDING until that manager approves it. When
+  // an admin turns approval off in System Settings, every new client is
+  // approved outright regardless of who registered it.
+  const settings = await getSettings();
+  const approvalRequired = settings.workflow.clientApprovalRequired;
+  const selfApproves = !approvalRequired || canApproveClients(user);
   let approverId = String(b.approverId || "").trim() || null;
   let approver = null;
   if (!selfApproves) {

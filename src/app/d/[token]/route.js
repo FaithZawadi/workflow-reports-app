@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { QuotationDocument } from "@/pdf/QuotationDocument";
 import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl } from "@/lib/qr";
+import { syncCompany } from "@/lib/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ export async function GET(_req, { params }) {
     q.validUntil ? `Valid until ${new Date(q.validUntil).toLocaleDateString()}` : null,
   ].filter(Boolean).join("\n");
   const qrSrc = await qrDataUrl(qrText);
+  await syncCompany(); // reflect any branding changes from System Settings
   const buffer = await renderToBuffer(
     React.createElement(QuotationDocument, { quotation: q, logoSrc: logoDataUrl(), qrSrc })
   );

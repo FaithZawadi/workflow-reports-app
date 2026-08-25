@@ -6,18 +6,20 @@ export const daysBetween = (from, to) => Math.round((new Date(to) - new Date(fro
 
 // Lead-times (days before due) at which a service reminder is sent. At least
 // three, per requirement. Override with CONTRACT_REMINDER_DAYS="30,14,7,1".
-export function reminderLeadDays() {
-  const raw = process.env.CONTRACT_REMINDER_DAYS;
-  let days = raw
-    ? raw.split(",").map((n) => parseInt(n.trim(), 10)).filter((n) => Number.isFinite(n) && n >= 0)
+// `raw` (from System Settings) takes precedence over the env default.
+export function reminderLeadDays(raw) {
+  const src = raw != null ? raw : process.env.CONTRACT_REMINDER_DAYS;
+  let days = src
+    ? String(src).split(",").map((n) => parseInt(n.trim(), 10)).filter((n) => Number.isFinite(n) && n >= 0)
     : [];
   if (days.length < 3) days = [30, 14, 7, 1];
   return [...new Set(days)].sort((a, b) => b - a); // descending
 }
 
 // How many days a report may sit at one approval stage before it is escalated.
-export function escalateAfterDays() {
-  const n = parseInt(process.env.ESCALATE_AFTER_DAYS || "3", 10);
+// `override` (from System Settings) takes precedence over the env default.
+export function escalateAfterDays(override) {
+  const n = parseInt(override != null ? override : process.env.ESCALATE_AFTER_DAYS || "3", 10);
   return Number.isFinite(n) && n > 0 ? n : 3;
 }
 

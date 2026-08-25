@@ -6,6 +6,7 @@ import { canView } from "@/lib/rbac";
 import { ReportDocument } from "@/pdf/ReportDocument";
 import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl, verifyUrl } from "@/lib/qr";
+import { syncCompany } from "@/lib/settings";
 
 // Force Node.js runtime — @react-pdf/renderer cannot run on the edge.
 export const runtime = "nodejs";
@@ -39,6 +40,7 @@ export async function GET(req, { params }) {
     verifyUrl(`/reports/${report.serial}`),
   ].join("\n");
   const qrSrc = await qrDataUrl(qrText);
+  await syncCompany(); // reflect any branding changes from System Settings
   const buffer = await renderToBuffer(
     React.createElement(ReportDocument, { report, logoSrc: logoDataUrl(), qrSrc })
   );

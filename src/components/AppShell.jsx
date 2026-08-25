@@ -89,6 +89,7 @@ export default function AppShell({ user, children }) {
         isAdmin && { href: "/feedback", label: "Feedback", icon: "star" },
         isAdmin && { href: "/analytics", label: "Usage analytics", icon: "chart" },
         isAdmin && { href: "/audit", label: "Audit log", icon: "audit" },
+        isAdmin && { href: "/settings", label: "System settings", icon: "gear" },
       ].filter(Boolean);
 
   // Bottom tab bar (mobile) — the primary destinations as a native-style bar.
@@ -312,6 +313,8 @@ function NavIcon({ name }) {
       return (<svg {...p}><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>);
     case "chart":
       return (<svg {...p}><path d="M4 4v16h16" /><rect x="7" y="11" width="3" height="6" rx="0.5" /><rect x="12" y="7" width="3" height="10" rx="0.5" /><rect x="17" y="13" width="3" height="4" rx="0.5" /></svg>);
+    case "gear":
+      return (<svg {...p}><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" /></svg>);
     default:
       return null;
   }

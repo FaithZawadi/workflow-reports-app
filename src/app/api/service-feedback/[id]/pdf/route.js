@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { SurveyDocument } from "@/pdf/SurveyDocument";
 import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl } from "@/lib/qr";
+import { syncCompany } from "@/lib/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export async function GET(_req, { params }) {
     `Submitted ${new Date(feedback.createdAt).toLocaleDateString()}`,
   ].filter(Boolean).join("\n");
   const qrSrc = await qrDataUrl(qrText);
+  await syncCompany(); // reflect any branding changes from System Settings
   const buffer = await renderToBuffer(React.createElement(SurveyDocument, { feedback, logoSrc: logoDataUrl(), qrSrc }));
 
   return new Response(buffer, {

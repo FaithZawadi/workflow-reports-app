@@ -10,6 +10,7 @@ import { addCycle } from "@/lib/schedule";
 import { recordAudit } from "@/lib/audit";
 import { isValidImageUpload, MAX_IMAGE_BYTES } from "@/lib/upload";
 import { evalGeofence } from "@/lib/geofence";
+import { getSettings } from "@/lib/settings";
 import { chainFor, stageRole, stageLabel } from "@/lib/approvalChain";
 import { FILER_ROLES, rolesOf } from "@/lib/roles";
 import { notifyEmails, notifyUsers, oversight } from "@/lib/notify";
@@ -227,13 +228,27 @@ export async function POST(req) {
       })
       .catch(() => null);
   }
+  // Admin settings: apply a default fence radius where a site has none, and
+  // optionally require the report to be filed on-site.
+  const settings = await getSettings();
+  const effectiveRadius = siteRec?.geofenceRadius ?? (settings.reports.defaultGeofenceRadius || null);
   const geo = evalGeofence({
     filedLat: hasFiled ? fLat : null,
     filedLng: hasFiled ? fLng : null,
     siteLat: siteRec?.lat ?? null,
     siteLng: siteRec?.lng ?? null,
-    radiusM: siteRec?.geofenceRadius ?? null,
+    radiusM: effectiveRadius,
   });
+
+  // Enforce on-site filing when the admin requires it: reject a clear miss (no
+  // location captured, or outside the fence). A site with no coordinates can't
+  // be verified either way, so it's allowed through.
+  if (settings.reports.requireOnSite) {
+    if (geo.status === "NO_LOCATION")
+      return Response.json({ error: "Location is required to file this report. Allow location access and try again." }, { status: 422 });
+    if (geo.status === "OUTSIDE")
+      return Response.json({ error: "You appear to be off-site. This report must be filed at the site." }, { status: 422 });
+  }
 
   const serial = await nextSerial(tpl.code);
   const authorName = user.name;
@@ -242,6 +257,8 @@ export async function POST(req) {
   // — never trust the client (a direct API call could post huge or non-image
   // blobs). Reject the whole submission with a clear message if any fail.
   const photos = Array.isArray(body.photos) ? body.photos.slice(0, 8) : [];
+  if (settings.reports.requirePhotos && photos.length === 0)
+    return Response.json({ error: "At least one photo is required for this report." }, { status: 422 });
   for (const p of photos) {
     if (!isValidImageUpload(String(p?.src || p?.dataUrl || ""), MAX_IMAGE_BYTES)) {
       return Response.json({ error: "Each photo must be an image of 5 MB or less." }, { status: 413 });
@@ -265,7 +282,7 @@ export async function POST(req) {
       filedAccuracy: hasFiled && !Number.isNaN(fAcc) ? fAcc : null,
       siteLat: siteRec?.lat ?? null,
       siteLng: siteRec?.lng ?? null,
-      siteRadiusM: siteRec?.geofenceRadius ?? null,
+      siteRadiusM: effectiveRadius,
       geofenceStatus: geo.status,
       geofenceDistanceM: geo.distanceM,
       authorId: user.sub,
