@@ -8,6 +8,7 @@ import { templatesForRoles, templateByCode, isSingleApproval } from "@/lib/templ
 import { chainFor } from "@/lib/approvalChain";
 import { rolesOf } from "@/lib/roles";
 import { enqueueReport } from "@/lib/outbox";
+import { loadDraft, saveDraft, clearDraft, draftHasContent } from "@/lib/reportDraft";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 
 export default function ReportForm({ profile, prefill = {}, edit = null }) {
@@ -62,6 +63,12 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [confirming, setConfirming] = useState(false);
+  // Draft state (new reports only). pendingDraft = a saved draft awaiting a
+  // Resume/Discard decision; draftReady gates auto-save so we don't overwrite it
+  // before the user decides; draftSavedAt drives the "saved" indicator.
+  const [pendingDraft, setPendingDraft] = useState(null);
+  const [draftReady, setDraftReady] = useState(isEdit);
+  const [draftSavedAt, setDraftSavedAt] = useState(null);
 
   // Validate the routing, then open the review dialog so the filer can re-read
   // everything before it is sent.
@@ -100,6 +107,59 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       .then((d) => setSites(d.sites || []))
       .catch(() => {});
   }, []);
+
+  // When a template is chosen, offer any saved draft for it (new reports only).
+  useEffect(() => {
+    if (isEdit || !tpl) return;
+    const d = loadDraft(tpl.code);
+    if (draftHasContent(d)) {
+      setPendingDraft(d);
+      setDraftReady(false);
+    } else {
+      setPendingDraft(null);
+      setDraftReady(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tpl?.code]);
+
+  // Auto-save the working report as a local draft (debounced). Held back until
+  // any pending draft has been resumed/discarded so it isn't overwritten first.
+  useEffect(() => {
+    if (isEdit || !tpl || !draftReady) return;
+    const t = setTimeout(() => {
+      const res = saveDraft(tpl.code, { template: tpl.code, values, checks, grids, runs, photos, clientName, site, supervisorEmails, managerEmail });
+      if (res) setDraftSavedAt(Date.now());
+    }, 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEdit, tpl, draftReady, values, checks, grids, runs, photos, clientName, site, supervisorEmails, managerEmail]);
+
+  const resumeDraft = () => {
+    const d = pendingDraft;
+    if (!d) return;
+    if (d.values) setValues(d.values);
+    if (d.checks) setChecks(d.checks);
+    if (d.grids) setGrids(d.grids);
+    if (d.runs) setRuns(d.runs);
+    if (Array.isArray(d.photos)) setPhotos(d.photos);
+    if (d.clientName) setClientName(d.clientName);
+    if (d.site) setSite(d.site);
+    if (Array.isArray(d.supervisorEmails) && d.supervisorEmails.length) setSupervisorEmails(d.supervisorEmails);
+    if (d.managerEmail) setManagerEmail(d.managerEmail);
+    setPendingDraft(null);
+    setDraftReady(true);
+  };
+  const discardDraft = () => {
+    if (tpl) clearDraft(tpl.code);
+    setPendingDraft(null);
+    setDraftReady(true);
+  };
+  const saveDraftAndLeave = () => {
+    if (!tpl) return setMsg("Pick a report type first.");
+    const res = saveDraft(tpl.code, { template: tpl.code, values, checks, grids, runs, photos, clientName, site, supervisorEmails, managerEmail });
+    if (res === false) return setMsg("Couldn't save the draft on this device — storage may be full.");
+    router.push("/dashboard?draft=1");
+  };
 
   // Site options for the chosen client: registered sites PLUS the sites (branches)
   // carried by that client's weighbridges — so the dropdown is populated even when
@@ -248,6 +308,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
     const queueOffline = async () => {
       try {
         await enqueueReport(payload);
+        if (tpl) clearDraft(tpl.code); // it's in the outbox now
         window.dispatchEvent(new CustomEvent("qsl:outbox-queued"));
         router.push("/dashboard?queued=1");
         return true;
@@ -276,6 +337,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
         setBusy(false);
         return;
       }
+      if (tpl) clearDraft(tpl.code); // submitted — drop the local draft
       router.push(`/reports/${data.serial}`);
     } catch {
       // The request failed to reach the server (dropped connection). Queue it
@@ -357,6 +419,16 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       <button className="btn btn-primary" style={{ width: "100%", padding: "13px" }} disabled={busy} onClick={review}>
         {busy ? "Working…" : isEdit ? "Review & save changes" : "Review & submit"}
       </button>
+      {!isEdit && tpl && (
+        <>
+          <button className="btn" style={{ width: "100%", padding: "12px", marginTop: 8 }} disabled={busy} onClick={saveDraftAndLeave}>
+            Save draft &amp; leave
+          </button>
+          <div className="muted" style={{ fontSize: 11.5, textAlign: "center", marginTop: 6 }}>
+            {draftSavedAt ? "Draft saved automatically on this device — resume it anytime." : "Your progress is saved to this device automatically."}
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -366,6 +438,20 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
 
   return (
     <div>
+      {pendingDraft && !isEdit && (
+        <div className="card" style={{ padding: 14, marginBottom: 12, borderColor: GOLD, background: "#fdf6e3" }}>
+          <div style={{ fontWeight: 800, color: INK, fontSize: 14 }}>Resume your saved draft?</div>
+          <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+            You have an unfinished {tpl ? tpl.name : "report"} on this device
+            {pendingDraft.savedAt ? ` from ${new Date(pendingDraft.savedAt).toLocaleString()}` : ""}
+            {pendingDraft.photosDropped ? " (photos weren't kept — they were too large to store)" : ""}.
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+            <button className="btn btn-primary" style={{ fontSize: 13 }} onClick={resumeDraft}>Resume draft</button>
+            <button className="btn" style={{ fontSize: 13 }} onClick={discardDraft}>Start fresh</button>
+          </div>
+        </div>
+      )}
       {confirming && (
         <div
           role="dialog"
@@ -665,6 +751,9 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
           })}
 
           <Photos photos={photos} setPhotos={setPhotos} />
+          <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+            Photos are optional{tpl.code === "TR01" ? " — a technical report can be submitted without any" : ""}.
+          </div>
           <div style={{ marginTop: 20 }}>{approvalPanel}</div>
         </PaperCard>
       </div>
