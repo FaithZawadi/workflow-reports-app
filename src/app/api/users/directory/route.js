@@ -31,5 +31,7 @@ export async function GET() {
     // Role-locked chains (e.g. the Technical Report) route to these.
     technicalManagers: pick(["TECHNICAL_MANAGER"]),
     projectManagers: pick(["PROJECT_MANAGER"]),
+    // Who a technician can pick to approve a newly-registered client.
+    approvers: pick(["ADMIN", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"]),
   });
 }

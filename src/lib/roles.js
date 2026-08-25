@@ -69,6 +69,10 @@ const intersects = (input, group) => rolesOf(input).some((r) => group.includes(r
 
 export const canManageUsers = (input) => intersects(input, USER_ADMIN_ROLES);
 export const canFileReports = (input) => intersects(input, FILER_ROLES);
+// Who may approve a technician-registered client, and who registers one outright
+// (no approval needed).
+export const CLIENT_APPROVER_ROLES = ["ADMIN", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
+export const canApproveClients = (input) => intersects(input, CLIENT_APPROVER_ROLES);
 export const canManageSchedulesRole = (input) => intersects(input, SCHEDULE_MANAGER_ROLES);
 
 // CLIENT — a restricted portal login. A client contact files calibration

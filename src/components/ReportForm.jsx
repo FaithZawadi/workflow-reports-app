@@ -6,7 +6,7 @@ import CheckItem, { CheckHeader, CHECK_TABLE_MINWIDTH, defaultStates } from "./C
 import Photos from "./Photos";
 import { templatesForRoles, templateByCode, isSingleApproval } from "@/lib/templates";
 import { chainFor } from "@/lib/approvalChain";
-import { rolesOf } from "@/lib/roles";
+import { rolesOf, canApproveClients } from "@/lib/roles";
 import { enqueueReport } from "@/lib/outbox";
 import { loadDraft, saveDraft, clearDraft, draftHasContent } from "@/lib/reportDraft";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
@@ -77,6 +77,8 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const [ncLng, setNcLng] = useState("");
   const [ncBusy, setNcBusy] = useState(false);
   const [ncErr, setNcErr] = useState("");
+  const [approvers, setApprovers] = useState([]);
+  const [ncApprover, setNcApprover] = useState("");
 
   // Validate the routing, then open the review dialog so the filer can re-read
   // everything before it is sent.
@@ -104,6 +106,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
         setManagers(d.managers || []);
         setTechnicalManagers(d.technicalManagers || []);
         setProjectManagers(d.projectManagers || []);
+        setApprovers(d.approvers || []);
       })
       .catch(() => {});
     fetch("/api/weighbridges")
@@ -174,13 +177,14 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const addNewClient = async () => {
     const name = ncName.trim();
     if (!name) return setNcErr("Enter the new client's name.");
+    if (!canApproveClient && !ncApprover) return setNcErr("Choose an approval manager for the new client.");
     setNcBusy(true);
     setNcErr("");
     try {
       const res = await fetch("/api/clients/quick", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, site: ncSite.trim(), lat: ncLat, lng: ncLng }),
+        body: JSON.stringify({ name, site: ncSite.trim(), lat: ncLat, lng: ncLng, approverId: canApproveClient ? undefined : ncApprover }),
       });
       const d = await res.json();
       if (!res.ok) { setNcErr(d.error || "Could not add the client."); setNcBusy(false); return; }
@@ -189,7 +193,8 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       setSite(d.site || ncSite.trim() || "");
       fetch("/api/sites").then((r) => r.json()).then((sd) => setSites(sd.sites || [])).catch(() => {});
       setAddingClient(false);
-      setNcName(""); setNcSite(""); setNcLat(""); setNcLng("");
+      setNcName(""); setNcSite(""); setNcLat(""); setNcLng(""); setNcApprover("");
+      if (d.client.approvalStatus === "PENDING") setMsg("New client submitted for approval — you can still use it on this report.");
     } catch {
       setNcErr("Network problem — try again.");
     }
@@ -233,6 +238,9 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   // filer may still choose ANY client (or add a brand-new one), so this is a
   // prefill/shortcut, not a restriction.
   const assignedClients = Array.isArray(profile.assignedClients) ? profile.assignedClients : [];
+  // A manager/admin registers clients outright; others must route the new client
+  // to a chosen approval manager.
+  const canApproveClient = canApproveClients(profile);
 
   const setV = (k, v) => setValues((s) => ({ ...s, [k]: v }));
 
@@ -599,8 +607,20 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
                 <label className="field"><span className="label">Longitude (optional)</span>
                   <input className="input" inputMode="decimal" value={ncLng} onChange={(e) => setNcLng(e.target.value)} placeholder="36.0800" />
                 </label>
+                {!canApproveClient && (
+                  <label className="field"><span className="label">Approval manager</span>
+                    <select className="input" value={ncApprover} onChange={(e) => setNcApprover(e.target.value)}>
+                      <option value="">— choose who approves —</option>
+                      {approvers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </label>
+                )}
               </div>
-              <div className="muted" style={{ fontSize: 11.5 }}>Only for a client not already in the list — existing ones (any spelling) can&apos;t be added again.</div>
+              <div className="muted" style={{ fontSize: 11.5 }}>
+                {canApproveClient
+                  ? "Only for a client not already in the list — existing ones (any spelling) can’t be added again."
+                  : "The new client goes to your chosen manager for approval. You can still use it on this report right away. Existing clients (any spelling) can’t be added again."}
+              </div>
               {ncErr && <div className="err" style={{ fontSize: 12, marginTop: 6 }}>{ncErr}</div>}
               <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                 <button type="button" className="btn btn-dark" style={{ fontSize: 12 }} disabled={ncBusy} onClick={addNewClient}>{ncBusy ? "Adding…" : "Add & use"}</button>

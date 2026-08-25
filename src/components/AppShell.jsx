@@ -10,7 +10,7 @@ import NotificationBell from "./NotificationBell";
 import OfflineBadge from "./OfflineBadge";
 import PasswordPrompt from "./PasswordPrompt";
 import { ROLE_LABEL } from "@/lib/theme";
-import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, canGenerateReports, isClientOnly, rolesOf } from "@/lib/roles";
+import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, canGenerateReports, canApproveClients, isClientOnly, rolesOf } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
@@ -83,6 +83,7 @@ export default function AppShell({ user, children }) {
         showTraining && { href: "/training-feedback", label: "Training feedback", icon: "training" },
         showUsers && { href: "/users", label: "Users", icon: "users" },
         showWeighbridges && { href: "/weighbridges", label: "Weighbridges", icon: "scale" },
+        canApproveClients(user) && { href: "/clients/pending", label: "Client approvals", icon: "building" },
         isAdmin && { href: "/clients", label: "Clients", icon: "building" },
         isAdmin && { href: "/sites", label: "Sites", icon: "pin" },
         isAdmin && { href: "/feedback", label: "Feedback", icon: "star" },

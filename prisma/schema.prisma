@@ -139,6 +139,9 @@ model User {
   // authoritative assignment (the report form still also honours the serving
   // client and any weighbridge clients).
   assignedClients Client[] @relation("AssignedClients")
+  // Client registrations awaiting this user's approval (they were chosen as the
+  // approval manager when a technician added a new client).
+  clientApprovals Client[] @relation("ClientApprover")
 
   reports     Report[]      @relation("AuthoredReports")
   trailEvents TrailEvent[]
@@ -176,6 +179,16 @@ model Client {
   notes        String?
   status       String?       @default("ACTIVE") // ACTIVE | PROSPECT | INACTIVE
   onboardedAt  DateTime?
+  // Registration approval. A client a technician adds while filing a report is
+  // PENDING until a chosen approval manager approves it; clients created by an
+  // admin/PM/TM are APPROVED outright. REJECTED clients are deactivated.
+  approvalStatus  String   @default("APPROVED") // PENDING | APPROVED | REJECTED
+  approverId      String?
+  approver        User?    @relation("ClientApprover", fields: [approverId], references: [id])
+  registeredById  String?
+  registeredByName String?
+  approvedAt      DateTime?
+  approvalNote    String?
   // The QSL staffer who owns this account.
   accountManagerId String?
   accountManager   User?     @relation("ClientAccountManager", fields: [accountManagerId], references: [id])
