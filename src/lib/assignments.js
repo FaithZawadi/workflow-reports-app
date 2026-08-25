@@ -12,6 +12,7 @@ export async function assignedClientsFor(userId) {
       include: {
         client: { select: { id: true, name: true } },
         servingClient: { select: { id: true, name: true } },
+        assignedClients: { where: { active: true }, select: { id: true, name: true } },
         weighbridges: { select: { client: { select: { id: true, name: true } } } },
       },
     })
@@ -21,6 +22,8 @@ export async function assignedClientsFor(userId) {
   const add = (c) => {
     if (c?.name) map.set(c.name, { id: c.id, name: c.name });
   };
+  // Explicit admin assignment first, then serving/employer, then weighbridges.
+  for (const c of me?.assignedClients || []) add(c);
   add(me?.servingClient);
   add(me?.client);
   for (const w of me?.weighbridges || []) add(w.client);

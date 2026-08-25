@@ -36,6 +36,7 @@ export async function GET() {
     include: {
       client: { select: { name: true } },
       servingClient: { select: { id: true, name: true } },
+      assignedClients: { select: { id: true, name: true } },
       weighbridges: { select: { id: true, label: true } },
     },
   });
@@ -54,6 +55,9 @@ export async function GET() {
       // The client they are currently serving / deployed to.
       servingClientId: u.servingClientId || null,
       servingClient: u.servingClient?.name || null,
+      // Explicit clients this user may file reports for.
+      assignedClientIds: (u.assignedClients || []).map((c) => c.id),
+      assignedClientNames: (u.assignedClients || []).map((c) => c.name),
       active: u.active,
       weighbridges: u.weighbridges,
     })),
@@ -117,10 +121,13 @@ export async function POST(req) {
     servingClientId = await upsertClientByName(clientName);
   }
 
+  // Optional explicit client assignment at creation.
+  const assignIds = Array.isArray(body.assignedClientIds) ? body.assignedClientIds.map(String).filter(Boolean) : [];
+
   const user = await prisma.user.create({
     // passwordChangedAt=null keeps the account flagged as never-rotated; the
     // mustChangePassword gate forces the change on first sign-in.
-    data: { email, name, passwordHash: await hashPassword(temp), passwordChangedAt: null, mustChangePassword: true, role, roles, site, orgType, clientId, servingClientId },
+    data: { email, name, passwordHash: await hashPassword(temp), passwordChangedAt: null, mustChangePassword: true, role, roles, site, orgType, clientId, servingClientId, ...(assignIds.length ? { assignedClients: { connect: assignIds.map((id) => ({ id })) } } : {}) },
   });
   await recordAudit({
     actor: me,

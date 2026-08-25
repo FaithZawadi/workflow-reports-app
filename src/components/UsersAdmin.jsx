@@ -267,11 +267,13 @@ function EditUser({ user, roleOptions, allWbs = [], clients = [], isSelf, onSave
   const [clientName, setClientName] = useState(user.client || "");
   const [servingClientId, setServingClientId] = useState(user.servingClientId || "");
   const [wbs, setWbs] = useState(() => new Set((user.weighbridges || []).map((w) => w.id)));
+  const [assigned, setAssigned] = useState(() => new Set(user.assignedClientIds || []));
   const [pw, setPw] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const toggleWb = (id) => setWbs((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleClient = (id) => setAssigned((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const patch = async (partial, okMsg) => {
     setBusy(true); setErr(""); setMsg("");
@@ -288,7 +290,7 @@ function EditUser({ user, roleOptions, allWbs = [], clients = [], isSelf, onSave
 
   const saveDetails = async () => {
     if (!roles.length) { setErr("A user must have at least one role."); return; }
-    const payload = { roles, site, orgType, clientName, servingClientId };
+    const payload = { roles, site, orgType, clientName, servingClientId, assignedClientIds: [...assigned] };
     if (allWbs.length > 0) payload.weighbridgeIds = [...wbs];
     if (await patch(payload, "Saved.")) onSaved();
   };
@@ -321,6 +323,20 @@ function EditUser({ user, roleOptions, allWbs = [], clients = [], isSelf, onSave
         />
         <L label="Site"><input className="input" value={site} onChange={(e) => setSite(e.target.value)} /></L>
       </div>
+      {clients.length > 0 && (
+        <div className="field">
+          <span className="label">Assigned clients ({assigned.size}) — which clients this person may file reports for</span>
+          <div style={{ maxHeight: 180, overflowY: "auto", border: `1px solid ${LINE}`, borderRadius: 4, padding: 8, background: "#fff", display: "grid", gap: 4 }}>
+            {clients.map((c) => (
+              <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                <input type="checkbox" checked={assigned.has(c.id)} onChange={() => toggleClient(c.id)} />
+                <span>{c.name}</span>
+              </label>
+            ))}
+          </div>
+          <span className="muted" style={{ fontSize: 11, marginTop: 4 }}>Tick every client this technician works for. They pick one when filing a report (any template). Leave empty to fall back to their serving client / weighbridges.</span>
+        </div>
+      )}
       {allWbs.length > 0 && (
         <div className="field">
           <span className="label">Assigned weighbridges ({wbs.size})</span>

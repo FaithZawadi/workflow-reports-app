@@ -89,6 +89,11 @@ export async function PATCH(req, { params }) {
     const ids = Array.isArray(body.weighbridgeIds) ? body.weighbridgeIds.map(String) : [];
     data.weighbridges = { set: ids.map((id) => ({ id })) };
   }
+  // Explicit client assignment — which clients this user may file reports for.
+  if (body.assignedClientIds !== undefined) {
+    const ids = Array.isArray(body.assignedClientIds) ? body.assignedClientIds.map(String).filter(Boolean) : [];
+    data.assignedClients = { set: ids.map((id) => ({ id })) };
+  }
 
   if (Object.keys(data).length === 0)
     return Response.json({ error: "Nothing to update." }, { status: 400 });
