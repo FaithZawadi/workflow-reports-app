@@ -1,9 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar, Field, Textarea } from "./ui";
 import { rolesOf } from "@/lib/roles";
-import { WAIT } from "@/lib/theme";
+import { WAIT, MUTE } from "@/lib/theme";
 
 // Client raises a quote request; PM/TM start a quotation for a client (then fill
 // the line items on the next screen).
@@ -12,6 +13,12 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
   const clientOnly = rolesOf(profile).length > 0 && rolesOf(profile).every((r) => r === "CLIENT");
 
   const [clientName, setClientName] = useState("");
+  const [clientId, setClientId] = useState("");
+  const [clients, setClients] = useState([]);
+  useEffect(() => {
+    if (clientOnly) return;
+    fetch("/api/clients").then((r) => r.json()).then((d) => setClients(d.clients || [])).catch(() => {});
+  }, [clientOnly]);
   // A client raising their own request pre-fills their own details; staff start
   // blank and enter the CLIENT's contact details (not their own).
   const [contactPerson, setContactPerson] = useState(clientOnly ? profile.name || "" : "");
@@ -24,13 +31,14 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
 
   const submit = async () => {
     setMsg("");
-    if (!clientOnly && !clientName.trim() && !calibrationRequestId) return setMsg("Enter the client.");
+    if (!clientOnly && !clientId && !calibrationRequestId) return setMsg("Select the client. Not listed? Register it first.");
     setBusy(true);
     try {
       const res = await fetch("/api/quotations", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          clientId: clientId || undefined,
           clientName: clientName.trim(),
           contactPerson: contactPerson.trim(),
           contactEmail: contactEmail.trim(),
@@ -70,7 +78,25 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
 
         <SectionBar>Details</SectionBar>
         {!clientOnly && !calibrationRequestId && (
-          <Field label="Client name (company)" value={clientName} onChange={setClientName} placeholder="e.g. Kapa Oil Refineries" />
+          <label className="field">
+            <span className="label">Client (company)</span>
+            <select
+              className="input"
+              value={clientId}
+              onChange={(e) => {
+                const id = e.target.value;
+                setClientId(id);
+                setClientName(clients.find((c) => c.id === id)?.name || "");
+              }}
+            >
+              <option value="">— select a registered client —</option>
+              {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <span className="muted" style={{ fontSize: 11.5, marginTop: 4, display: "block", color: MUTE }}>
+              Only registered clients appear here. Not listed?{" "}
+              <Link href="/clients" style={{ color: "#8a6d00", fontWeight: 700 }}>Register the client first</Link> (with its full details).
+            </span>
+          </label>
         )}
         <div className="grid md-2">
           <Field label="Client contact person" value={contactPerson} onChange={setContactPerson} placeholder="e.g. Jane Doe" />

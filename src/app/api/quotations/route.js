@@ -81,9 +81,24 @@ export async function POST(req) {
     clientName = c?.name || clientName;
   } else if (cr?.clientId) {
     clientId = cr.clientId;
-  } else if (clientName) {
-    const c = await prisma.client.upsert({ where: { name: clientName }, create: { name: clientName }, update: {} });
+  } else if (body.clientId) {
+    // Chosen from the registered-clients dropdown.
+    const c = await prisma.client.findUnique({ where: { id: String(body.clientId) } });
+    if (!c) return Response.json({ error: "That client isn't registered." }, { status: 400 });
     clientId = c.id;
+    clientName = c.name;
+  } else if (clientName) {
+    // Never auto-create a bare client from a quotation. It must already be
+    // registered (with its full details) — match case-insensitively or refuse.
+    const c = await prisma.client.findFirst({ where: { name: { equals: clientName, mode: "insensitive" } } });
+    if (!c) {
+      return Response.json(
+        { error: `“${clientName}” isn't registered yet. Register the client (with its details) first, then start the quotation.` },
+        { status: 400 }
+      );
+    }
+    clientId = c.id;
+    clientName = c.name;
   }
   if (!clientName) return Response.json({ error: "Client is required." }, { status: 400 });
 
