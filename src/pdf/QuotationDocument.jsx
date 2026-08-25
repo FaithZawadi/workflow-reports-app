@@ -16,6 +16,72 @@ const STATUS = {
   DECLINED: { label: "DECLINED", color: FAIL },
 };
 
+// Parse the "LABEL: value" payment-details text into {label, value} pairs so it
+// can be laid out as a horizontal table. Lines without a colon are ignored.
+function parsePayPairs(text) {
+  return String(text || "")
+    .split("\n")
+    .map((line) => {
+      const i = line.indexOf(":");
+      if (i < 0) return null;
+      const label = line.slice(0, i).trim();
+      const value = line.slice(i + 1).trim();
+      if (!label || !value) return null;
+      return { label, value };
+    })
+    .filter(Boolean);
+}
+
+// Split pairs into balanced bands (rows) of at most MAX columns, so a long list
+// wraps into even rows (e.g. 9 → 5 + 4) instead of a lonely trailing cell.
+function payBands(pairs, max = 5) {
+  const n = pairs.length;
+  if (n === 0) return [];
+  const bands = Math.ceil(n / max);
+  const per = Math.ceil(n / bands);
+  const out = [];
+  for (let i = 0; i < n; i += per) out.push(pairs.slice(i, i + per));
+  return out;
+}
+
+// The modern payment-details table: a coal banner, then one or more bands, each
+// a coloured header row over a value row. On-brand (coal + gold).
+function PayTable({ pairs }) {
+  const bands = payBands(pairs);
+  return (
+    <View style={s.payWrap} wrap={false}>
+      <View style={s.payBanner}>
+        <View style={s.payBannerDot} />
+        <Text style={s.payBannerText}>Payment details</Text>
+      </View>
+      <View style={s.payTable}>
+        {bands.map((band, bi) => {
+          const w = `${100 / band.length}%`;
+          const lastBand = bi === bands.length - 1;
+          return (
+            <View key={bi}>
+              <View style={s.payBand}>
+                {band.map((p, ci) => (
+                  <View key={ci} style={[s.payHeadCell, { width: w }, ci === band.length - 1 ? { borderRightWidth: 0 } : null]}>
+                    <Text style={s.payHeadText}>{p.label}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={[s.payBand, lastBand ? null : { borderBottomWidth: 0.5, borderBottomColor: "#EAE3D5" }]}>
+                {band.map((p, ci) => (
+                  <View key={ci} style={[s.payValCell, { width: w }, ci === band.length - 1 ? { borderRightWidth: 0 } : null]}>
+                    <Text style={s.payValText}>{p.value}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 const s = StyleSheet.create({
   page: { paddingTop: 26, paddingBottom: 44, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
@@ -60,6 +126,18 @@ const s = StyleSheet.create({
   blockTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, borderBottomWidth: 0.5, borderBottomColor: GOLD, paddingBottom: 2 },
   payText: { fontSize: 7.8, color: INK, lineHeight: 1.5, fontFamily: "Courier" },
   termsText: { fontSize: 7.8, color: INK, lineHeight: 1.5 },
+  // Modern full-width payment-details table (label header row + value row).
+  payWrap: { marginTop: 14 },
+  payBanner: { backgroundColor: COAL, borderTopLeftRadius: 4, borderTopRightRadius: 4, paddingVertical: 4, paddingHorizontal: 8, flexDirection: "row", alignItems: "center" },
+  payBannerDot: { width: 7, height: 7, borderRadius: 2, backgroundColor: GOLD, marginRight: 6 },
+  payBannerText: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: GOLD, textTransform: "uppercase", letterSpacing: 1 },
+  payTable: { borderWidth: 0.6, borderColor: "#D9D2C4", borderTopWidth: 0, overflow: "hidden" },
+  payBand: { flexDirection: "row" },
+  payHeadCell: { backgroundColor: "#22201C", paddingVertical: 4, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "rgba(255,255,255,0.18)", borderBottomWidth: 0.5, borderBottomColor: GOLD, justifyContent: "center" },
+  payHeadText: { fontSize: 6.6, fontFamily: "Helvetica-Bold", color: GOLD, textTransform: "uppercase", letterSpacing: 0.4, textAlign: "center" },
+  payValCell: { paddingVertical: 6, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "#EAE3D5", justifyContent: "center" },
+  payValText: { fontSize: 8.2, fontFamily: "Helvetica-Bold", color: INK, textAlign: "center" },
+  termsFull: { marginTop: 10, padding: 8, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1" },
   qrBlock: { flexDirection: "row", alignItems: "center", marginTop: 14, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: "#E4DCCB" },
   qrImg: { width: 68, height: 68, marginRight: 10 },
   qrText: { flex: 1 },
@@ -202,17 +280,35 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc, internal = false 
 
         {q.amountInWords ? <Text style={s.words}>Amount in words: {q.amountInWords}</Text> : null}
 
-        {/* Payment details + terms of sale — both editable per quotation. */}
-        <View style={s.blocks} wrap={false}>
-          <View style={s.pay}>
-            <Text style={s.blockTitle}>Payment details</Text>
-            <Text style={s.payText}>{paymentDetails}</Text>
-          </View>
-          <View style={s.terms}>
-            <Text style={s.blockTitle}>Terms of sale</Text>
-            <Text style={s.termsText}>{terms}</Text>
-          </View>
-        </View>
+        {/* Payment details + terms of sale — both editable per quotation. When
+            the payment block is in "LABEL: value" form it renders as a modern
+            horizontal table; otherwise it falls back to the plain text box. */}
+        {(() => {
+          const pairs = parsePayPairs(paymentDetails);
+          if (pairs.length >= 2) {
+            return (
+              <View>
+                <PayTable pairs={pairs} />
+                <View style={s.termsFull} wrap={false}>
+                  <Text style={s.blockTitle}>Terms of sale</Text>
+                  <Text style={s.termsText}>{terms}</Text>
+                </View>
+              </View>
+            );
+          }
+          return (
+            <View style={s.blocks} wrap={false}>
+              <View style={s.pay}>
+                <Text style={s.blockTitle}>Payment details</Text>
+                <Text style={s.payText}>{paymentDetails}</Text>
+              </View>
+              <View style={s.terms}>
+                <Text style={s.blockTitle}>Terms of sale</Text>
+                <Text style={s.termsText}>{terms}</Text>
+              </View>
+            </View>
+          );
+        })()}
 
         {q.notes ? (
           <View style={s.note}>
