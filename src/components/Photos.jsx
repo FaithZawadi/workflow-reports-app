@@ -34,11 +34,24 @@ export default function Photos({ photos, setPhotos, max = 6 }) {
       const img = new window.Image();
       img.onload = () => {
         const scale = Math.min(1, 900 / Math.max(img.width, img.height));
+        const sw = Math.round(img.width * scale);
+        const sh = Math.round(img.height * scale);
+        // Force every photo to landscape: a portrait capture is rotated 90° so
+        // the stored image (and every view/PDF that shows it) is wider than tall.
+        const portrait = sh > sw;
         const cv = document.createElement("canvas");
-        cv.width = Math.round(img.width * scale);
-        cv.height = Math.round(img.height * scale);
+        cv.width = portrait ? sh : sw;
+        cv.height = portrait ? sw : sh;
         const ctx = cv.getContext("2d");
-        ctx.drawImage(img, 0, 0, cv.width, cv.height);
+        if (portrait) {
+          ctx.save();
+          ctx.translate(cv.width, 0);
+          ctx.rotate(Math.PI / 2);
+          ctx.drawImage(img, 0, 0, sw, sh);
+          ctx.restore();
+        } else {
+          ctx.drawImage(img, 0, 0, sw, sh);
+        }
         const stamp =
           "QSL " +
           takenAt.toLocaleString() +

@@ -340,7 +340,7 @@ export const TEMPLATES = [
         type: "choices",
         k: "natureOfVisit",
         title: "Nature of visit",
-        dropdown: true,
+        multi: true, // more than one kind of work can be done in the same visit
         options: ["Planned maintenance", "Service", "Repairs", "Normal customer visit"],
       },
       { type: "textarea", k: "faultReported", label: "Fault reported" },

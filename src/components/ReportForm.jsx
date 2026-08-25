@@ -700,33 +700,49 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
                 </div>
               );
 
-            if (sec.type === "choices")
+            if (sec.type === "choices") {
+              // Multi-select stores the chosen options as a comma-joined string
+              // (e.g. "Service, Repairs") so more than one kind of work done in
+              // the same visit can be recorded. Single-select stores one string.
+              const selected = sec.multi
+                ? String(values[sec.k] || "").split(",").map((s) => s.trim()).filter(Boolean)
+                : [];
+              const isOn = (o) => (sec.multi ? selected.includes(o) : values[sec.k] === o);
+              const toggle = (o) => {
+                if (!sec.multi) return setV(sec.k, o);
+                const next = selected.includes(o) ? selected.filter((x) => x !== o) : [...selected, o];
+                // keep template order for a stable, readable value
+                setV(sec.k, sec.options.filter((x) => next.includes(x)).join(", "));
+              };
               return (
                 <div key={si}>
                   <SectionBar>{sec.title}</SectionBar>
+                  {sec.multi && <p className="muted" style={{ fontSize: 12, margin: "0 0 8px" }}>Pick all that apply.</p>}
                   <div className="grid md-2">
                     {sec.options.map((o) => (
                       <button
                         key={o}
-                        onClick={() => setV(sec.k, o)}
+                        onClick={() => toggle(o)}
                         style={{
                           textAlign: "left",
                           fontSize: 14,
                           padding: "10px 12px",
                           borderRadius: 2,
                           border: "1px solid",
-                          borderColor: values[sec.k] === o ? COAL : "#cfc8ba",
-                          background: values[sec.k] === o ? COAL : "#fff",
-                          color: values[sec.k] === o ? GOLD : INK,
-                          fontWeight: values[sec.k] === o ? 700 : 400,
+                          borderColor: isOn(o) ? COAL : "#cfc8ba",
+                          background: isOn(o) ? COAL : "#fff",
+                          color: isOn(o) ? GOLD : INK,
+                          fontWeight: isOn(o) ? 700 : 400,
                         }}
                       >
+                        {sec.multi && <span style={{ marginRight: 8 }}>{isOn(o) ? "☑" : "☐"}</span>}
                         {o}
                       </button>
                     ))}
                   </div>
                 </div>
               );
+            }
             if (sec.type === "weekly")
               return (
                 <div key={si}>

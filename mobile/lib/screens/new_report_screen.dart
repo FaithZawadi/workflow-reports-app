@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 import 'package:geolocator/geolocator.dart';
 import '../session.dart';
 import '../api.dart';
@@ -473,18 +475,42 @@ class _NewReportScreenState extends State<NewReportScreen> {
         ),
       ]);
     }
+    // Multi-select stores the chosen options as a comma-joined string
+    // (e.g. "Service, Repairs") — more than one kind of work can be done in
+    // the same visit. Single-select stores one string.
+    final bool multi = sec['multi'] == true;
+    List<String> selected() =>
+        '${_values[k] ?? ''}'.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    bool isOn(String o) => multi ? selected().contains(o) : _values[k] == o;
+    void toggle(String o) {
+      if (!multi) {
+        setState(() => _values[k] = o);
+        return;
+      }
+      final cur = selected();
+      final next = cur.contains(o) ? (cur..remove(o)) : (cur..add(o));
+      // keep template order for a stable, readable value
+      final ordered = [for (final x in options) if (next.contains('$x')) '$x'];
+      setState(() => _values[k] = ordered.join(', '));
+    }
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       SectionBar('${sec['title'] ?? ''}'),
+      if (multi)
+        const Padding(padding: EdgeInsets.only(bottom: 6), child: Text('Pick all that apply.', style: TextStyle(fontSize: 12, color: kMute))),
       for (final o in options)
         Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: GestureDetector(
-            onTap: () => setState(() => _values['${sec['k']}'] = o),
+            onTap: () => toggle('$o'),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: _values['${sec['k']}'] == o ? kCoal : Colors.white, borderRadius: BorderRadius.circular(3), border: Border.all(color: _values['${sec['k']}'] == o ? kCoal : const Color(0xFFCFC8BA))),
-              child: Text('$o', style: TextStyle(color: _values['${sec['k']}'] == o ? kGold : kInk, fontWeight: _values['${sec['k']}'] == o ? FontWeight.w700 : FontWeight.w400)),
+              decoration: BoxDecoration(color: isOn('$o') ? kCoal : Colors.white, borderRadius: BorderRadius.circular(3), border: Border.all(color: isOn('$o') ? kCoal : const Color(0xFFCFC8BA))),
+              child: Row(children: [
+                if (multi) Padding(padding: const EdgeInsets.only(right: 8), child: Icon(isOn('$o') ? Icons.check_box : Icons.check_box_outline_blank, size: 18, color: isOn('$o') ? kGold : kInk)),
+                Expanded(child: Text('$o', style: TextStyle(color: isOn('$o') ? kGold : kInk, fontWeight: isOn('$o') ? FontWeight.w700 : FontWeight.w400))),
+              ]),
             ),
           ),
         ),
@@ -662,7 +688,18 @@ class _NewReportScreenState extends State<NewReportScreen> {
       final x = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 60, maxWidth: 1600);
       if (x == null) return;
       final bytes = await x.readAsBytes();
-      final src = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      // Force every photo to landscape: bake the EXIF orientation, then rotate a
+      // portrait capture 90° so the stored image is always wider than tall.
+      Uint8List out = bytes;
+      try {
+        final decoded = img.decodeImage(bytes);
+        if (decoded != null) {
+          var pic = img.bakeOrientation(decoded);
+          if (pic.height > pic.width) pic = img.copyRotate(pic, angle: 90);
+          out = Uint8List.fromList(img.encodeJpg(pic, quality: 70));
+        }
+      } catch (_) {}
+      final src = 'data:image/jpeg;base64,${base64Encode(out)}';
       Map<String, dynamic>? gps;
       try {
         var perm = await Geolocator.checkPermission();
