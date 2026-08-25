@@ -267,6 +267,18 @@ class ApiClient {
     return d['serial']?.toString() ?? '';
   }
 
+  // Add a brand-new client (+ optional site) while filing. The server rejects a
+  // name that already exists in any casing (throws with its message), so no
+  // duplicate is ever created. Returns { client:{id,name}, site }.
+  Future<Map<String, dynamic>> quickAddClient({required String name, String? site, String? lat, String? lng}) async {
+    final d = _decode(await http.post(
+      _u('/api/clients/quick'),
+      headers: _headers,
+      body: jsonEncode({'name': name, if (site != null) 'site': site, if (lat != null && lat.isNotEmpty) 'lat': lat, if (lng != null && lng.isNotEmpty) 'lng': lng}),
+    ));
+    return Map<String, dynamic>.from(d);
+  }
+
   // Role-scoped dashboard metrics.
   Future<Map<String, dynamic>> getStats() async {
     try {

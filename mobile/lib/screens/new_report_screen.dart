@@ -177,20 +177,14 @@ class _NewReportScreenState extends State<NewReportScreen> {
     return ListView(padding: const EdgeInsets.all(14), children: [
       const Text('Serial number is assigned when you submit.', style: TextStyle(color: kMute, fontSize: 12)),
       SectionBar(needsWeighbridge ? 'Client, site & weighbridge' : 'Client & site'),
-      // A technician files for their assigned client + site — read-only — and
-      // only picks the weighbridge. Others may choose the client and site.
-      if (_lockAssignment) ...[
-        _readonlyField('Client (company)', _client.text),
-        _readonlyField('Site / branch', _site.text),
-        Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(needsWeighbridge ? 'From your assignment. Just pick the weighbridge below.' : 'From your assignment.', style: const TextStyle(color: kMute, fontSize: 12))),
-      ] else if (_multiAssigned) ...[
-        // Technician assigned to several clients — pick one (every template).
-        _clientDropdown(),
-        _field('Site / branch', _site),
-      ] else ...[
-        _field('Client (company)', _client),
-        _field('Site / branch', _site),
-      ],
+      // Any filer may pick ANY client (assigned ones are prefilled as a shortcut)
+      // or add a brand-new one. Works for every template, including the TR.
+      _allClientsDropdown(),
+      _field('Site / branch', _site),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(onPressed: _showAddClient, icon: const Icon(Icons.add, size: 18), label: const Text('New client & site')),
+      ),
       if (needsWeighbridge) _weighbridgePicker(),
 
       for (int si = 0; si < sections.length; si++) ..._section(Map<String, dynamic>.from(sections[si]), si),
@@ -243,44 +237,83 @@ class _NewReportScreenState extends State<NewReportScreen> {
     }
   }
 
-  // Technicians file for their own assigned client + site (read-only).
-  List<Map<String, dynamic>> get _assignedClients => context.read<Session>().user?.assignedClients ?? const [];
-
-  bool get _isTech {
-    final u = context.read<Session>().user;
-    if (u == null) return false;
-    final roles = u.roles.isNotEmpty ? u.roles : [u.role];
-    return roles.contains('TECHNICIAN') && !roles.contains('ADMIN');
-  }
-
-  // One assignment → lock the client (read-only). Several → a dropdown limited to
-  // the assigned clients. Neither → the free client field.
-  bool get _lockAssignment {
-    if (!_isTech) return false;
-    final u = context.read<Session>().user!;
-    return _assignedClients.length == 1 || (_assignedClients.isEmpty && ((u.clientName ?? '').isNotEmpty || (u.site ?? '').isNotEmpty));
-  }
-
-  bool get _multiAssigned => _isTech && _assignedClients.length > 1;
-
-  // Client picker limited to the technician's assigned clients (all templates).
-  Widget _clientDropdown() {
-    final names = _assignedClients.map((c) => '${c['name'] ?? ''}').where((n) => n.isNotEmpty).toList();
-    final value = names.contains(_client.text) ? _client.text : null;
+  // Client picker over ALL clients (assigned client is prefilled as a shortcut).
+  Widget _allClientsDropdown() {
+    final names = [..._clients];
+    if (_client.text.isNotEmpty && !names.contains(_client.text)) names.insert(0, _client.text);
+    final value = _client.text.isEmpty ? null : _client.text;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Client (company) · your assignments', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMute)),
+        const Text('Client (company)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMute)),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
           value: value,
           isExpanded: true,
           decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)),
           hint: const Text('Select a client'),
-          items: [for (final n in names) DropdownMenuItem(value: n, child: Text(n))],
+          items: [for (final n in names) DropdownMenuItem(value: n, child: Text(n, overflow: TextOverflow.ellipsis))],
           onChanged: (v) => setState(() { _client.text = v ?? ''; _site.text = ''; }),
         ),
       ]),
+    );
+  }
+
+  // Add a brand-new client (+ optional site) inline. The server refuses any name
+  // that already exists in any casing, so no duplicate is ever created.
+  Future<void> _showAddClient() async {
+    final nameC = TextEditingController();
+    final siteC = TextEditingController();
+    final latC = TextEditingController();
+    final lngC = TextEditingController();
+    bool busy = false;
+    String? err;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setLocal) {
+        Future<void> save() async {
+          if (nameC.text.trim().isEmpty) { setLocal(() => err = "Enter the new client's name."); return; }
+          setLocal(() { busy = true; err = null; });
+          try {
+            final d = await context.read<Session>().api.quickAddClient(
+              name: nameC.text.trim(), site: siteC.text.trim(), lat: latC.text.trim(), lng: lngC.text.trim(),
+            );
+            final cn = '${(d['client'] as Map)['name'] ?? ''}';
+            setState(() {
+              if (cn.isNotEmpty && !_clients.contains(cn)) _clients.add(cn);
+              _client.text = cn;
+              _site.text = '${d['site'] ?? siteC.text.trim()}';
+            });
+            if (mounted) Navigator.pop(ctx);
+          } catch (e) {
+            setLocal(() { busy = false; err = '$e'; });
+          }
+        }
+
+        return AlertDialog(
+          title: const Text('Add a new client'),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(controller: nameC, decoration: const InputDecoration(labelText: 'New client name')),
+              const SizedBox(height: 8),
+              TextField(controller: siteC, decoration: const InputDecoration(labelText: 'Site / branch (optional)')),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: TextField(controller: latC, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Lat (optional)'))),
+                const SizedBox(width: 8),
+                Expanded(child: TextField(controller: lngC, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Lng (optional)'))),
+              ]),
+              const SizedBox(height: 6),
+              const Text('Only a client not already in the list — existing ones (any spelling) can’t be added again.', style: TextStyle(fontSize: 11.5, color: kMute)),
+              if (err != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(err!, style: const TextStyle(color: kFail, fontSize: 12.5))),
+            ]),
+          ),
+          actions: [
+            TextButton(onPressed: busy ? null : () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(onPressed: busy ? null : save, child: Text(busy ? 'Adding…' : 'Add & use')),
+          ],
+        );
+      }),
     );
   }
 

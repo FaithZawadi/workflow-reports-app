@@ -69,6 +69,14 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const [pendingDraft, setPendingDraft] = useState(null);
   const [draftReady, setDraftReady] = useState(isEdit);
   const [draftSavedAt, setDraftSavedAt] = useState(null);
+  // Inline "add a brand-new client + site" while filing (any filer).
+  const [addingClient, setAddingClient] = useState(false);
+  const [ncName, setNcName] = useState("");
+  const [ncSite, setNcSite] = useState("");
+  const [ncLat, setNcLat] = useState("");
+  const [ncLng, setNcLng] = useState("");
+  const [ncBusy, setNcBusy] = useState(false);
+  const [ncErr, setNcErr] = useState("");
 
   // Validate the routing, then open the review dialog so the filer can re-read
   // everything before it is sent.
@@ -161,6 +169,41 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
     router.push("/dashboard?draft=1");
   };
 
+  // Add a brand-new client (+ optional site) inline. Server rejects any name
+  // that already exists (any casing), so we never create a duplicate.
+  const addNewClient = async () => {
+    const name = ncName.trim();
+    if (!name) return setNcErr("Enter the new client's name.");
+    setNcBusy(true);
+    setNcErr("");
+    try {
+      const res = await fetch("/api/clients/quick", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name, site: ncSite.trim(), lat: ncLat, lng: ncLng }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setNcErr(d.error || "Could not add the client."); setNcBusy(false); return; }
+      setClients((cs) => (cs.some((c) => c.id === d.client.id) ? cs : [...cs, d.client]));
+      setClientName(d.client.name);
+      setSite(d.site || ncSite.trim() || "");
+      fetch("/api/sites").then((r) => r.json()).then((sd) => setSites(sd.sites || [])).catch(() => {});
+      setAddingClient(false);
+      setNcName(""); setNcSite(""); setNcLat(""); setNcLng("");
+    } catch {
+      setNcErr("Network problem — try again.");
+    }
+    setNcBusy(false);
+  };
+  const ncUseLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (p) => { setNcLat(p.coords.latitude.toFixed(6)); setNcLng(p.coords.longitude.toFixed(6)); },
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
   // Site options for the chosen client: registered sites PLUS the sites (branches)
   // carried by that client's weighbridges — so the dropdown is populated even when
   // no sites were registered separately. Weighbridge LABELS are deliberately
@@ -186,16 +229,10 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   // A technician files for their OWN assigned client + site. Those auto-fill and
   // are locked (read-only), so the only thing they choose is the weighbridge.
   const roles = profile.roles && profile.roles.length ? profile.roles : (profile.role ? [profile.role] : []);
-  // The client(s) this technician is assigned to (from the server). Drives the
-  // client field for every template — including the Technical Report, which has
-  // no weighbridge to infer the client from.
+  // The client(s) this user is assigned to — shown first as a convenience. Any
+  // filer may still choose ANY client (or add a brand-new one), so this is a
+  // prefill/shortcut, not a restriction.
   const assignedClients = Array.isArray(profile.assignedClients) ? profile.assignedClients : [];
-  const isTech = roles.includes("TECHNICIAN") && !roles.includes("ADMIN");
-  // One assignment → lock to it (read-only). Several → a dropdown limited to
-  // their assigned clients. Neither → the full client picker below.
-  const singleAssigned = !isEdit && isTech && (assignedClients.length === 1 || (assignedClients.length === 0 && !!(profile.clientName || profile.site)));
-  const multiAssigned = !isEdit && isTech && assignedClients.length > 1;
-  const lockAssignment = singleAssigned;
 
   const setV = (k, v) => setValues((s) => ({ ...s, [k]: v }));
 
@@ -507,54 +544,71 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
           </div>
           <p className="muted" style={{ fontSize: 12 }}>Serial number is assigned when you submit.</p>
 
-          {lockAssignment ? (
-            /* Technician: client + site come from their assignment, read-only. */
-            <>
-              <div className="grid md-2">
-                <div className="field">
-                  <span className="label">Client (company)</span>
-                  <div className="input" style={{ background: "#F5F1E8", fontWeight: 700, display: "flex", alignItems: "center" }}>{clientName || "—"}</div>
-                </div>
-                <div className="field">
-                  <span className="label">Site / branch</span>
-                  <div className="input" style={{ background: "#F5F1E8", fontWeight: 700, display: "flex", alignItems: "center" }}>{site || "—"}</div>
-                </div>
-              </div>
-              <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>
-                {tpl.code === "TR01" ? "From your assignment." : "From your assignment. Just pick the weighbridge below."}
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Client / Site. A technician assigned to several clients picks from
-                  just those; supervisors/managers/admins see the full registry. */}
-              <div className="grid md-2">
-                <label className="field">
-                  <span className="label">Client (company){multiAssigned ? " · your assignments" : ""}</span>
-                  <select className="input" value={clientName} onChange={(e) => { setClientName(e.target.value); setSite(""); }}>
-                    <option value="">— select client —</option>
-                    {(multiAssigned ? assignedClients : clients).map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                    {clientName && !(multiAssigned ? assignedClients : clients).some((c) => c.name === clientName) && <option value={clientName}>{clientName}</option>}
-                  </select>
-                </label>
-                <label className="field">
-                  <span className="label">Site / branch{profile.site ? " (your assigned site)" : ""}</span>
-                  {siteOptions.length || (site && !siteOptions.includes(site)) ? (
-                    <select className="input" value={site} onChange={(e) => setSite(e.target.value)}>
-                      <option value="">— select site —</option>
-                      {siteOptions.map((sName) => <option key={sName} value={sName}>{sName}</option>)}
-                      {site && !siteOptions.includes(site) && <option value={site}>{site}</option>}
-                    </select>
-                  ) : (
-                    <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="e.g. Magadi plant" />
-                  )}
-                </label>
-              </div>
-              {clientName && !siteOptions.length && (
-                <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No sites registered for {clientName} yet — an admin can add them in the Clients registry.</div>
+          {/* Client / Site. Any filer may pick ANY client (assigned ones are
+              listed first as a shortcut) or add a brand-new one inline. */}
+          <div className="grid md-2">
+            <label className="field">
+              <span className="label">Client (company)</span>
+              <select className="input" value={clientName} onChange={(e) => { setClientName(e.target.value); setSite(""); }}>
+                <option value="">— select client —</option>
+                {assignedClients.length > 0 && (
+                  <optgroup label="Your clients">
+                    {assignedClients.map((c) => <option key={"a-" + c.id} value={c.name}>{c.name}</option>)}
+                  </optgroup>
+                )}
+                <optgroup label="All clients">
+                  {clients.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </optgroup>
+                {clientName && !clients.some((c) => c.name === clientName) && !assignedClients.some((c) => c.name === clientName) && (
+                  <option value={clientName}>{clientName}</option>
+                )}
+              </select>
+            </label>
+            <label className="field">
+              <span className="label">Site / branch{profile.site ? " (your assigned site)" : ""}</span>
+              {siteOptions.length || (site && !siteOptions.includes(site)) ? (
+                <select className="input" value={site} onChange={(e) => setSite(e.target.value)}>
+                  <option value="">— select site —</option>
+                  {siteOptions.map((sName) => <option key={sName} value={sName}>{sName}</option>)}
+                  {site && !siteOptions.includes(site) && <option value={site}>{site}</option>}
+                </select>
+              ) : (
+                <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="e.g. Magadi plant" />
               )}
-            </>
+            </label>
+          </div>
+          {clientName && !siteOptions.length && (
+            <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No sites registered for {clientName} yet — type the site above, or add one below.</div>
           )}
+          {/* Add a brand-new client + site inline (only clients not already listed). */}
+          {!isEdit && (!addingClient ? (
+            <button type="button" className="btn" style={{ fontSize: 12, marginTop: 8 }} onClick={() => { setAddingClient(true); setNcErr(""); }}>+ New client &amp; site</button>
+          ) : (
+            <div className="card" style={{ padding: 12, marginTop: 8, borderColor: GOLD }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: INK, marginBottom: 6 }}>Add a new client</div>
+              <div className="grid md-2" style={{ gap: 8 }}>
+                <label className="field"><span className="label">New client name</span>
+                  <input className="input" value={ncName} onChange={(e) => setNcName(e.target.value)} placeholder="e.g. Rift Valley Millers" />
+                </label>
+                <label className="field"><span className="label">Site / branch (optional)</span>
+                  <input className="input" value={ncSite} onChange={(e) => setNcSite(e.target.value)} placeholder="e.g. Nakuru plant" />
+                </label>
+                <label className="field"><span className="label">Latitude (optional)</span>
+                  <input className="input" inputMode="decimal" value={ncLat} onChange={(e) => setNcLat(e.target.value)} placeholder="-0.3031" />
+                </label>
+                <label className="field"><span className="label">Longitude (optional)</span>
+                  <input className="input" inputMode="decimal" value={ncLng} onChange={(e) => setNcLng(e.target.value)} placeholder="36.0800" />
+                </label>
+              </div>
+              <div className="muted" style={{ fontSize: 11.5 }}>Only for a client not already in the list — existing ones (any spelling) can&apos;t be added again.</div>
+              {ncErr && <div className="err" style={{ fontSize: 12, marginTop: 6 }}>{ncErr}</div>}
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                <button type="button" className="btn btn-dark" style={{ fontSize: 12 }} disabled={ncBusy} onClick={addNewClient}>{ncBusy ? "Adding…" : "Add & use"}</button>
+                <button type="button" className="btn" style={{ fontSize: 12 }} onClick={ncUseLocation}>Use my location</button>
+                <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => setAddingClient(false)}>Cancel</button>
+              </div>
+            </div>
+          ))}
 
           {/* The Technical Report is a field-service report (scales, analysers,
               general equipment) — it is not tied to a weighbridge. */}
