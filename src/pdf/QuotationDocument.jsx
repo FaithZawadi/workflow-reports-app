@@ -3,6 +3,12 @@ import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/render
 import { COMPANY, DEFAULT_PAYMENT_DETAILS, DEFAULT_QUOTE_TERMS } from "@/lib/company";
 
 const GOLD = "#F5A800";
+// Deep gold for gold-coloured TEXT/lines that sit on a light background: bright
+// gold is too light to read once a page is photocopied in black & white, so
+// anything gold-on-white uses this darker tone (still clearly golden in colour,
+// but dark enough for grayscale). Bright GOLD is kept only on dark fills
+// (light-on-dark prints fine) and as a fill behind dark text.
+const GOLD_DK = "#8A6A00";
 const COAL = "#161310";
 const INK = "#26221C";
 const MUTE = "#6B6355";
@@ -89,8 +95,8 @@ const s = StyleSheet.create({
   logo: { width: 58, height: 58, marginRight: 12, objectFit: "contain" },
   brandText: { flex: 1 },
   brand: { fontSize: 15, fontFamily: "Helvetica-Bold", color: COAL, marginBottom: 2 },
-  brandGold: { color: GOLD },
-  tagline: { fontSize: 7.5, color: GOLD, fontFamily: "Helvetica-Oblique", marginBottom: 2 },
+  brandGold: { color: GOLD_DK },
+  tagline: { fontSize: 7.5, color: GOLD_DK, fontFamily: "Helvetica-Oblique", marginBottom: 2 },
   accred: { fontSize: 6.5, color: MUTE, marginTop: 2, fontFamily: "Courier" },
   contact: { fontSize: 6.5, color: MUTE, marginTop: 1 },
   // Boxed DATE / NO / FILE NO panel, top-right (invoice style).
@@ -106,7 +112,7 @@ const s = StyleSheet.create({
   row: { flexDirection: "row" },
   key: { backgroundColor: "#F5EEDD", fontFamily: "Helvetica-Bold", padding: 3, width: "16%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
   val: { padding: 3, width: "34%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
-  subjectBar: { marginTop: 8, backgroundColor: "#F5EEDD", borderLeftWidth: 3, borderLeftColor: GOLD, paddingVertical: 4, paddingHorizontal: 8 },
+  subjectBar: { marginTop: 8, backgroundColor: "#F5EEDD", borderLeftWidth: 3, borderLeftColor: GOLD_DK, paddingVertical: 4, paddingHorizontal: 8 },
   subjectLabel: { fontSize: 6.5, color: MUTE, fontFamily: "Helvetica-Bold", textTransform: "uppercase", letterSpacing: 0.6 },
   subjectText: { fontSize: 10, fontFamily: "Helvetica-Bold", color: COAL, textTransform: "uppercase", marginTop: 1 },
   th: { backgroundColor: COAL, color: "#fff", fontSize: 8, padding: 4, fontFamily: "Helvetica-Bold", borderRightWidth: 0.5, borderColor: "#2c2720" },
@@ -115,15 +121,15 @@ const s = StyleSheet.create({
   totalKey: { width: "26%", padding: 3, fontFamily: "Helvetica-Bold", fontSize: 8.5, backgroundColor: "#F5EEDD", borderWidth: 0.5, borderColor: "#E4DCCB", textAlign: "right" },
   totalVal: { width: "22%", padding: 3, fontSize: 8.5, borderWidth: 0.5, borderColor: "#E4DCCB", textAlign: "right" },
   words: { marginTop: 8, fontSize: 9, fontFamily: "Helvetica-Bold" },
-  note: { marginTop: 10, padding: 6, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA" },
+  note: { marginTop: 10, padding: 6, borderWidth: 1, borderColor: GOLD_DK, backgroundColor: "#FCF7EA" },
   noteText: { fontSize: 8, color: INK },
-  footer: { position: "absolute", bottom: 16, left: 32, right: 32, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4, alignItems: "center" },
+  footer: { position: "absolute", bottom: 16, left: 32, right: 32, borderTopWidth: 2, borderTopColor: GOLD_DK, paddingTop: 4, alignItems: "center" },
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
   // Payment details + terms of sale blocks at the foot of the quotation.
   blocks: { flexDirection: "row", marginTop: 12 },
   pay: { flex: 1, padding: 8, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1", marginRight: 8 },
   terms: { flex: 1, padding: 8, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1" },
-  blockTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, borderBottomWidth: 0.5, borderBottomColor: GOLD, paddingBottom: 2 },
+  blockTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, borderBottomWidth: 0.5, borderBottomColor: GOLD_DK, paddingBottom: 2 },
   payText: { fontSize: 7.8, color: INK, lineHeight: 1.5, fontFamily: "Courier" },
   termsText: { fontSize: 7.8, color: INK, lineHeight: 1.5 },
   // Modern full-width payment-details table (label header row + value row).
@@ -145,7 +151,7 @@ const s = StyleSheet.create({
   qrSub: { fontSize: 7.5, color: MUTE, marginTop: 2, lineHeight: 1.3, maxWidth: 260 },
   // Amendment / revision history block.
   amendWrap: { marginTop: 12, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1" },
-  amendTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4, padding: 6, borderBottomWidth: 0.5, borderBottomColor: GOLD },
+  amendTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4, padding: 6, borderBottomWidth: 0.5, borderBottomColor: GOLD_DK },
   amendRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#EAE3D4", paddingVertical: 3, paddingHorizontal: 6 },
   amendRev: { width: "12%", fontSize: 8, fontFamily: "Helvetica-Bold", color: COAL },
   amendWho: { width: "26%", fontSize: 8 },
