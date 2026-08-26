@@ -1,6 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { COMPANY, DEFAULT_PAYMENT_DETAILS, DEFAULT_QUOTE_TERMS } from "@/lib/company";
+import { PdfHeader } from "./shared";
 
 const GOLD = "#F5A800";
 // Deep gold for gold-coloured TEXT/lines that sit on a light background: bright
@@ -188,33 +189,21 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc, internal = false 
   return (
     <Document>
       <Page size="A4" style={s.page} wrap>
-        {/* Header — the logo already carries the "QALIBRATED SYSTEMS" wordmark,
-            so no separate brand text; the details sit neatly beside it. */}
-        <View style={s.topRow}>
-          <View style={s.brandRow}>
-            {logoSrc ? (
-              // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={logoSrc} style={s.logo} />
-            ) : (
-              <Text style={s.brand}>
-                QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
-              </Text>
-            )}
-            <View style={s.brandText}>
-              {COMPANY.tagline ? <Text style={s.tagline}>{COMPANY.tagline}</Text> : null}
-              <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO 9001:2015 · ILAC-MRA</Text>
-              <Text style={s.contact}>{COMPANY.postal || COMPANY.address} · {COMPANY.website}</Text>
-              <Text style={s.contact}>{COMPANY.email} · {COMPANY.phone}{COMPANY.pin ? ` · PIN ${COMPANY.pin}` : ""}</Text>
-            </View>
-          </View>
-          <View style={s.metaBox}>
-            <View style={s.metaLine}><Text style={s.metaK}>DATE</Text><Text style={s.metaV}>{fmt(q.quotedAt || q.createdAt)}</Text></View>
-            <View style={s.metaLine}><Text style={s.metaK}>NO.</Text><Text style={s.metaV}>{q.number}{q.revision > 0 ? `  Rev ${q.revision}` : ""}</Text></View>
-            <View style={s.metaLine}><Text style={s.metaK}>FILE NO.</Text><Text style={s.metaV}>{q.fileNo || "-"}</Text></View>
-            <View style={[s.metaLine, { borderBottomWidth: 0 }]}><Text style={s.metaK}>VALID TO</Text><Text style={s.metaV}>{q.validUntil ? fmt(q.validUntil) : "-"}</Text></View>
-          </View>
-        </View>
-        <View style={s.rule} />
+        {/* Shared letterhead — the same header every system PDF carries, with the
+            quotation's date / number / validity in the standard meta rows. */}
+        <PdfHeader
+          logoSrc={logoSrc}
+          contactLines={[
+            `${COMPANY.postal || COMPANY.address} · ${COMPANY.website}`,
+            `${COMPANY.email} · ${COMPANY.phone}${COMPANY.pin ? ` · PIN ${COMPANY.pin}` : ""}`,
+          ]}
+          meta={[
+            { k: "DATE", v: fmt(q.quotedAt || q.createdAt) },
+            { k: "NO.", v: `${q.number}${q.revision > 0 ? `  Rev ${q.revision}` : ""}`, mono: true },
+            { k: "FILE NO.", v: q.fileNo || "-" },
+            { k: "VALID TO", v: q.validUntil ? fmt(q.validUntil) : "-" },
+          ]}
+        />
 
         <View style={s.titleRow}>
           <Text style={s.titleBadge}>Quotation</Text>
