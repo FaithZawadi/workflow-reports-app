@@ -1,6 +1,7 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { COMPANY } from "@/lib/company";
+import { PdfHeader } from "./shared";
 import { ReportDetailBlocks } from "./ReportDetailBlocks";
 
 const GOLD = "#F5A800";
@@ -324,27 +325,15 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
   return (
     <Document>
       <Page size="A4" style={s.page} wrap>
-        <View style={s.topRow}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            {logoSrc ? (
-              // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={logoSrc} style={{ width: 52, height: 52, marginRight: 10, objectFit: "contain" }} />
-            ) : (
-              <Text style={[s.brand, { marginRight: 10 }]}>QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text></Text>
-            )}
-            <View>
-              <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO 9001:2015 · ILAC-MRA</Text>
-              <Text style={s.contact}>{COMPANY.address} · {COMPANY.website}</Text>
-              <Text style={s.contact}>{COMPANY.email} · {COMPANY.phone}</Text>
-            </View>
-          </View>
-          <View style={s.metaRight}>
-            <Text style={s.mono}>GENERATED: {fmtDate(d.generatedAt)}</Text>
-            <Text style={s.mono}>BY: {(generatedByName || "-").toUpperCase()}</Text>
-            {generatedByRole ? <Text style={s.mono}>{generatedByRole.toUpperCase()}</Text> : null}
-          </View>
-        </View>
-        <View style={s.rule} />
+        <PdfHeader
+          logoSrc={logoSrc}
+          sys="QSL Maintenance Management System v2.4"
+          meta={[
+            { k: "GENERATED", v: fmtDate(d.generatedAt) },
+            { k: "BY", v: (generatedByName || "-").toUpperCase() },
+            ...(generatedByRole ? [{ v: generatedByRole.toUpperCase() }] : []),
+          ]}
+        />
 
         <Text style={s.title}>Maintenance Management Report</Text>
         <Text style={s.sub}>Period: {rangeLabel} · {d.total || 0} report{d.total === 1 ? "" : "s"} in scope{d.clientLabel ? ` · ${d.clientLabel}${d.siteLabel ? ` — ${d.siteLabel} branch` : " (all branches)"}` : ""}</Text>

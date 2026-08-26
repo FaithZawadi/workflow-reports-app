@@ -4,6 +4,7 @@ import { templateByCode } from "@/lib/templates";
 import { chainFor } from "@/lib/approvalChain";
 import { COMPANY } from "@/lib/company";
 import { geofenceSummary } from "@/lib/geofence";
+import { PdfHeader } from "./shared";
 
 const GOLD = "#F5A800";
 // Deep gold for gold TEXT on a light background — bright gold is too light to
@@ -224,45 +225,17 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
   return (
     <Document>
       <Page size="A4" style={s.page} wrap>
-        {/* header */}
-        <View style={s.topRow}>
-          <View style={{ flexDirection: "row", alignItems: "flex-start", flex: 1, paddingRight: 12 }}>
-            {logoSrc ? (
-              // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={logoSrc} style={{ width: 54, height: 54, marginRight: 12, objectFit: "contain" }} />
-            ) : null}
-            <View style={s.headText}>
-              {/* The logo already carries the wordmark — only print it in text
-                  when there is no logo image. */}
-              {!logoSrc && (
-                <Text style={s.brand}>
-                  QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
-                </Text>
-              )}
-              <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO 9001:2015 · ILAC-MRA</Text>
-              <Text style={s.contact}>
-                {COMPANY.address} · {COMPANY.website}
-              </Text>
-              <Text style={s.contact}>
-                {COMPANY.email} · {COMPANY.phone}
-              </Text>
-            </View>
-          </View>
-          <View style={s.metaRight}>
-            <Text style={s.sys}>QSL Maintenance Management System v2.4</Text>
-            <View style={s.metaLine}>
-              <Text style={s.metaK}>SERIAL NO</Text>
-              <Text style={s.metaVMono}>{report.serial}</Text>
-            </View>
-            {/* The day the report was actually filed in the system. For a
-                backdated report this differs from the service date above. */}
-            <View style={s.metaLine}>
-              <Text style={s.metaK}>GENERATED</Text>
-              <Text style={s.metaV}>{fmt(report.createdAt)}</Text>
-            </View>
-          </View>
-        </View>
-        <View style={s.rule} />
+        {/* Shared letterhead — common to every system PDF. */}
+        <PdfHeader
+          logoSrc={logoSrc}
+          sys="QSL Maintenance Management System v2.4"
+          meta={[
+            { k: "SERIAL NO", v: report.serial, mono: true },
+            // The day the report was filed in the system (a backdated report's
+            // service date, shown below, can differ).
+            { k: "GENERATED", v: fmt(report.createdAt) },
+          ]}
+        />
 
         {/* title left · status on the extreme right, same line */}
         <View style={s.titleRow}>

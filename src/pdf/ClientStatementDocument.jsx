@@ -1,6 +1,7 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { COMPANY } from "@/lib/company";
+import { PdfHeader } from "./shared";
 import { ReportDetailBlocks } from "./ReportDetailBlocks";
 
 const GOLD = "#F5A800";
@@ -54,23 +55,15 @@ export function ClientStatementDocument({ data, logoSrc, clientName, periodLabel
   const bySite = [...siteMap.values()].sort((a, b) => b.count - a.count);
 
   const Header = () => (
-    <View style={s.topRow} fixed>
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        {logoSrc ? (
-          // eslint-disable-next-line jsx-a11y/alt-text
-          <Image src={logoSrc} style={{ width: 46, height: 46, marginRight: 10, objectFit: "contain" }} />
-        ) : (
-          <Text style={[s.brand, { marginRight: 10 }]}>QALIBRATED <Text style={{ color: GOLD }}>SYSTEMS</Text></Text>
-        )}
-        <View>
-          <Text style={s.accred}>{COMPANY.accreditation}</Text>
-        </View>
-      </View>
-      <View style={{ alignItems: "flex-end" }}>
-        <Text style={s.mono}>{statementRef}</Text>
-        <Text style={s.mono}>{COMPANY.website}</Text>
-      </View>
-    </View>
+    <PdfHeader
+      logoSrc={logoSrc}
+      compact
+      fixed
+      meta={[
+        { k: "REF", v: statementRef, mono: true },
+        { k: "WEB", v: COMPANY.website },
+      ]}
+    />
   );
 
   const Footer = () => (

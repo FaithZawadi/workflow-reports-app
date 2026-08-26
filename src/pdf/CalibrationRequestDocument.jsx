@@ -1,6 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
 import { COMPANY } from "@/lib/company";
+import { PdfHeader } from "./shared";
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -92,29 +93,14 @@ export function CalibrationRequestDocument({ request, logoSrc, qrSrc }) {
   return (
     <Document>
       <Page size="A4" style={s.page} wrap>
-        <View style={s.topRow}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            {logoSrc ? (
-              // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={logoSrc} style={{ width: 52, height: 52, marginRight: 10, objectFit: "contain" }} />
-            ) : (
-              <Text style={[s.brand, { marginRight: 10 }]}>
-                QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
-              </Text>
-            )}
-            <View>
-              <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO 9001:2015 · ILAC-MRA</Text>
-              <Text style={s.contact}>{COMPANY.address} · {COMPANY.website}</Text>
-              <Text style={s.contact}>{COMPANY.email} · {COMPANY.phone}</Text>
-            </View>
-          </View>
-          <View style={s.metaRight}>
-            <Text style={s.sys}>QSL/QP/013/CRF-NAWI</Text>
-            <Text style={s.mono}>REQUEST NO: {request.serial}</Text>
-            <Text style={s.mono}>RAISED: {fmt(request.createdAt, true)} EAT</Text>
-          </View>
-        </View>
-        <View style={s.rule} />
+        <PdfHeader
+          logoSrc={logoSrc}
+          sys="QSL/QP/013/CRF-NAWI"
+          meta={[
+            { k: "REQUEST NO", v: request.serial, mono: true },
+            { k: "RAISED", v: `${fmt(request.createdAt, true)} EAT` },
+          ]}
+        />
 
         <View style={s.titleRow}>
           <Text style={s.title}>Calibration Request Form — Non-Automatic Weighing Instrument</Text>
