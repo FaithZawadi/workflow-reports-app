@@ -6,6 +6,9 @@ import { COMPANY } from "@/lib/company";
 import { geofenceSummary } from "@/lib/geofence";
 
 const GOLD = "#F5A800";
+// Deep gold for gold TEXT on a light background — bright gold is too light to
+// survive black & white printing/photocopying, so gold-on-white uses this.
+const GOLD_DK = "#8A6A00";
 const COAL = "#161310";
 const INK = "#26221C";
 const MUTE = "#6B6355";
@@ -27,14 +30,19 @@ const STATUS = {
 const s = StyleSheet.create({
   page: { paddingTop: 24, paddingBottom: 40, paddingHorizontal: 30, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  brand: { fontSize: 13, fontFamily: "Helvetica-Bold", color: COAL },
-  brandGold: { color: GOLD },
-  accred: { fontSize: 6.5, color: MUTE, marginTop: 2, fontFamily: "Courier" },
-  contact: { fontSize: 6.5, color: MUTE, marginTop: 1 },
-  metaRight: { alignItems: "flex-end" },
-  sys: { fontSize: 6.5, color: MUTE, fontFamily: "Courier-Bold" },
-  mono: { fontSize: 8, fontFamily: "Courier", marginTop: 1 },
-  rule: { borderBottomWidth: 2, borderBottomColor: COAL, marginTop: 5, marginBottom: 5 },
+  brand: { fontSize: 15, fontFamily: "Helvetica-Bold", color: COAL, letterSpacing: 0.3 },
+  brandGold: { color: GOLD_DK },
+  headText: { flex: 1 },
+  accred: { fontSize: 6.8, color: MUTE, marginTop: 3, fontFamily: "Helvetica-Bold", letterSpacing: 0.3 },
+  contact: { fontSize: 7.2, color: INK, marginTop: 2, fontFamily: "Helvetica" },
+  // Right meta block: neat right-aligned label / value rows.
+  metaRight: { alignItems: "flex-end", minWidth: 176 },
+  sys: { fontSize: 6.4, color: MUTE, fontFamily: "Helvetica-Bold", letterSpacing: 0.5, marginBottom: 3, textTransform: "uppercase" },
+  metaLine: { flexDirection: "row", alignItems: "flex-end", justifyContent: "flex-end", marginTop: 2 },
+  metaK: { fontSize: 6.8, fontFamily: "Helvetica-Bold", color: MUTE, letterSpacing: 0.4, marginRight: 5 },
+  metaVMono: { fontSize: 8.5, fontFamily: "Courier-Bold", color: COAL },
+  metaV: { fontSize: 8, fontFamily: "Helvetica-Bold", color: COAL },
+  rule: { borderBottomWidth: 2, borderBottomColor: COAL, marginTop: 6, marginBottom: 6 },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 5 },
   title: { fontSize: 13, fontFamily: "Helvetica-Bold", textTransform: "uppercase", flex: 1, marginRight: 10 },
   statusBadge: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#fff", paddingVertical: 2.5, paddingHorizontal: 6, borderRadius: 2 },
@@ -218,16 +226,19 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
       <Page size="A4" style={s.page} wrap>
         {/* header */}
         <View style={s.topRow}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <View style={{ flexDirection: "row", alignItems: "flex-start", flex: 1, paddingRight: 12 }}>
             {logoSrc ? (
               // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={logoSrc} style={{ width: 52, height: 52, marginRight: 10, objectFit: "contain" }} />
-            ) : (
-              <Text style={[s.brand, { marginRight: 10 }]}>
-                QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
-              </Text>
-            )}
-            <View>
+              <Image src={logoSrc} style={{ width: 54, height: 54, marginRight: 12, objectFit: "contain" }} />
+            ) : null}
+            <View style={s.headText}>
+              {/* The logo already carries the wordmark — only print it in text
+                  when there is no logo image. */}
+              {!logoSrc && (
+                <Text style={s.brand}>
+                  QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text>
+                </Text>
+              )}
               <Text style={s.accred}>KENAS · ISO/IEC 17025:2017 · ISO 9001:2015 · ILAC-MRA</Text>
               <Text style={s.contact}>
                 {COMPANY.address} · {COMPANY.website}
@@ -238,11 +249,17 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
             </View>
           </View>
           <View style={s.metaRight}>
-            <Text style={s.sys}>QSL MAINTENANCE MANAGEMENT SYSTEM v2.4</Text>
-            <Text style={s.mono}>SERIAL NO: {report.serial}</Text>
+            <Text style={s.sys}>QSL Maintenance Management System v2.4</Text>
+            <View style={s.metaLine}>
+              <Text style={s.metaK}>SERIAL NO</Text>
+              <Text style={s.metaVMono}>{report.serial}</Text>
+            </View>
             {/* The day the report was actually filed in the system. For a
                 backdated report this differs from the service date above. */}
-            <Text style={s.mono}>GENERATED: {fmt(report.createdAt)}</Text>
+            <View style={s.metaLine}>
+              <Text style={s.metaK}>GENERATED</Text>
+              <Text style={s.metaV}>{fmt(report.createdAt)}</Text>
+            </View>
           </View>
         </View>
         <View style={s.rule} />
