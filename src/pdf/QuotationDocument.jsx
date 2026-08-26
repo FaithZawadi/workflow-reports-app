@@ -122,6 +122,34 @@ const s = StyleSheet.create({
   totalKey: { width: "26%", padding: 3, fontFamily: "Helvetica-Bold", fontSize: 8.5, backgroundColor: "#F5EEDD", borderWidth: 0.5, borderColor: "#E4DCCB", textAlign: "right" },
   totalVal: { width: "22%", padding: 3, fontSize: 8.5, borderWidth: 0.5, borderColor: "#E4DCCB", textAlign: "right" },
   words: { marginTop: 8, fontSize: 9, fontFamily: "Helvetica-Bold" },
+  // --- Preset table quotation ---------------------------------------------
+  // "Prepared for" card + details.
+  clientCard: { flexDirection: "row", marginTop: 12, borderWidth: 0.7, borderColor: "#C9C1B0", borderRadius: 3, overflow: "hidden" },
+  clientMain: { width: "58%", padding: 8, borderRightWidth: 0.7, borderRightColor: "#C9C1B0" },
+  clientLabel: { fontSize: 6.5, fontFamily: "Helvetica-Bold", color: MUTE, letterSpacing: 0.8, marginBottom: 3 },
+  clientName: { fontSize: 12, fontFamily: "Helvetica-Bold", color: COAL },
+  clientLine: { fontSize: 8, color: INK, marginTop: 2 },
+  clientSide: { width: "42%" },
+  csRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#EAE3D4", minHeight: 15, alignItems: "center" },
+  csK: { width: "42%", alignSelf: "stretch", backgroundColor: "#FAF4E6", paddingVertical: 3.5, paddingHorizontal: 6, fontSize: 7.5, fontFamily: "Helvetica-Bold", color: COAL, borderRightWidth: 0.5, borderRightColor: "#EAE3D4" },
+  csV: { width: "58%", paddingVertical: 3.5, paddingHorizontal: 6, fontSize: 8, color: INK },
+  // Line-items table.
+  itemsTable: { marginTop: 12, borderWidth: 0.7, borderColor: "#C9C1B0", borderRadius: 3, overflow: "hidden" },
+  itemsHead: { flexDirection: "row", backgroundColor: COAL },
+  ihCell: { color: "#fff", fontSize: 7.5, fontFamily: "Helvetica-Bold", letterSpacing: 0.4, paddingVertical: 5, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "rgba(255,255,255,0.16)" },
+  itemsRow: { flexDirection: "row", borderTopWidth: 0.5, borderTopColor: "#EAE3D4", alignItems: "stretch", minHeight: 19 },
+  itemsRowAlt: { backgroundColor: "#FBF8F1" },
+  iCell: { fontSize: 8.5, color: INK, paddingVertical: 5, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "#EFE9DB", justifyContent: "center" },
+  iCellNum: { fontSize: 8.3, color: INK, fontFamily: "Courier-Bold", paddingVertical: 5, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "#EFE9DB", justifyContent: "center", textAlign: "right" },
+  // Totals panel.
+  totalsWrap: { flexDirection: "row", justifyContent: "flex-end", marginTop: 8 },
+  totalsBox: { width: "50%", borderWidth: 0.7, borderColor: "#C9C1B0", borderRadius: 3, overflow: "hidden" },
+  tRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4.5, paddingHorizontal: 9, borderBottomWidth: 0.5, borderBottomColor: "#EAE3D4" },
+  tK: { fontSize: 8.5, color: MUTE, fontFamily: "Helvetica-Bold" },
+  tV: { fontSize: 8.5, color: INK, fontFamily: "Courier-Bold" },
+  tGrand: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: COAL, paddingVertical: 6, paddingHorizontal: 9 },
+  tGK: { fontSize: 9, color: GOLD, fontFamily: "Helvetica-Bold", letterSpacing: 0.5 },
+  tGV: { fontSize: 10.5, color: "#fff", fontFamily: "Courier-Bold" },
   note: { marginTop: 10, padding: 6, borderWidth: 1, borderColor: GOLD_DK, backgroundColor: "#FCF7EA" },
   noteText: { fontSize: 8, color: INK },
   footer: { position: "absolute", bottom: 16, left: 32, right: 32, borderTopWidth: 2, borderTopColor: GOLD_DK, paddingTop: 4, alignItems: "center" },
@@ -210,24 +238,20 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc, internal = false 
           <Text style={[s.statusBadge, { backgroundColor: st.color }]}>{st.label}</Text>
         </View>
 
-        {/* Client block */}
-        <View style={s.row}>
-          <Text style={s.key}>Client</Text>
-          <Text style={s.val}>{q.clientName || "-"}</Text>
-          <Text style={s.key}>Contact</Text>
-          <Text style={s.val}>{q.contactPerson || "-"}</Text>
-        </View>
-        <View style={s.row}>
-          <Text style={s.key}>Email</Text>
-          <Text style={s.val}>{q.contactEmail || "-"}</Text>
-          <Text style={s.key}>Phone</Text>
-          <Text style={s.val}>{q.contactPhone || "-"}</Text>
-        </View>
-        <View style={s.row}>
-          <Text style={s.key}>Prepared by</Text>
-          <Text style={s.val}>{q.preparedByName || "-"}</Text>
-          <Text style={s.key}>Currency</Text>
-          <Text style={s.val}>{q.currency || "KES"}</Text>
+        {/* Prepared-for card: client on the left, quote particulars on the right */}
+        <View style={s.clientCard}>
+          <View style={s.clientMain}>
+            <Text style={s.clientLabel}>PREPARED FOR</Text>
+            <Text style={s.clientName}>{q.clientName || "-"}</Text>
+            {q.contactPerson ? <Text style={s.clientLine}>Attn: {q.contactPerson}</Text> : null}
+            {q.contactEmail ? <Text style={s.clientLine}>{q.contactEmail}</Text> : null}
+            {q.contactPhone ? <Text style={s.clientLine}>{q.contactPhone}</Text> : null}
+          </View>
+          <View style={s.clientSide}>
+            <View style={s.csRow}><Text style={s.csK}>Prepared by</Text><Text style={s.csV}>{q.preparedByName || "-"}</Text></View>
+            <View style={s.csRow}><Text style={s.csK}>Currency</Text><Text style={s.csV}>{q.currency || "KES"}</Text></View>
+            <View style={[s.csRow, { borderBottomWidth: 0 }]}><Text style={s.csK}>Items</Text><Text style={s.csV}>{items.length}</Text></View>
+          </View>
         </View>
 
         {/* Subject / job — the invoice-style RE: line */}
@@ -238,38 +262,37 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc, internal = false 
           </View>
         ) : null}
 
-        {/* Items */}
-        <View style={{ marginTop: 10 }}>
-          <View style={s.row}>
-            <Text style={[s.th, { width: "6%", textAlign: "center" }]}>Item</Text>
-            <Text style={[s.th, { width: "46%" }]}>Description</Text>
-            <Text style={[s.th, { width: "9%", textAlign: "right" }]}>Qty</Text>
-            <Text style={[s.th, { width: "10%", textAlign: "center" }]}>Unit</Text>
-            <Text style={[s.th, { width: "14%", textAlign: "right" }]}>Rate</Text>
-            <Text style={[s.th, { width: "15%", textAlign: "right" }]}>Amount</Text>
+        {/* Line-items table */}
+        <View style={s.itemsTable}>
+          <View style={s.itemsHead}>
+            <Text style={[s.ihCell, { width: "6%", textAlign: "center" }]}>#</Text>
+            <Text style={[s.ihCell, { width: "46%" }]}>DESCRIPTION</Text>
+            <Text style={[s.ihCell, { width: "9%", textAlign: "center" }]}>QTY</Text>
+            <Text style={[s.ihCell, { width: "10%", textAlign: "center" }]}>UNIT</Text>
+            <Text style={[s.ihCell, { width: "14%", textAlign: "right" }]}>RATE</Text>
+            <Text style={[s.ihCell, { width: "15%", textAlign: "right", borderRightWidth: 0 }]}>AMOUNT</Text>
           </View>
           {items.map((it, i) => (
-            <View style={s.row} key={i} wrap={false}>
-              <Text style={[s.td, { width: "6%", textAlign: "center" }]}>{i + 1}</Text>
-              <Text style={[s.td, { width: "46%" }]}>{it.description}</Text>
-              <Text style={[s.td, { width: "9%", textAlign: "right" }]}>{Number(it.qty || 0).toLocaleString()}</Text>
-              <Text style={[s.td, { width: "10%", textAlign: "center" }]}>{it.unit || "EA"}</Text>
-              <Text style={[s.td, { width: "14%", textAlign: "right" }]}>{money(it.unitPrice)}</Text>
-              <Text style={[s.td, { width: "15%", textAlign: "right" }]}>{money((Number(it.qty) || 0) * (Number(it.unitPrice) || 0))}</Text>
+            <View style={[s.itemsRow, i % 2 === 1 ? s.itemsRowAlt : null]} key={i} wrap={false}>
+              <Text style={[s.iCell, { width: "6%", textAlign: "center" }]}>{i + 1}</Text>
+              <Text style={[s.iCell, { width: "46%" }]}>{it.description}</Text>
+              <Text style={[s.iCell, { width: "9%", textAlign: "center" }]}>{Number(it.qty || 0).toLocaleString()}</Text>
+              <Text style={[s.iCell, { width: "10%", textAlign: "center" }]}>{it.unit || "EA"}</Text>
+              <Text style={[s.iCellNum, { width: "14%" }]}>{money(it.unitPrice)}</Text>
+              <Text style={[s.iCellNum, { width: "15%", borderRightWidth: 0 }]}>{money((Number(it.qty) || 0) * (Number(it.unitPrice) || 0))}</Text>
             </View>
           ))}
         </View>
 
-        {/* Totals */}
-        <View style={{ marginTop: 6 }}>
-          <View style={s.totalRow}><Text style={s.totalKey}>Total</Text><Text style={s.totalVal}>{money(q.subtotal)}</Text></View>
-          {Number(q.freight) > 0 ? (
-            <View style={s.totalRow}><Text style={s.totalKey}>Freight</Text><Text style={s.totalVal}>{money(q.freight)}</Text></View>
-          ) : null}
-          <View style={s.totalRow}><Text style={s.totalKey}>Add VAT ({Number(q.vatRate || 0)}%)</Text><Text style={s.totalVal}>{money(q.vatAmount)}</Text></View>
-          <View style={s.totalRow}>
-            <Text style={[s.totalKey, { backgroundColor: COAL, color: "#fff" }]}>Grand total, {q.currency}</Text>
-            <Text style={[s.totalVal, { fontFamily: "Helvetica-Bold" }]}>{money(q.grandTotal)}</Text>
+        {/* Totals panel */}
+        <View style={s.totalsWrap} wrap={false}>
+          <View style={s.totalsBox}>
+            <View style={s.tRow}><Text style={s.tK}>Subtotal</Text><Text style={s.tV}>{money(q.subtotal)}</Text></View>
+            {Number(q.freight) > 0 ? (
+              <View style={s.tRow}><Text style={s.tK}>Freight</Text><Text style={s.tV}>{money(q.freight)}</Text></View>
+            ) : null}
+            <View style={s.tRow}><Text style={s.tK}>VAT ({Number(q.vatRate || 0)}%)</Text><Text style={s.tV}>{money(q.vatAmount)}</Text></View>
+            <View style={s.tGrand}><Text style={s.tGK}>GRAND TOTAL · {q.currency || "KES"}</Text><Text style={s.tGV}>{money(q.grandTotal)}</Text></View>
           </View>
         </View>
 
