@@ -592,8 +592,49 @@ function StaffReport({ data }) {
     { label: "Avg approval", w: 104, align: "center", render: (r) => (r.avgTurnaround != null ? `${r.avgTurnaround}h` : "—") },
   ];
 
+  const merit = data.staffMerit || {};
+  const quoteLeaders = merit.quoteLeaders || [];
+  const clientLeaders = merit.clientLeaders || [];
+
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      {(quoteLeaders.length || clientLeaders.length) ? (
+        <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))" }}>
+          <Card title="Staff merit · most quotations" note="who raised the most quotations this period">
+            {quoteLeaders.length ? (
+              <Table
+                rows={quoteLeaders}
+                cols={[
+                  { label: "Person", render: (r) => (
+                    <span>
+                      <Link href={registryHref({ q: r.name })} style={{ color: INK, fontWeight: 600, textDecoration: "none" }}>{r.name}</Link>
+                      {r.org === "CLIENT" ? <span className="muted" style={{ display: "block", fontSize: 11 }}>client staff</span> : null}
+                    </span>
+                  ) },
+                  { label: "Quotes", w: 74, align: "center", cellStyle: () => ({ fontWeight: 800 }), key: "quotes" },
+                  { label: "Won", w: 60, align: "center", render: (r) => r.won || "—" },
+                ]}
+              />
+            ) : <Empty />}
+          </Card>
+          <Card title="Staff merit · most active clients registered" note="who registered the most active clients">
+            {clientLeaders.length ? (
+              <Table
+                rows={clientLeaders}
+                cols={[
+                  { label: "Person", render: (r) => (
+                    <span>
+                      <Link href={registryHref({ q: r.name })} style={{ color: INK, fontWeight: 600, textDecoration: "none" }}>{r.name}</Link>
+                      {r.org === "CLIENT" ? <span className="muted" style={{ display: "block", fontSize: 11 }}>client staff</span> : null}
+                    </span>
+                  ) },
+                  { label: "Clients", w: 84, align: "center", cellStyle: () => ({ fontWeight: 800 }), key: "clients" },
+                ]}
+              />
+            ) : <Empty />}
+          </Card>
+        </div>
+      ) : null}
       <Card title="Qalibrated staff" note={`${internal.length} ${internal.length === 1 ? "person" : "people"} · QSL team — reports filed & approvals given`}>
         {internal.length ? <Table rows={internal} cols={cols(false)} /> : <Empty />}
       </Card>

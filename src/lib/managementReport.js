@@ -602,6 +602,70 @@ function buildDimensions(reports, cur, operations, affiliation) {
   return { staff: staffArr, staffInternal, staffClient, weighbridgeHistory, clients: clientsArr, compliance };
 }
 
+// Staff merit — recognises the people driving the commercial pipeline: who
+// created the most quotations (and won the most value), and who registered the
+// most ACTIVE clients, in the period. Scoped like operations (an assigned-client
+// user sees only their own scope).
+async function buildStaffMerit(user, from, to, clientFilter, affiliation) {
+  const roles = rolesOf(user);
+  const isAll = roles.includes("ADMIN") || roles.includes("PROJECT_MANAGER") || roles.includes("TECHNICAL_MANAGER");
+  let clientIds = null;
+  if (!isAll) {
+    clientIds = await assignedClientIds(user);
+    if (!clientIds.length) clientIds = ["__no_match__"];
+  }
+  if (clientFilter) clientIds = clientIds ? clientIds.filter((id) => id === clientFilter) : [clientFilter];
+  const byClient = clientIds ? { clientId: { in: clientIds } } : {};
+
+  const created = {};
+  if (from) created.gte = dayStart(from);
+  if (to) created.lte = dayEnd(to);
+  const dateWhere = from || to ? { createdAt: created } : {};
+
+  const safe = async (fn, fallback) => { try { return await fn(); } catch { return fallback; } };
+
+  // Top quotation creators (by number raised; ties broken by wins/value).
+  const quoteLeaders = await safe(async () => {
+    const rows = await prisma.quotation.findMany({
+      where: { ...byClient, ...dateWhere },
+      select: { requestedByName: true, status: true, grandTotal: true },
+    });
+    const m = new Map();
+    for (const r of rows) {
+      const name = (r.requestedByName || "").trim() || "—";
+      const e = m.get(name) || { name, quotes: 0, won: 0, wonValue: 0 };
+      e.quotes += 1;
+      if (r.status === "ACCEPTED") { e.won += 1; e.wonValue += r.grandTotal || 0; }
+      m.set(name, e);
+    }
+    return [...m.values()]
+      .filter((e) => e.name !== "—")
+      .map((e) => ({ ...e, wonValue: Math.round(e.wonValue), ...orgTag(affiliation, e.name) }))
+      .sort((a, b) => b.quotes - a.quotes || b.won - a.won || b.wonValue - a.wonValue)
+      .slice(0, 8);
+  }, []);
+
+  // Top client registrars — active, approved clients registered in the period.
+  const clientLeaders = await safe(async () => {
+    const rows = await prisma.client.findMany({
+      where: { active: true, approvalStatus: "APPROVED", registeredById: { not: null }, ...dateWhere },
+      select: { registeredByName: true },
+    });
+    const m = new Map();
+    for (const r of rows) {
+      const name = (r.registeredByName || "").trim() || "—";
+      m.set(name, (m.get(name) || 0) + 1);
+    }
+    return [...m.entries()]
+      .filter(([name]) => name !== "—")
+      .map(([name, clients]) => ({ name, clients, ...orgTag(affiliation, name) }))
+      .sort((a, b) => b.clients - a.clients)
+      .slice(0, 8);
+  }, []);
+
+  return { quoteLeaders, clientLeaders };
+}
+
 // Build the role-scoped management report for a date range. Returns a plain
 // object with the summary, every segmented breakdown, period-over-period deltas,
 // auto insights and the flagged findings. Reused by the JSON API and the PDF.
@@ -790,6 +854,7 @@ export async function buildManagementReport(user, { from, to, client, site, incl
 
   const operations = await buildOperations(user, from, to, client || null, site || null);
   const dimensions = buildDimensions(reports, cur, operations, affiliation);
+  const staffMerit = await buildStaffMerit(user, from, to, client || null, affiliation);
 
   // Tag the "top people" leaderboard with QSL vs client affiliation.
   const byAuthorTagged = byAuthor.map((a) => ({ ...a, ...orgTag(affiliation, a.name) }));
@@ -877,5 +942,6 @@ export async function buildManagementReport(user, { from, to, client, site, incl
     weighbridgeHistory: dimensions.weighbridgeHistory,
     clients: dimensions.clients,
     compliance: dimensions.compliance,
+    staffMerit,
   };
 }

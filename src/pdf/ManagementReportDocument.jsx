@@ -79,6 +79,8 @@ const s = StyleSheet.create({
   trendAxis: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
   trendTick: { fontSize: 6, color: MUTE },
   empty: { fontSize: 8.5, color: MUTE, fontStyle: "italic", marginTop: 4 },
+  meritCap: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: COAL, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 3 },
+  meritFoot: { fontSize: 7.5, color: MUTE, marginTop: 5, fontStyle: "italic" },
   footer: { position: "absolute", bottom: 16, left: 32, right: 32, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4, alignItems: "center" },
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
   apxCard: { borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, padding: 6, marginBottom: 7 },
@@ -309,6 +311,60 @@ function TrendBars({ points }) {
   );
 }
 
+// Staff merit — two mini-leaderboards recognising commercial contribution: who
+// raised the most quotations (and won), and who registered the most active
+// clients, in the period.
+function MeritBlock({ merit, currency }) {
+  const q = (merit && merit.quoteLeaders) || [];
+  const c = (merit && merit.clientLeaders) || [];
+  if (!q.length && !c.length) return null;
+  const tag = (org) => (org === "CLIENT" ? <Text style={{ color: MUTE, fontSize: 6.5 }}> · client staff</Text> : null);
+  return (
+    <View wrap={false}>
+      <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Staff merit — commercial contribution</Text><Text style={s.sectionNote}>quotations raised · active clients registered</Text></View>
+      <View style={{ flexDirection: "row" }}>
+        <View style={{ width: "50%", paddingRight: 5 }}>
+          <Text style={s.meritCap}>Most quotations</Text>
+          <View style={s.row}>
+            <Text style={[s.th, { width: "10%", textAlign: "center" }]}>#</Text>
+            <Text style={[s.th, { width: "52%" }]}>Person</Text>
+            <Text style={[s.th, { width: "19%", textAlign: "right" }]}>Quotes</Text>
+            <Text style={[s.th, { width: "19%", textAlign: "right" }]}>Won</Text>
+          </View>
+          {q.length ? q.map((r, i) => (
+            <View style={s.row} key={i} wrap={false}>
+              <Text style={[s.td, { width: "10%", textAlign: "center", fontFamily: "Helvetica-Bold", color: COAL }]}>{i + 1}</Text>
+              <Text style={[s.td, { width: "52%" }]}>{r.name}{tag(r.org)}</Text>
+              <Text style={[s.td, { width: "19%", textAlign: "right", fontFamily: "Helvetica-Bold" }]}>{r.quotes}</Text>
+              <Text style={[s.td, { width: "19%", textAlign: "right" }]}>{r.won || "—"}</Text>
+            </View>
+          )) : <Text style={s.empty}>No quotations in this period.</Text>}
+        </View>
+        <View style={{ width: "50%", paddingLeft: 5 }}>
+          <Text style={s.meritCap}>Most active clients registered</Text>
+          <View style={s.row}>
+            <Text style={[s.th, { width: "12%", textAlign: "center" }]}>#</Text>
+            <Text style={[s.th, { width: "66%" }]}>Person</Text>
+            <Text style={[s.th, { width: "22%", textAlign: "right" }]}>Clients</Text>
+          </View>
+          {c.length ? c.map((r, i) => (
+            <View style={s.row} key={i} wrap={false}>
+              <Text style={[s.td, { width: "12%", textAlign: "center", fontFamily: "Helvetica-Bold", color: COAL }]}>{i + 1}</Text>
+              <Text style={[s.td, { width: "66%" }]}>{r.name}{tag(r.org)}</Text>
+              <Text style={[s.td, { width: "22%", textAlign: "right", fontFamily: "Helvetica-Bold" }]}>{r.clients}</Text>
+            </View>
+          )) : <Text style={s.empty}>No new clients in this period.</Text>}
+        </View>
+      </View>
+      {q[0] && q[0].wonValue ? (
+        <Text style={s.meritFoot}>
+          {q[0].name} led the pipeline — {q[0].won} accepted quote{q[0].won === 1 ? "" : "s"} worth {currency} {Number(q[0].wonValue).toLocaleString()}.
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 export function ManagementReportDocument({ data, logoSrc, generatedByName, generatedByRole }) {
   const d = data || {};
   const rangeLabel =
@@ -425,6 +481,9 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
         {/* By author */}
         <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>By person (filed)</Text><Text style={s.sectionNote}>top {authorBars.length}</Text></View>
         <BarChart items={authorBars} />
+
+        {/* Staff merit — commercial contribution (quotations & client registrations) */}
+        {d.staffMerit ? <MeritBlock merit={d.staffMerit} currency={d.operations?.quotes?.currency || "KES"} /> : null}
 
         {/* Most common findings */}
         <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Most common findings</Text></View>
