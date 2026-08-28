@@ -6,7 +6,7 @@ import CheckItem, { CheckHeader, CHECK_TABLE_MINWIDTH, defaultStates } from "./C
 import Photos from "./Photos";
 import { templatesForRoles, templateByCode, isSingleApproval } from "@/lib/templates";
 import { chainFor } from "@/lib/approvalChain";
-import { rolesOf, canApproveClients } from "@/lib/roles";
+import { rolesOf, canRegisterClientsDirectly } from "@/lib/roles";
 import { enqueueReport } from "@/lib/outbox";
 import { loadDraft, saveDraft, clearDraft, draftHasContent } from "@/lib/reportDraft";
 import { GOLD, COAL, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
@@ -238,9 +238,9 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   // filer may still choose ANY client (or add a brand-new one), so this is a
   // prefill/shortcut, not a restriction.
   const assignedClients = Array.isArray(profile.assignedClients) ? profile.assignedClients : [];
-  // A manager/admin registers clients outright; others must route the new client
-  // to a chosen approval manager.
-  const canApproveClient = canApproveClients(profile);
+  // Client approvers and quotation creators register clients outright; a
+  // technician-only filer must route the new client to a chosen approval manager.
+  const canApproveClient = canRegisterClientsDirectly(profile);
 
   const setV = (k, v) => setValues((s) => ({ ...s, [k]: v }));
 

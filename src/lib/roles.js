@@ -73,6 +73,22 @@ export const canFileReports = (input) => intersects(input, FILER_ROLES);
 // (no approval needed).
 export const CLIENT_APPROVER_ROLES = ["ADMIN", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
 export const canApproveClients = (input) => intersects(input, CLIENT_APPROVER_ROLES);
+
+// Who may register a NEW client outright (auto-approved, no manager sign-off):
+// every staff role EXCEPT a Technician — engineers, supervisors, managers, PM,
+// TM, admins and quotation-creating Sales all register directly. Only a user who
+// holds ONLY the Technician role must have their new clients approved (a
+// technician who also holds any role below registers directly).
+export const DIRECT_CLIENT_ROLES = [
+  "ENGINEER",
+  "SUPERVISOR",
+  "MANAGER",
+  "PROJECT_MANAGER",
+  "TECHNICAL_MANAGER",
+  "ADMIN",
+  "SALES",
+];
+export const canRegisterClientsDirectly = (input) => intersects(input, DIRECT_CLIENT_ROLES);
 export const canManageSchedulesRole = (input) => intersects(input, SCHEDULE_MANAGER_ROLES);
 
 // CLIENT — a restricted portal login. A client contact files calibration

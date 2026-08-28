@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar, Field, Textarea } from "./ui";
-import { rolesOf } from "@/lib/roles";
+import { rolesOf, canRegisterClientsDirectly } from "@/lib/roles";
 import { WAIT, MUTE } from "@/lib/theme";
 
 // Client raises a quote request; PM/TM start a quotation for a client (then fill
@@ -28,6 +28,51 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
   const [requestNote, setRequestNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+
+  // Quotation creators (PM/TM/managers/admin/Sales) may register a new client
+  // right here, approved immediately. Technician-only users don't get this — they
+  // must have new clients approved, so they register via the report flow instead.
+  const canAddClient = !clientOnly && canRegisterClientsDirectly(profile);
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [ncBusy, setNcBusy] = useState(false);
+  const [ncErr, setNcErr] = useState("");
+
+  const addClient = async () => {
+    const name = newName.trim();
+    setNcErr("");
+    if (!name) return setNcErr("Enter the new client's name.");
+    setNcBusy(true);
+    try {
+      const res = await fetch("/api/clients/quick", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        // If it already exists, adopt the existing record instead of erroring out.
+        if (d.existing) {
+          setClients((cs) => (cs.some((c) => c.id === d.existing.id) ? cs : [...cs, d.existing]));
+          setClientId(d.existing.id);
+          setClientName(d.existing.name);
+          setAdding(false); setNewName("");
+        } else {
+          setNcErr(d.error || "Could not add the client.");
+        }
+        setNcBusy(false);
+        return;
+      }
+      const c = d.client;
+      setClients((cs) => [...cs, { id: c.id, name: c.name }]);
+      setClientId(c.id);
+      setClientName(c.name);
+      setAdding(false); setNewName("");
+    } catch {
+      setNcErr("Network problem — please try again.");
+    }
+    setNcBusy(false);
+  };
 
   const submit = async () => {
     setMsg("");
@@ -94,9 +139,40 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
             </select>
             <span className="muted" style={{ fontSize: 11.5, marginTop: 4, display: "block", color: MUTE }}>
               Only registered clients appear here. Not listed?{" "}
-              <Link href="/clients" style={{ color: "#8a6d00", fontWeight: 700 }}>Register the client first</Link> (with its full details).
+              {canAddClient ? (
+                <button type="button" onClick={() => { setAdding((a) => !a); setNcErr(""); }} style={{ background: "none", border: 0, padding: 0, color: "#8a6d00", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
+                  {adding ? "Cancel" : "+ Add a new client"}
+                </button>
+              ) : (
+                <>
+                  <Link href="/clients" style={{ color: "#8a6d00", fontWeight: 700 }}>Register the client first</Link> (with its full details).
+                </>
+              )}
             </span>
           </label>
+        )}
+        {canAddClient && adding && (
+          <div style={{ border: "1px solid #e6dfce", borderRadius: 6, padding: 12, margin: "4px 0 10px", background: "#fbf8f1" }}>
+            <span className="label" style={{ display: "block", marginBottom: 6 }}>New client (company name)</span>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                className="input"
+                style={{ flex: "1 1 220px" }}
+                value={newName}
+                placeholder="e.g. AEA Limited"
+                autoCapitalize="words"
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addClient(); } }}
+              />
+              <button type="button" className="btn btn-primary" onClick={addClient} disabled={ncBusy} style={{ padding: "10px 18px" }}>
+                {ncBusy ? "Adding…" : "Add client"}
+              </button>
+            </div>
+            <span className="muted" style={{ fontSize: 11, marginTop: 6, display: "block", color: MUTE }}>
+              Added and approved immediately. You can fill its full details later under Clients.
+            </span>
+            {ncErr && <div style={{ color: WAIT, fontWeight: 700, fontSize: 12, marginTop: 6 }}>{ncErr}</div>}
+          </div>
         )}
         <div className="grid md-2">
           <Field label="Client contact person" value={contactPerson} onChange={setContactPerson} placeholder="e.g. Jane Doe" />

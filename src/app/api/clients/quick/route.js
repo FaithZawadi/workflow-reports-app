@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
-import { canFileReports, canApproveClients } from "@/lib/roles";
+import { canFileReports, canApproveClients, canRegisterClientsDirectly } from "@/lib/roles";
 import { resolveSiteByName } from "@/lib/clientResolve";
 import { siteDetailData } from "@/lib/clientFields";
 import { notifyUsers } from "@/lib/notify";
@@ -23,7 +23,10 @@ export async function POST(req) {
   } catch (res) {
     return res;
   }
-  if (!canFileReports(user)) return Response.json({ error: "Not allowed." }, { status: 403 });
+  // Report filers add clients while filing; quotation creators (e.g. Sales) add
+  // them while quoting even though they don't file reports.
+  if (!canFileReports(user) && !canRegisterClientsDirectly(user))
+    return Response.json({ error: "Not allowed." }, { status: 403 });
 
   const b = await req.json().catch(() => ({}));
   const name = String(b.name || "").trim();
@@ -38,13 +41,14 @@ export async function POST(req) {
     );
   }
 
-  // Approval routing. Managers/admins register directly; others need a chosen
+  // Approval routing. Client approvers (admin/managers/PM/TM) and quotation
+  // creators (Sales) register directly; a technician-only user needs a chosen
   // approver and the client stays PENDING until that manager approves it. When
   // an admin turns approval off in System Settings, every new client is
   // approved outright regardless of who registered it.
   const settings = await getSettings();
   const approvalRequired = settings.workflow.clientApprovalRequired;
-  const selfApproves = !approvalRequired || canApproveClients(user);
+  const selfApproves = !approvalRequired || canRegisterClientsDirectly(user);
   let approverId = String(b.approverId || "").trim() || null;
   let approver = null;
   if (!selfApproves) {
