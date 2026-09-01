@@ -23,3 +23,14 @@ export function dataUrlBytes(s) {
 export function isValidImageUpload(s, maxBytes = MAX_IMAGE_BYTES) {
   return isImageDataUrl(s) && dataUrlBytes(s) <= maxBytes;
 }
+
+// ---- PDF attachments (e.g. supporting docs appended to a Site Instruction) ----
+export const MAX_PDF_BYTES = 15 * 1024 * 1024; // 15 MB decoded
+
+export function isPdfDataUrl(s) {
+  return typeof s === "string" && /^data:application\/pdf;base64,/.test(s);
+}
+
+export function isValidPdfUpload(s, maxBytes = MAX_PDF_BYTES) {
+  return isPdfDataUrl(s) && dataUrlBytes(s) > 0 && dataUrlBytes(s) <= maxBytes;
+}

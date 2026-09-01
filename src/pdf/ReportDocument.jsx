@@ -88,6 +88,17 @@ const s = StyleSheet.create({
   docCtrlK: { fontSize: 6.8, fontFamily: "Helvetica-Bold", color: MUTE, width: 56, textTransform: "uppercase", letterSpacing: 0.3 },
   docCtrlV: { fontSize: 7.2, color: INK, flex: 1 },
   docCtrlNotice: { fontSize: 6.8, color: FAIL, fontFamily: "Helvetica-Bold", paddingHorizontal: 6, paddingBottom: 6, letterSpacing: 0.3 },
+  // Printed wet-signature sign-off blocks (e.g. Site Instruction Section C).
+  signWrap: { marginTop: 12 },
+  signStatement: { fontSize: 8, color: INK, lineHeight: 1.35, marginBottom: 8 },
+  signRow: { flexDirection: "row" },
+  signCol: { flex: 1 },
+  signColGap: { width: 14 },
+  signTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: COAL, textTransform: "uppercase", letterSpacing: 0.4, backgroundColor: "#F5EEDD", paddingVertical: 3, paddingHorizontal: 6, borderWidth: 0.5, borderColor: "#E4DCCB" },
+  signBody: { borderWidth: 0.5, borderTopWidth: 0, borderColor: "#E4DCCB", paddingTop: 4, paddingHorizontal: 6, paddingBottom: 6 },
+  signField: { flexDirection: "row", alignItems: "flex-end", marginTop: 8 },
+  signFieldK: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: MUTE, width: 58, textTransform: "uppercase", letterSpacing: 0.3 },
+  signFieldLine: { flex: 1, borderBottomWidth: 0.7, borderBottomColor: "#8a8171", height: 11 },
   sysNote: { marginTop: 10, padding: 6, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA" },
   sysNoteText: { fontSize: 8, color: INK, fontFamily: "Helvetica-Bold" },
   sysNoteSub: { fontSize: 7.5, color: MUTE, marginTop: 2 },
@@ -501,21 +512,55 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
           </View>
         ) : null}
 
-        {/* Electronic-signature note + scan-to-verify QR as one compact block, so
-            the QR never orphans onto a near-empty extra page. */}
-        <View style={s.footNote} wrap={false}>
-          <View style={{ flex: 1, paddingRight: 8 }}>
-            <Text style={s.sysNoteText}>System-generated document — no physical signature required.</Text>
-            <Text style={s.sysNoteSub}>
-              All approvals are captured electronically by the named approvers and recorded in the approval trail above.
-              {qrSrc ? " Scan the code to verify this report online." : ""}
-            </Text>
+        {/* Printed wet-signature sign-off (Section C) — used instead of the
+            electronic-signature note when the template declares signOff. */}
+        {tpl?.signOff ? (
+          <View style={s.signWrap} wrap={false}>
+            <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>{tpl.signOff.title || "Sign-off"}</Text></View>
+            {tpl.signOff.statement ? <Text style={s.signStatement}>{tpl.signOff.statement}</Text> : null}
+            <View style={s.signRow}>
+              {(tpl.signOff.parties || []).map((party, pi) => (
+                <React.Fragment key={pi}>
+                  {pi > 0 ? <View style={s.signColGap} /> : null}
+                  <View style={s.signCol}>
+                    <Text style={s.signTitle}>{party}</Text>
+                    <View style={s.signBody}>
+                      {(tpl.signOff.lines || ["Name", "Signature", "Date"]).map((ln, li) => (
+                        <View style={s.signField} key={li}>
+                          <Text style={s.signFieldK}>{ln}</Text>
+                          <View style={s.signFieldLine} />
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </React.Fragment>
+              ))}
+            </View>
+            {qrSrc ? (
+              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                <Image src={qrSrc} style={[s.footQr, { marginLeft: 0, marginRight: 8 }]} />
+                <Text style={s.sysNoteSub}>Scan to verify this instruction online.</Text>
+              </View>
+            ) : null}
           </View>
-          {qrSrc ? (
-            // eslint-disable-next-line jsx-a11y/alt-text
-            <Image src={qrSrc} style={s.footQr} />
-          ) : null}
-        </View>
+        ) : (
+          /* Electronic-signature note + scan-to-verify QR as one compact block, so
+             the QR never orphans onto a near-empty extra page. */
+          <View style={s.footNote} wrap={false}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={s.sysNoteText}>System-generated document — no physical signature required.</Text>
+              <Text style={s.sysNoteSub}>
+                All approvals are captured electronically by the named approvers and recorded in the approval trail above.
+                {qrSrc ? " Scan the code to verify this report online." : ""}
+              </Text>
+            </View>
+            {qrSrc ? (
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image src={qrSrc} style={s.footQr} />
+            ) : null}
+          </View>
+        )}
 
         {/* Footer carries only the document identity + page number — the company
             contact block lives in the header and is not repeated here. */}

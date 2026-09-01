@@ -298,6 +298,18 @@ export const TEMPLATES = [
       issueDate: "August 2026",
       notice: "CONTROLLED DOCUMENT — Uncontrolled if printed or downloaded",
     },
+    // Printed wet-signature sign-off (Section C on the paper form). When a
+    // template declares this, the PDF prints these blocks instead of the
+    // "system-generated, no signature required" note.
+    signOff: {
+      title: "Sign-off / Approval",
+      statement:
+        "This Site Instruction is issued for action in accordance with the Contract. The Main Contractor shall acknowledge receipt and confirm understanding by signing below. Any cost or time implication arising from this instruction shall be notified in writing in accordance with the Contract, prior to implementation, unless stated otherwise above.",
+      lines: ["Name", "Designation", "Signature", "Date"],
+      parties: ["For: Consultant", "For: Main Contractor"],
+    },
+    // A Site Instruction may carry a supporting PDF and site photos.
+    allowAttachments: true,
     sections: [
       {
         type: "fields",

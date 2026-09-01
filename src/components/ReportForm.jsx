@@ -44,6 +44,20 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const [grids, setGrids] = useState(edit?.data?.grids || {});
   const [runs, setRuns] = useState(edit?.data?.runs || {});
   const [photos, setPhotos] = useState(editPhotos);
+  // Supporting PDF attachments (Site Instruction). {name, dataUrl, size}
+  const [attachments, setAttachments] = useState([]);
+  const [attachMsg, setAttachMsg] = useState("");
+  const addAttachment = (file) => {
+    if (!file) return;
+    setAttachMsg("");
+    if (file.type !== "application/pdf") return setAttachMsg("Only PDF files can be attached.");
+    if (file.size > 15 * 1024 * 1024) return setAttachMsg("That PDF is over 15 MB — please attach a smaller file.");
+    if (attachments.length >= 5) return setAttachMsg("Up to 5 PDFs can be attached.");
+    const reader = new FileReader();
+    reader.onload = () => setAttachments((a) => [...a, { name: file.name, dataUrl: String(reader.result), size: file.size }]);
+    reader.onerror = () => setAttachMsg("Could not read that file.");
+    reader.readAsDataURL(file);
+  };
   const [clients, setClients] = useState([]);
   const [weighbridges, setWeighbridges] = useState([]);
   const [sites, setSites] = useState([]);
@@ -322,6 +336,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       grids,
       runs,
       photos,
+      attachments,
       ...(geo ? { filedLat: geo.lat, filedLng: geo.lng, filedAccuracy: geo.acc } : {}),
     };
 
@@ -844,6 +859,30 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
           <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
             Photos are optional{tpl.code === "TR01" ? " — a technical report can be submitted without any" : ""}.
           </div>
+
+          {tpl.allowAttachments && (
+            <div style={{ marginTop: 16 }}>
+              <SectionBar>Attach a PDF</SectionBar>
+              <div className="muted" style={{ fontSize: 11.5, margin: "2px 0 8px" }}>
+                Attach a supporting PDF (drawing, schedule, scan). Its pages are added to the end of this document. Up to 5 PDFs, 15&nbsp;MB each.
+              </div>
+              {attachments.map((a, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", border: "1px solid #e6dfce", borderRadius: 6, marginBottom: 6, background: "#fbf8f1" }}>
+                  <span style={{ fontSize: 16 }}>📄</span>
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</span>
+                  <span className="muted" style={{ fontSize: 11 }}>{(a.size / 1024 / 1024).toFixed(1)} MB</span>
+                  <button type="button" onClick={() => setAttachments((list) => list.filter((_, j) => j !== i))} style={{ background: "none", border: 0, color: FAIL, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Remove</button>
+                </div>
+              ))}
+              {attachments.length < 5 && (
+                <label className="btn" style={{ display: "inline-block", cursor: "pointer", fontSize: 13, padding: "8px 14px" }}>
+                  + Add PDF
+                  <input type="file" accept="application/pdf" style={{ display: "none" }} onChange={(e) => { addAttachment(e.target.files?.[0]); e.target.value = ""; }} />
+                </label>
+              )}
+              {attachMsg && <div style={{ color: WAIT, fontWeight: 700, fontSize: 12, marginTop: 6 }}>{attachMsg}</div>}
+            </div>
+          )}
           <div style={{ marginTop: 20 }}>{approvalPanel}</div>
         </PaperCard>
       </div>

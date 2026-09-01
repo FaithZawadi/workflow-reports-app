@@ -500,6 +500,7 @@ model Report {
   data Json
 
   photos      Photo[]
+  attachments Attachment[]
   trailEvents TrailEvent[]
 
   // Geofencing — where the report was filed from, and how that compares to the
@@ -535,6 +536,23 @@ model Report {
   @@index([authorId])
   @@index([createdAt])
   @@index([reportDate])
+}
+
+// A supporting file (currently PDF) attached to a report. For a Site
+// Instruction the PDF's pages are appended to the generated document.
+model Attachment {
+  id       String   @id @default(cuid())
+  reportId String
+  report   Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  name     String
+  mimeType String   @default("application/pdf")
+  // Base64 data URL. For very large deployments swap to object storage.
+  dataUrl  String   @db.Text
+  size     Int      @default(0)
+  order    Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
 }
 
 model Photo {

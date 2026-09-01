@@ -8,7 +8,7 @@ import { sendMail, reviewRequestEmail, failureAlertEmail } from "@/lib/email";
 import { createApprovalLinks } from "@/lib/approvalToken";
 import { addCycle } from "@/lib/schedule";
 import { recordAudit } from "@/lib/audit";
-import { isValidImageUpload, MAX_IMAGE_BYTES } from "@/lib/upload";
+import { isValidImageUpload, MAX_IMAGE_BYTES, isValidPdfUpload, MAX_PDF_BYTES, dataUrlBytes } from "@/lib/upload";
 import { evalGeofence } from "@/lib/geofence";
 import { getSettings } from "@/lib/settings";
 import { chainFor, stageRole, stageLabel } from "@/lib/approvalChain";
@@ -265,6 +265,15 @@ export async function POST(req) {
     }
   }
 
+  // Supporting PDF attachments (capped at 5). For a Site Instruction these pages
+  // are appended to the generated document. Validate mime + size server-side.
+  const attachments = Array.isArray(body.attachments) ? body.attachments.slice(0, 5) : [];
+  for (const a of attachments) {
+    if (!isValidPdfUpload(String(a?.dataUrl || ""), MAX_PDF_BYTES)) {
+      return Response.json({ error: "Each attachment must be a PDF of 15 MB or less." }, { status: 413 });
+    }
+  }
+
   const report = await prisma.report.create({
     data: {
       serial,
@@ -299,6 +308,15 @@ export async function POST(req) {
           gpsLat: p.gps?.lat ?? null,
           gpsLng: p.gps?.lng ?? null,
           gpsAcc: p.gps?.acc ?? null,
+          order: i,
+        })),
+      },
+      attachments: {
+        create: attachments.map((a, i) => ({
+          name: String(a.name || `attachment-${i + 1}.pdf`).slice(0, 200),
+          mimeType: "application/pdf",
+          dataUrl: String(a.dataUrl || ""),
+          size: dataUrlBytes(String(a.dataUrl || "")),
           order: i,
         })),
       },

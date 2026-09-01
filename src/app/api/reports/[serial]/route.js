@@ -17,6 +17,8 @@ export async function GET(req, { params }) {
     where: { serial: params.serial },
     include: {
       photos: { orderBy: { order: "asc" } },
+      // Metadata only — never ship the base64 PDF payload to the report view.
+      attachments: { orderBy: { order: "asc" }, select: { id: true, name: true, size: true, mimeType: true, order: true } },
       trailEvents: { orderBy: { at: "asc" } },
     },
   });

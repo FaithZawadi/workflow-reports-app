@@ -7,6 +7,7 @@ import { ReportDocument } from "@/pdf/ReportDocument";
 import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl, verifyUrl } from "@/lib/qr";
 import { syncCompany } from "@/lib/settings";
+import { appendPdfPages } from "@/lib/pdfMerge";
 
 // Force Node.js runtime — @react-pdf/renderer cannot run on the edge.
 export const runtime = "nodejs";
@@ -24,6 +25,7 @@ export async function GET(req, { params }) {
     where: { serial: params.serial },
     include: {
       photos: { orderBy: { order: "asc" } },
+      attachments: { orderBy: { order: "asc" } },
       trailEvents: { orderBy: { at: "asc" } },
     },
   });
@@ -41,9 +43,14 @@ export async function GET(req, { params }) {
   ].join("\n");
   const qrSrc = await qrDataUrl(qrText);
   await syncCompany(); // reflect any branding changes from System Settings
-  const buffer = await renderToBuffer(
+  let buffer = await renderToBuffer(
     React.createElement(ReportDocument, { report, logoSrc: logoDataUrl(), qrSrc })
   );
+  // A supporting PDF (e.g. on a Site Instruction) becomes part of the document —
+  // its pages are appended to the end of the generated report.
+  if (report.attachments && report.attachments.length) {
+    buffer = await appendPdfPages(buffer, report.attachments);
+  }
 
   return new Response(buffer, {
     status: 200,

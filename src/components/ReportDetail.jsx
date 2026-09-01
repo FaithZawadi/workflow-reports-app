@@ -275,6 +275,20 @@ export default function ReportDetail({ serial, profile }) {
           </div>
         )}
 
+        {/* attachments — supporting PDFs whose pages are appended to the document PDF */}
+        {(rep.attachments || []).length > 0 && (
+          <div style={{ marginBottom: 8 }}>
+            <SectionBar>Attachments <span style={{ fontWeight: 400, textTransform: "none", fontSize: 11, color: MUTE }}>· appended to the end of the PDF</span></SectionBar>
+            {rep.attachments.map((a) => (
+              <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "1px solid var(--line)", borderRadius: 6, marginBottom: 6, background: "#fbf8f1" }}>
+                <span style={{ fontSize: 18 }}>📄</span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</span>
+                <span style={{ fontSize: 11, color: MUTE }}>{a.size ? `${(a.size / 1024 / 1024).toFixed(1)} MB` : "PDF"}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* photos — click any to open the full-screen viewer (zoom / pan / download) */}
         {(rep.photos || []).length > 0 && (
           <div>
