@@ -8,10 +8,14 @@ const ACTION_COLOR = {
   APPROVE: PASS,
   REJECT: FAIL,
   DELETE: FAIL,
+  LOGIN: PASS,
+  LOGOUT: MUTE,
+  LOGIN_FAILED: FAIL,
 };
 
 const ENTITIES = [
   ["all", "All"],
+  ["AUTH", "Sign-ins"],
   ["USER", "Users"],
   ["REPORT", "Reports"],
   ["SCHEDULE", "Schedules"],

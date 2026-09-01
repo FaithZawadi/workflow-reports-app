@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { verifyPassword, startSession } from "@/lib/auth";
 import { hit, reset, clientIp } from "@/lib/rateLimit";
+import { recordAudit } from "@/lib/audit";
 
 export async function POST(req) {
   let body;
@@ -29,16 +30,28 @@ export async function POST(req) {
 
   const user = await prisma.user.findUnique({ where: { email }, include: { client: true } });
   if (!user || !user.active) {
+    await recordAudit({
+      actor: { name: email }, action: "LOGIN_FAILED", entity: "AUTH", entityId: null,
+      summary: `Failed sign-in for ${email}${ip ? ` from ${ip}` : ""} — ${user ? "account is deactivated" : "no such account"}`,
+    });
     return Response.json({ error: "Wrong email or password." }, { status: 401 });
   }
 
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) {
+    await recordAudit({
+      actor: { sub: user.id, name: user.name, role: user.role }, action: "LOGIN_FAILED", entity: "AUTH", entityId: user.id,
+      summary: `Failed sign-in for ${user.name} <${email}>${ip ? ` from ${ip}` : ""} — wrong password`,
+    });
     return Response.json({ error: "Wrong email or password." }, { status: 401 });
   }
 
   // Successful login — clear this account's counter.
   reset(`login:acct:${email}`);
+  await recordAudit({
+    actor: { sub: user.id, name: user.name, role: user.role }, action: "LOGIN", entity: "AUTH", entityId: user.id,
+    summary: `${user.name} <${user.email}> signed in${ip ? ` from ${ip}` : ""}`,
+  });
 
   // Every role signs in with just email + password. (The former oversight
   // access-code gate was removed — access is governed by the user's roles.)

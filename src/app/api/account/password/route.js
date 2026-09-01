@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getCurrentUser, verifyPassword, hashPassword } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
 
 // POST /api/account/password — any signed-in user changes their own password.
 export async function POST(req) {
@@ -25,6 +26,11 @@ export async function POST(req) {
     where: { id: user.id },
     // Clears the forced-change gate for an invited user setting their own password.
     data: { passwordHash: await hashPassword(next), passwordChangedAt: new Date(), mustChangePassword: false },
+  });
+  await recordAudit({
+    actor: { sub: user.id, name: user.name, role: user.role },
+    action: "UPDATE", entity: "USER", entityId: user.id,
+    summary: `${user.name} <${user.email}> changed their own password`,
   });
   return Response.json({ ok: true });
 }
