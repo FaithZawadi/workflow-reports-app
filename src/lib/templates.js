@@ -289,22 +289,29 @@ export const TEMPLATES = [
     name: "Site Instruction",
     cadence: "Site instruction",
     who: "Consultant / Site Engineer",
-    desc: "Formal construction site instruction: contract details, the instruction itself, cost code and approvals.",
+    desc: "Formal construction site instruction: contract details, the instruction itself and sign-off.",
+    // ISO document control — printed on the Site Instruction, per QSL SOPs.
+    docControl: {
+      reference: "QSL-PM-SOP-004 (Project Management SOP) — Issuance & Control of Site Instructions",
+      docNo: "QSL-PD-FRM-001",
+      revision: "00",
+      issueDate: "August 2026",
+      notice: "CONTROLLED DOCUMENT — Uncontrolled if printed or downloaded",
+    },
     sections: [
       {
         type: "fields",
+        title: "Contract details",
         fields: [
           { k: "project", label: "Project" },
           { k: "contractor", label: "Contractor" },
-          { k: "scope", label: "Scope / description" },
-          { k: "instructionDate", label: "Date of instruction", inputType: "date" },
-          { k: "costCode", label: "Cost code" },
+          { k: "instructionDate", label: "Date", inputType: "date" },
         ],
       },
       {
         type: "textarea",
         k: "details",
-        label: "Site instruction details (attach a separate schedule if space is insufficient)",
+        label: "Instruction / Description of Works",
       },
       {
         type: "checklist",
@@ -312,7 +319,6 @@ export const TEMPLATES = [
         yes: "CONFIRMED",
         no: "NOT YET",
         items: [
-          "This instruction is deemed to be included in the contract works",
           "No further works to proceed until the site instructions are fully executed and approved",
         ],
       },

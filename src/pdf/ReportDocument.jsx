@@ -78,6 +78,16 @@ const s = StyleSheet.create({
   bulletRow: { flexDirection: "row", marginTop: 1 },
   bulletDot: { fontSize: 8.5, color: GOLD, width: 9, fontFamily: "Helvetica-Bold" },
   bulletText: { fontSize: 8.5, flex: 1, lineHeight: 1.3, color: INK },
+  // ISO document-control block (e.g. Site Instruction), rendered when a template
+  // declares `docControl`.
+  docCtrl: { marginTop: 10, borderWidth: 0.6, borderColor: "#C9C1B0", borderRadius: 3, overflow: "hidden" },
+  docCtrlHead: { backgroundColor: "#22201C", paddingVertical: 3, paddingHorizontal: 6 },
+  docCtrlHeadText: { fontSize: 6.8, color: GOLD, fontFamily: "Helvetica-Bold", letterSpacing: 0.5, textTransform: "uppercase" },
+  docCtrlBody: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 6, paddingTop: 6 },
+  docCtrlItem: { width: "50%", flexDirection: "row", marginBottom: 3, paddingRight: 6 },
+  docCtrlK: { fontSize: 6.8, fontFamily: "Helvetica-Bold", color: MUTE, width: 56, textTransform: "uppercase", letterSpacing: 0.3 },
+  docCtrlV: { fontSize: 7.2, color: INK, flex: 1 },
+  docCtrlNotice: { fontSize: 6.8, color: FAIL, fontFamily: "Helvetica-Bold", paddingHorizontal: 6, paddingBottom: 6, letterSpacing: 0.3 },
   sysNote: { marginTop: 10, padding: 6, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA" },
   sysNoteText: { fontSize: 8, color: INK, fontFamily: "Helvetica-Bold" },
   sysNoteSub: { fontSize: 7.5, color: MUTE, marginTop: 2 },
@@ -475,6 +485,21 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
             <Cell style={{ width: "22%" }}>{fmt(t.at)}</Cell>
           </View>
         ))}
+
+        {/* ISO document-control block — controlled-document identity per QSL SOPs. */}
+        {tpl?.docControl ? (
+          <View style={s.docCtrl} wrap={false}>
+            <View style={s.docCtrlHead}><Text style={s.docCtrlHeadText}>Document control</Text></View>
+            <View style={s.docCtrlBody}>
+              <View style={[s.docCtrlItem, { width: "100%" }]}><Text style={s.docCtrlK}>Reference</Text><Text style={s.docCtrlV}>{tpl.docControl.reference}</Text></View>
+              <View style={s.docCtrlItem}><Text style={s.docCtrlK}>Doc no.</Text><Text style={s.docCtrlV}>{tpl.docControl.docNo}</Text></View>
+              <View style={s.docCtrlItem}><Text style={s.docCtrlK}>SI no.</Text><Text style={s.docCtrlV}>{report.serial}</Text></View>
+              <View style={s.docCtrlItem}><Text style={s.docCtrlK}>Revision</Text><Text style={s.docCtrlV}>{tpl.docControl.revision}</Text></View>
+              <View style={s.docCtrlItem}><Text style={s.docCtrlK}>Issue date</Text><Text style={s.docCtrlV}>{tpl.docControl.issueDate}</Text></View>
+            </View>
+            {tpl.docControl.notice ? <Text style={s.docCtrlNotice}>{tpl.docControl.notice}</Text> : null}
+          </View>
+        ) : null}
 
         {/* Electronic-signature note + scan-to-verify QR as one compact block, so
             the QR never orphans onto a near-empty extra page. */}
