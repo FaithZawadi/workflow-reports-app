@@ -3,12 +3,12 @@ import { useState } from "react";
 import { SectionBar } from "./ui";
 import { FAIL, WAIT } from "@/lib/theme";
 
-export default function Photos({ photos, setPhotos, max = 6 }) {
+export default function Photos({ photos, setPhotos, max = 6, stampGps = true }) {
   const [msg, setMsg] = useState("");
 
   const getGps = () =>
     new Promise((resolve) => {
-      if (!navigator.geolocation) return resolve(null);
+      if (!stampGps || !navigator.geolocation) return resolve(null);
       const t = setTimeout(() => resolve(null), 8000);
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -26,7 +26,7 @@ export default function Photos({ photos, setPhotos, max = 6 }) {
   const addPhoto = async (file) => {
     if (!file) return;
     if (!file.type?.startsWith("image/")) return setMsg("That file is not a photo.");
-    setMsg("Adding photo and reading GPS…");
+    setMsg(stampGps ? "Adding photo and reading GPS…" : "Adding photo…");
     const gps = await getGps();
     const takenAt = new Date();
     const reader = new FileReader();
@@ -52,10 +52,11 @@ export default function Photos({ photos, setPhotos, max = 6 }) {
         } else {
           ctx.drawImage(img, 0, 0, sw, sh);
         }
+        // Site-instruction sketches aren't geofenced, so no GPS line is stamped.
         const stamp =
           "QSL " +
           takenAt.toLocaleString() +
-          (gps ? `  GPS ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} (±${gps.acc}m)` : "  GPS UNAVAILABLE");
+          (!stampGps ? "" : gps ? `  GPS ${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)} (±${gps.acc}m)` : "  GPS UNAVAILABLE");
         const bh = Math.max(18, Math.round(cv.height * 0.045));
         ctx.fillStyle = "rgba(0,0,0,0.62)";
         ctx.fillRect(0, cv.height - bh, cv.width, bh);
@@ -64,7 +65,7 @@ export default function Photos({ photos, setPhotos, max = 6 }) {
         ctx.textBaseline = "middle";
         ctx.fillText(stamp, 6, cv.height - bh / 2);
         setPhotos((p) => [...p, { src: cv.toDataURL("image/jpeg", 0.7), caption: "", gps, takenAt: takenAt.toISOString() }]);
-        setMsg(gps ? "" : "Photo added — GPS unavailable. Allow location access to authenticate the site.");
+        setMsg(!stampGps ? "" : gps ? "" : "Photo added — GPS unavailable. Allow location access to authenticate the site.");
       };
       img.onerror = () => setMsg("Could not open that photo.");
       img.src = reader.result;

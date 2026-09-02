@@ -311,8 +311,9 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
     setMsg(isEdit ? "Saving changes…" : "Submitting…");
 
     // Best-effort location capture for geofencing (proof of on-site attendance).
-    // Only on a new submission; a denial or timeout just leaves it unset.
-    const geo = isEdit
+    // Only on a new submission; a denial or timeout just leaves it unset. A
+    // non-geofenced form (e.g. Site Instruction) never captures location.
+    const geo = isEdit || tpl?.geofence === false
       ? null
       : await new Promise((resolve) => {
           if (typeof navigator === "undefined" || !navigator.geolocation) return resolve(null);
@@ -855,9 +856,11 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
             return null;
           })}
 
-          <Photos photos={photos} setPhotos={setPhotos} />
+          <Photos photos={photos} setPhotos={setPhotos} stampGps={tpl.geofence !== false} />
           <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
-            Photos are optional{tpl.code === "TR01" ? " — a technical report can be submitted without any" : ""}.
+            {tpl.geofence === false
+              ? "Attach sketches or site photos — these are not location-stamped."
+              : `Photos are optional${tpl.code === "TR01" ? " — a technical report can be submitted without any" : ""}.`}
           </div>
 
           {tpl.allowAttachments && (

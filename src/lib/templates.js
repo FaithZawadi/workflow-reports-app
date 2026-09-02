@@ -308,8 +308,12 @@ export const TEMPLATES = [
       lines: ["Name", "Designation", "Signature", "Date"],
       parties: ["For: Consultant", "For: Main Contractor"],
     },
-    // A Site Instruction may carry a supporting PDF and site photos.
+    // A Site Instruction carries supporting PDFs and sketches/photos an engineer
+    // draws up after a site visit. It is an office/consultant document, not a
+    // field-verification form, so it is NOT geofenced — no location is captured
+    // and photos are not GPS-stamped.
     allowAttachments: true,
+    geofence: false,
     sections: [
       {
         type: "fields",

@@ -229,21 +229,26 @@ export async function POST(req) {
       .catch(() => null);
   }
   // Admin settings: apply a default fence radius where a site has none, and
-  // optionally require the report to be filed on-site.
+  // optionally require the report to be filed on-site. A template may opt out of
+  // geofencing entirely (e.g. Site Instruction — an office/consultant document),
+  // in which case no location is recorded and the on-site rule doesn't apply.
   const settings = await getSettings();
-  const effectiveRadius = siteRec?.geofenceRadius ?? (settings.reports.defaultGeofenceRadius || null);
-  const geo = evalGeofence({
-    filedLat: hasFiled ? fLat : null,
-    filedLng: hasFiled ? fLng : null,
-    siteLat: siteRec?.lat ?? null,
-    siteLng: siteRec?.lng ?? null,
-    radiusM: effectiveRadius,
-  });
+  const geoEnabled = tpl.geofence !== false;
+  const effectiveRadius = geoEnabled ? (siteRec?.geofenceRadius ?? (settings.reports.defaultGeofenceRadius || null)) : null;
+  const geo = geoEnabled
+    ? evalGeofence({
+        filedLat: hasFiled ? fLat : null,
+        filedLng: hasFiled ? fLng : null,
+        siteLat: siteRec?.lat ?? null,
+        siteLng: siteRec?.lng ?? null,
+        radiusM: effectiveRadius,
+      })
+    : { status: null, distanceM: null };
 
   // Enforce on-site filing when the admin requires it: reject a clear miss (no
   // location captured, or outside the fence). A site with no coordinates can't
   // be verified either way, so it's allowed through.
-  if (settings.reports.requireOnSite) {
+  if (geoEnabled && settings.reports.requireOnSite) {
     if (geo.status === "NO_LOCATION")
       return Response.json({ error: "Location is required to file this report. Allow location access and try again." }, { status: 422 });
     if (geo.status === "OUTSIDE")
