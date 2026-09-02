@@ -120,6 +120,8 @@ export default function CalibrationRequestDetail({ id, profile }) {
 
         <SectionBar>Client information</SectionBar>
         <div style={{ fontSize: 14, color: INK, display: "grid", gap: 3 }}>
+          <div><b>Client:</b> {req.clientName || "-"}</div>
+          {req.site ? <div><b>Site:</b> {req.site}</div> : null}
           <div><b>Contact:</b> {req.contactPerson || "-"}</div>
           <div><b>Address:</b> {req.address || "-"}</div>
           <div><b>Telephone:</b> {req.telephone || "-"}</div>

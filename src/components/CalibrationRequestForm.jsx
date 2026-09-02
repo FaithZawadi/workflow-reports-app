@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar, Field, Textarea } from "./ui";
-import { rolesOf } from "@/lib/roles";
+import { rolesOf, canRegisterClientsDirectly } from "@/lib/roles";
 import { GOLD, COAL, INK, MUTE, WAIT } from "@/lib/theme";
 
 const BLANK = { name: "", makeModel: "", serialNo: "", capacity: "", division: "", location: "", remarks: "" };
@@ -20,7 +20,21 @@ export default function CalibrationRequestForm({ profile }) {
   const router = useRouter();
   const clientOnly = rolesOf(profile).length > 0 && rolesOf(profile).every((r) => r === "CLIENT");
 
+  const canAddDirectly = canRegisterClientsDirectly(profile);
   const [clientName, setClientName] = useState(profile.clientName || "");
+  const [clientId, setClientId] = useState("");
+  const [clients, setClients] = useState([]);
+  const [sites, setSites] = useState([]);
+  const [site, setSite] = useState("");
+  // Inline add-new-client / add-new-site (registered, de-duplicated, approval-gated).
+  const [addingClient, setAddingClient] = useState(false);
+  const [ncName, setNcName] = useState("");
+  const [ncBusy, setNcBusy] = useState(false);
+  const [ncErr, setNcErr] = useState("");
+  const [addingSite, setAddingSite] = useState(false);
+  const [nsName, setNsName] = useState("");
+  const [nsBusy, setNsBusy] = useState(false);
+  const [nsErr, setNsErr] = useState("");
   const [contactPerson, setContactPerson] = useState(profile.name || "");
   const [address, setAddress] = useState("");
   const [telephone, setTelephone] = useState("");
@@ -39,9 +53,66 @@ export default function CalibrationRequestForm({ profile }) {
   const addRow = () => setRows((s) => (s.length >= 20 ? s : [...s, { ...BLANK }]));
   const removeRow = (i) => setRows((s) => (s.length <= 1 ? s : s.filter((_, idx) => idx !== i)));
 
+  // Staff pick a registered client + site. Load the catalogues once.
+  useEffect(() => {
+    if (clientOnly) return;
+    fetch("/api/clients").then((r) => r.json()).then((d) => setClients(d.clients || [])).catch(() => {});
+    fetch("/api/sites").then((r) => r.json()).then((d) => setSites(d.sites || [])).catch(() => {});
+  }, [clientOnly]);
+
+  // Sites belonging to the chosen client (branch list), de-duplicated.
+  const siteOptions = [...new Set(sites.filter((s) => s.clientId === clientId).map((s) => (s.name || "").trim()).filter(Boolean))];
+
+  const pickClient = (id) => {
+    setClientId(id);
+    setClientName(clients.find((c) => c.id === id)?.name || "");
+    setSite("");
+  };
+
+  const addNewClient = async () => {
+    const name = ncName.trim();
+    if (!name) return setNcErr("Enter the new client's name in full.");
+    setNcBusy(true); setNcErr("");
+    try {
+      const res = await fetch("/api/clients/quick", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) });
+      const d = await res.json();
+      if (!res.ok) {
+        if (d.existing) { setClients((cs) => (cs.some((c) => c.id === d.existing.id) ? cs : [...cs, d.existing])); pickClient(d.existing.id); setAddingClient(false); setNcName(""); }
+        else setNcErr(d.error || "Could not add the client.");
+        setNcBusy(false); return;
+      }
+      setClients((cs) => [...cs, { id: d.client.id, name: d.client.name }]);
+      pickClient(d.client.id);
+      setAddingClient(false); setNcName("");
+      if (d.client.approvalStatus === "PENDING") setMsg("New client submitted for approval — you can still use it on this request.");
+    } catch { setNcErr("Network problem — try again."); }
+    setNcBusy(false);
+  };
+
+  const addNewSite = async () => {
+    const name = nsName.trim();
+    if (!name) return setNsErr("Enter the new site's name.");
+    if (!clientId) return setNsErr("Pick the client first.");
+    setNsBusy(true); setNsErr("");
+    try {
+      const res = await fetch("/api/sites/quick", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ clientId, name }) });
+      const d = await res.json();
+      if (!res.ok) {
+        if (d.existing) { setSite(d.existing.name); setAddingSite(false); setNsName(""); }
+        else setNsErr(d.error || "Could not add the site.");
+        setNsBusy(false); return;
+      }
+      setSite(d.site.name);
+      fetch("/api/sites").then((r) => r.json()).then((sd) => setSites(sd.sites || [])).catch(() => {});
+      setAddingSite(false); setNsName("");
+      if (d.site.approvalStatus === "PENDING") setMsg("New site submitted for approval — you can still use it on this request.");
+    } catch { setNsErr("Network problem — try again."); }
+    setNsBusy(false);
+  };
+
   const submit = async () => {
     setMsg("");
-    if (!clientOnly && !clientName.trim()) return setMsg("Enter the client name.");
+    if (!clientOnly && !clientId) return setMsg("Select the client. Not listed? Add it first.");
     if (!rows.some((r) => r.name.trim())) return setMsg("Add at least one instrument to calibrate.");
     if (!confirmed) return setMsg("Please confirm the declaration before sending.");
     setBusy(true);
@@ -50,7 +121,9 @@ export default function CalibrationRequestForm({ profile }) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
+          clientId: clientId || undefined,
           clientName: clientName.trim(),
+          site: site.trim(),
           contactPerson: contactPerson.trim(),
           address: address.trim(),
           telephone: telephone.trim(),
@@ -92,8 +165,71 @@ export default function CalibrationRequestForm({ profile }) {
         <p className="muted" style={{ fontSize: 12 }}>Qalibrated Systems Limited Calibration Laboratory. A request number is assigned when you send it.</p>
 
         <SectionBar>1. Client information</SectionBar>
-        <div className="grid md-2">
-          {!clientOnly && <Field label="Client name" value={clientName} onChange={setClientName} placeholder="e.g. Kapa Oil Refineries" />}
+        {!clientOnly && (
+          <>
+            <div className="grid md-2">
+              <label className="field">
+                <span className="label">Client (company)</span>
+                <select className="input" value={clientId} onChange={(e) => pickClient(e.target.value)}>
+                  <option value="">— select a registered client —</option>
+                  {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </label>
+              <label className="field">
+                <span className="label">Site / branch (optional)</span>
+                {siteOptions.length ? (
+                  <select className="input" value={site} onChange={(e) => setSite(e.target.value)} disabled={!clientId}>
+                    <option value="">— select site —</option>
+                    {siteOptions.map((sName) => <option key={sName} value={sName}>{sName}</option>)}
+                    {site && !siteOptions.includes(site) && <option value={site}>{site}</option>}
+                  </select>
+                ) : (
+                  <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="e.g. Nakuru plant" disabled={!clientId} />
+                )}
+              </label>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
+              {!addingClient
+                ? <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => { setAddingClient(true); setNcErr(""); }}>+ New client</button>
+                : null}
+              {clientId && !addingSite
+                ? <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => { setAddingSite(true); setNsErr(""); setNsName(""); }}>+ New site for {clientName}</button>
+                : null}
+            </div>
+
+            {addingClient && (
+              <div className="card" style={{ padding: 12, marginTop: 8, borderColor: GOLD }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: INK, marginBottom: 6 }}>Add a new client</div>
+                <label className="field"><span className="label">New client name (in full)</span>
+                  <input className="input" value={ncName} onChange={(e) => setNcName(e.target.value)} placeholder="e.g. Kapa Oil Refineries Limited" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNewClient(); } }} />
+                </label>
+                <div className="muted" style={{ fontSize: 11.5 }}>
+                  {canAddDirectly ? "Existing clients (any spelling) can’t be added again." : "Goes to a manager for approval — usable on this request right away. Existing clients (any spelling) can’t be added again."}
+                </div>
+                {ncErr && <div className="err" style={{ fontSize: 12, marginTop: 6 }}>{ncErr}</div>}
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button type="button" className="btn btn-dark" style={{ fontSize: 12 }} disabled={ncBusy} onClick={addNewClient}>{ncBusy ? "Adding…" : "Add & use"}</button>
+                  <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => setAddingClient(false)}>Cancel</button>
+                </div>
+              </div>
+            )}
+            {addingSite && (
+              <div className="card" style={{ padding: 12, marginTop: 8, borderColor: GOLD }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: INK, marginBottom: 6 }}>Add a site to {clientName}</div>
+                <label className="field"><span className="label">New site / branch</span>
+                  <input className="input" value={nsName} onChange={(e) => setNsName(e.target.value)} placeholder="e.g. Eldoret depot" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNewSite(); } }} />
+                </label>
+                <div className="muted" style={{ fontSize: 11.5 }}>Duplicate sites (any spelling) are blocked.</div>
+                {nsErr && <div className="err" style={{ fontSize: 12, marginTop: 6 }}>{nsErr}</div>}
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button type="button" className="btn btn-dark" style={{ fontSize: 12 }} disabled={nsBusy} onClick={addNewSite}>{nsBusy ? "Adding…" : "Add & use"}</button>
+                  <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => setAddingSite(false)}>Cancel</button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        <div className="grid md-2" style={{ marginTop: clientOnly ? 0 : 4 }}>
           <Field label="Contact person" value={contactPerson} onChange={setContactPerson} />
           <Field label="Address" value={address} onChange={setAddress} />
           <Field label="Telephone" value={telephone} onChange={setTelephone} />

@@ -41,11 +41,13 @@ export async function GET() {
       id: true,
       serial: true,
       clientName: true,
+      site: true,
       status: true,
       equipment: true,
       calibrationType: true,
       preferredDate: true,
       createdAt: true,
+      requestedByName: true,
     },
   });
   return Response.json({ requests });
@@ -70,18 +72,34 @@ export async function POST(req) {
     return Response.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  // Resolve the client (plant). A client user is tied to their own; staff pick one.
+  // Resolve the client (plant). A client user is tied to their own; staff pick a
+  // REGISTERED client from the list — never auto-create a bare client here, so
+  // duplicates and unapproved plants can't slip in. A new client must be added
+  // (with approval) via the "add new client" flow first.
   let clientId = null;
   let clientName = String(body.clientName || "").trim();
   if (isClient(user) && user.clientId) {
     const c = await prisma.client.findUnique({ where: { id: user.clientId } });
     clientId = user.clientId;
     clientName = c?.name || clientName;
-  } else if (clientName) {
-    const c = await prisma.client.upsert({ where: { name: clientName }, create: { name: clientName }, update: {} });
+  } else if (body.clientId) {
+    const c = await prisma.client.findUnique({ where: { id: String(body.clientId) } });
+    if (!c) return Response.json({ error: "That client isn't registered." }, { status: 400 });
     clientId = c.id;
+    clientName = c.name;
+  } else if (clientName) {
+    const c = await prisma.client.findFirst({ where: { name: { equals: clientName, mode: "insensitive" } } });
+    if (!c) {
+      return Response.json(
+        { error: `“${clientName}” isn't registered yet. Add the client (with its details) first, then raise the request.` },
+        { status: 400 }
+      );
+    }
+    clientId = c.id;
+    clientName = c.name;
   }
-  if (!clientName) return Response.json({ error: "Client name is required." }, { status: 400 });
+  if (!clientName) return Response.json({ error: "Select the client." }, { status: 400 });
+  const site = String(body.site || "").trim() || null;
 
   // Equipment rows — keep only rows that name a piece of equipment.
   const equipment = (Array.isArray(body.equipment) ? body.equipment : [])
@@ -108,6 +126,7 @@ export async function POST(req) {
       serial,
       clientId,
       clientName,
+      site,
       contactPerson: String(body.contactPerson || "").trim() || user.name || null,
       address: String(body.address || "").trim() || null,
       telephone: String(body.telephone || "").trim() || null,

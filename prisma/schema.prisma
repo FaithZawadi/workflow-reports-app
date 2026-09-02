@@ -622,6 +622,7 @@ model CalibrationRequest {
   clientId   String?
   client     Client? @relation(fields: [clientId], references: [id])
   clientName String
+  site       String?
 
   contactPerson String?
   address       String?

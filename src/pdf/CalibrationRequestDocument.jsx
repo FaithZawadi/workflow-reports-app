@@ -112,6 +112,7 @@ export function CalibrationRequestDocument({ request, logoSrc, qrSrc }) {
         <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>1. Client information</Text></View>
         {[
           ["Client name", request.clientName],
+          ...(request.site ? [["Site / branch", request.site]] : []),
           ["Contact person", request.contactPerson],
           ["Address", request.address],
           ["Telephone", request.telephone],
