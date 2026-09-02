@@ -17,6 +17,7 @@ const shape = (t) => ({
   clientId: t.clientId,
   clientName: t.clientName || t.client?.name || null,
   weighbridgeId: t.weighbridgeId,
+  scheduleId: t.scheduleId,
   assignedName: t.assignedName,
   assignedEmail: t.assignedEmail,
   assignedToId: t.assignedToId,
@@ -28,16 +29,18 @@ const shape = (t) => ({
 
 // GET /api/tasks — managers/admin see all; everyone else sees tasks assigned to
 // them (matched by id or email).
-export async function GET() {
+export async function GET(req) {
   let user;
   try {
     user = await requireUser();
   } catch (res) {
     return res;
   }
-  const where = canManageTasks(user)
+  const scheduleId = req ? new URL(req.url).searchParams.get("scheduleId") : null;
+  const base = canManageTasks(user)
     ? {}
     : { OR: [{ assignedToId: user.sub }, { assignedEmail: { equals: user.email, mode: "insensitive" } }] };
+  const where = scheduleId ? { AND: [base, { scheduleId }] } : base;
 
   const list = await prisma.task.findMany({
     where,
@@ -90,6 +93,7 @@ export async function POST(req) {
       clientId,
       clientName: clientName || null,
       weighbridgeId: String(b.weighbridgeId || "").trim() || null,
+      scheduleId: String(b.scheduleId || "").trim() || null,
       assignedToId,
       assignedName,
       assignedEmail: assignedEmail || null,

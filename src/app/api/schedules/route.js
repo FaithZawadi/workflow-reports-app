@@ -12,6 +12,8 @@ import { recordAudit } from "@/lib/audit";
 import { SCHEDULE_MANAGER_ROLES } from "@/lib/roles";
 import { sendMail, scheduleAssignedEmail } from "@/lib/email";
 import { notifyEmails } from "@/lib/notify";
+import { activityByKey } from "@/lib/activities";
+import { resolveClientByName } from "@/lib/clientResolve";
 
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
 
@@ -82,10 +84,16 @@ export async function POST(req) {
 
   const body = await req.json().catch(() => ({}));
 
-  const tpl = templateByCode(body.template);
-  if (!tpl) return Response.json({ error: "Choose a valid form." }, { status: 400 });
-  if (!canManageTemplate(user, tpl.code))
-    return Response.json({ error: "You can't schedule this form type." }, { status: 403 });
+  // Resolve the activity. Prefer the new `activity` key; fall back to a raw
+  // `template` code for older clients.
+  const activity = activityByKey(body.activity) || activityByKey(body.template);
+  if (!activity) return Response.json({ error: "Choose an activity." }, { status: 400 });
+  // Form activities map to a real report template; check the user may schedule it.
+  const tpl = activity.template ? templateByCode(activity.template) : null;
+  if (activity.template && (!tpl || !canManageTemplate(user, tpl.code)))
+    return Response.json({ error: "You can't schedule this activity." }, { status: 403 });
+  const templateCode = tpl ? tpl.code : activity.key;
+  const templateName = tpl ? tpl.name : activity.label;
 
   const frequency = String(body.frequency || "").toUpperCase();
   if (!FREQUENCIES[frequency])
@@ -97,8 +105,9 @@ export async function POST(req) {
 
   const clientName = String(body.clientName || "").trim();
   if (!clientName) return Response.json({ error: "Choose the client (plant)." }, { status: 400 });
+  // Weighbridge only matters for weighbridge activities — optional otherwise.
   const weighbridgeId = String(body.weighbridgeId || "").trim();
-  if (!weighbridgeId)
+  if (activity.needsWeighbridge && !weighbridgeId)
     return Response.json({ error: "Enter the weighbridge ID this applies to." }, { status: 400 });
 
   if (body.assignedEmail && !isEmail(body.assignedEmail))
@@ -114,20 +123,18 @@ export async function POST(req) {
     nextDueAt = addCycle(new Date(), frequency, intervalDays);
   }
 
-  const client = await prisma.client.upsert({
-    where: { name: clientName },
-    create: { name: clientName },
-    update: {},
-  });
+  // De-duplicated client resolve (case-insensitive) — never a bare duplicate.
+  const client = await resolveClientByName(clientName);
 
   const schedule = await prisma.schedule.create({
     data: {
-      clientId: client.id,
-      clientName,
+      clientId: client?.id || null,
+      clientName: client?.name || clientName,
       site: String(body.site || "").trim() || null,
-      weighbridgeId,
-      template: tpl.code,
-      templateName: tpl.name,
+      weighbridgeId: weighbridgeId || null,
+      activity: activity.key,
+      template: templateCode,
+      templateName,
       frequency,
       intervalDays,
       assignedName: String(body.assignedName || "").trim() || null,
@@ -143,7 +150,7 @@ export async function POST(req) {
     action: "CREATE",
     entity: "SCHEDULE",
     entityId: schedule.id,
-    summary: `Created ${tpl.code} ${FREQUENCIES[frequency]?.label || frequency} schedule for ${clientName} · ${weighbridgeId}` +
+    summary: `Created ${templateName} ${FREQUENCIES[frequency]?.label || frequency} schedule for ${clientName}${weighbridgeId ? ` · ${weighbridgeId}` : ""}` +
       (schedule.assignedName ? ` → ${schedule.assignedName}` : ""),
   });
 

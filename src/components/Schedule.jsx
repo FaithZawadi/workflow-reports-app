@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { COAL, GOLD, INK, MUTE, PAPER, LINE } from "@/lib/theme";
 import { TEMPLATES, TECH_TEMPLATES, ENGINEER_TEMPLATES } from "@/lib/templates";
+import { activityGroups, activityByKey } from "@/lib/activities";
 import {
   FREQUENCIES,
   FREQUENCY_KEYS,
@@ -56,6 +57,7 @@ export default function Schedule({ profile }) {
   const [stateFilter, setStateFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null); // schedule id
+  const [openTasks, setOpenTasks] = useState(null); // schedule id whose tasks panel is open
   const [busyId, setBusyId] = useState(null);
   const [err, setErr] = useState("");
 
@@ -93,7 +95,7 @@ export default function Schedule({ profile }) {
   };
 
   const removeSchedule = async (s) => {
-    if (!confirm(`Delete the ${s.template} schedule for ${s.weighbridgeId} at ${s.clientName}?`)) return;
+    if (!confirm(`Delete the ${s.templateName} schedule${s.weighbridgeId ? ` for ${s.weighbridgeId}` : ""} at ${s.clientName}?`)) return;
     setBusyId(s.id);
     try {
       await fetch(`/api/schedules/${s.id}`, { method: "DELETE" });
@@ -107,8 +109,8 @@ export default function Schedule({ profile }) {
     <div>
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 12 }}>
         <div>
-          <p className="eyebrow">Preventive maintenance</p>
-          <h1 className="h1">Maintenance schedule</h1>
+          <p className="eyebrow">Planning</p>
+          <h1 className="h1">Activity schedule</h1>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn" onClick={load} style={{ fontSize: 12 }}>Refresh</button>
@@ -181,7 +183,7 @@ export default function Schedule({ profile }) {
                   </div>
 
                   <div className="muted" style={{ marginTop: 6, fontSize: 13, color: INK }}>
-                    <strong>{s.weighbridgeId}</strong> · {s.clientName}{s.site ? " — " + s.site : ""}
+                    {s.weighbridgeId ? <><strong>{s.weighbridgeId}</strong> · </> : null}{s.clientName}{s.site ? " — " + s.site : ""}
                   </div>
                   <div className="muted" style={{ marginTop: 2, fontSize: 12 }}>
                     {freq} · next due {fmtDate(s.nextDueAt)} (<span style={{ color: (STATUS_META[s.dueState] || {}).color, fontWeight: 700 }}>{duePhrase(s.dueDays)}</span>)
@@ -201,6 +203,11 @@ export default function Schedule({ profile }) {
                       {busyId === s.id ? "…" : "Mark done"}
                     </button>
                     {canManage && (
+                      <button className="btn" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => setOpenTasks(openTasks === s.id ? null : s.id)}>
+                        {openTasks === s.id ? "Hide tasks" : "Assign tasks"}
+                      </button>
+                    )}
+                    {canManage && (
                       <>
                         <button className="btn" style={{ fontSize: 12, padding: "6px 10px" }} onClick={() => setEditing(editing === s.id ? null : s.id)}>
                           {editing === s.id ? "Cancel" : "Edit"}
@@ -211,6 +218,8 @@ export default function Schedule({ profile }) {
                       </>
                     )}
                   </div>
+
+                  {openTasks === s.id && canManage && <SubTasks schedule={s} />}
 
                   {editing === s.id && canManage && (
                     <EditRow schedule={s} onSaved={() => { setEditing(null); load(); }} />
@@ -290,22 +299,110 @@ function EditRow({ schedule, onSaved }) {
   );
 }
 
-function ScheduleForm({ profile, onCreated }) {
-  // Which forms this user may schedule — the union across ALL of their roles
-  // (a user's primary role may be Technician while a secondary role lets them
-  // manage schedules).
-  const manageable = useMemo(() => {
-    const roles = rolesOf(profile);
-    const pickable = TEMPLATES.filter((t) => !t.hidden);
-    if (roles.some((r) => ["ADMIN", "SUPERVISOR", "MANAGER"].includes(r))) return pickable;
-    const codes = new Set();
-    if (roles.includes("PROJECT_MANAGER")) TECH_TEMPLATES.forEach((c) => codes.add(c));
-    if (roles.includes("TECHNICAL_MANAGER")) ENGINEER_TEMPLATES.forEach((c) => codes.add(c));
-    return pickable.filter((t) => codes.has(t.code));
-  }, [profile]);
+// The exact tasks that make up a schedule's activity — each assigned to someone.
+function SubTasks({ schedule }) {
+  const [tasks, setTasks] = useState(null);
+  const [assignees, setAssignees] = useState([]);
+  const [title, setTitle] = useState("");
+  const [email, setEmail] = useState("");
+  const [dueAt, setDueAt] = useState(schedule.nextDueAt ? isoDate(schedule.nextDueAt) : "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
 
-  const [template, setTemplate] = useState(manageable[0]?.code || "");
-  const [frequency, setFrequency] = useState(DEFAULT_FREQUENCY[manageable[0]?.code] || "MONTHLY");
+  const load = useCallback(() => {
+    fetch(`/api/tasks?scheduleId=${schedule.id}`).then((r) => r.json()).then((d) => setTasks(d.tasks || [])).catch(() => setTasks([]));
+  }, [schedule.id]);
+  useEffect(() => {
+    load();
+    fetch("/api/users/directory").then((r) => r.json()).then((d) => setAssignees(d.assignees || [])).catch(() => {});
+  }, [load]);
+
+  const add = async () => {
+    setErr("");
+    if (!title.trim()) return setErr("Enter the task.");
+    const a = assignees.find((x) => x.email === email);
+    setBusy(true);
+    const res = await fetch("/api/tasks", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        title: title.trim(),
+        scheduleId: schedule.id,
+        clientName: schedule.clientName,
+        weighbridgeId: schedule.weighbridgeId || "",
+        assignedEmail: email || undefined,
+        assignedName: a ? a.name : undefined,
+        dueAt: dueAt || undefined,
+        description: `From the ${schedule.templateName} schedule for ${schedule.clientName}${schedule.site ? " — " + schedule.site : ""}.`,
+      }),
+    });
+    setBusy(false);
+    if (!res.ok) return setErr((await res.json().catch(() => ({}))).error || "Could not add the task.");
+    setTitle("");
+    load();
+  };
+
+  const toggleDone = async (t) => {
+    await fetch(`/api/tasks/${t.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: t.status === "DONE" ? "OPEN" : "DONE" }) });
+    load();
+  };
+
+  return (
+    <div style={{ marginTop: 10, borderTop: `1px solid ${LINE}`, paddingTop: 10 }}>
+      <div style={{ fontWeight: 800, fontSize: 12.5, color: INK, marginBottom: 6 }}>Tasks for this activity — assign each to someone</div>
+      {tasks === null ? (
+        <div className="muted" style={{ fontSize: 12 }}>Loading…</div>
+      ) : tasks.length === 0 ? (
+        <div className="muted" style={{ fontSize: 12 }}>No tasks yet — add the exact jobs and assign each to a person.</div>
+      ) : (
+        <div style={{ display: "grid", gap: 6 }}>
+          {tasks.map((t) => (
+            <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, background: "#fbf8f1", border: `1px solid ${LINE}`, borderRadius: 6, padding: "6px 8px" }}>
+              <input type="checkbox" checked={t.status === "DONE"} onChange={() => toggleDone(t)} style={{ width: 16, height: 16 }} title="Mark done" />
+              <span style={{ flex: 1, minWidth: 0, textDecoration: t.status === "DONE" ? "line-through" : "none", color: t.status === "DONE" ? MUTE : INK }}>{t.title}</span>
+              <span className="muted" style={{ fontSize: 11, whiteSpace: "nowrap" }}>{t.assignedName || "Unassigned"}{t.dueAt ? ` · ${fmtDate(t.dueAt)}` : ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+        <input className="input" placeholder="Task (e.g. Replace load cell no. 3)" value={title} onChange={(e) => setTitle(e.target.value)} style={{ fontSize: 13 }} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }} />
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <select className="input" value={email} onChange={(e) => setEmail(e.target.value)} style={{ fontSize: 12, flex: "1 1 160px" }}>
+            <option value="">— assign to —</option>
+            {assignees.map((a) => <option key={a.id} value={a.email}>{a.name}{a.role ? ` · ${a.role === "TECHNICIAN" ? "Technician" : a.role === "ENGINEER" ? "Engineer" : a.role}` : ""}</option>)}
+          </select>
+          <input className="input" type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} style={{ fontSize: 12, flex: "0 0 150px" }} />
+          <button className="btn btn-dark" style={{ fontSize: 12 }} disabled={busy} onClick={add}>{busy ? "Adding…" : "Add & assign"}</button>
+        </div>
+      </div>
+      {err && <div className="err" style={{ fontSize: 12, marginTop: 6 }}>{err}</div>}
+    </div>
+  );
+}
+
+function ScheduleForm({ profile, onCreated }) {
+  // The activities this user may schedule: report-form activities are limited by
+  // role; the general activities (maintenance, calibration, …) are open to any
+  // schedule manager.
+  const groups = useMemo(() => {
+    const roles = rolesOf(profile);
+    const isBroad = roles.some((r) => ["ADMIN", "SUPERVISOR", "MANAGER"].includes(r));
+    const allowed = new Set();
+    if (isBroad) TEMPLATES.filter((t) => !t.hidden).forEach((t) => allowed.add(t.code));
+    else {
+      if (roles.includes("PROJECT_MANAGER")) TECH_TEMPLATES.forEach((c) => allowed.add(c));
+      if (roles.includes("TECHNICAL_MANAGER")) ENGINEER_TEMPLATES.forEach((c) => allowed.add(c));
+    }
+    return activityGroups()
+      .map((g) => ({ group: g.group, items: g.group === "Report forms" ? g.items.filter((i) => allowed.has(i.key)) : g.items }))
+      .filter((g) => g.items.length);
+  }, [profile]);
+  const firstActivity = groups[0]?.items[0] || null;
+
+  const [activity, setActivity] = useState(firstActivity?.key || "");
+  const activityDef = activityByKey(activity);
+  const [frequency, setFrequency] = useState((firstActivity?.template && DEFAULT_FREQUENCY[firstActivity.template]) || "MONTHLY");
   const [intervalDays, setIntervalDays] = useState(14);
   const [clientName, setClientName] = useState("");
   const [site, setSite] = useState("");
@@ -327,21 +424,22 @@ function ScheduleForm({ profile, onCreated }) {
     fetch("/api/weighbridges").then((r) => r.json()).then((d) => setWeighbridges(d.weighbridges || [])).catch(() => {});
   }, []);
 
-  const pickTemplate = (code) => {
-    setTemplate(code);
-    setFrequency(DEFAULT_FREQUENCY[code] || "MONTHLY");
+  const pickActivity = (key) => {
+    setActivity(key);
+    const def = activityByKey(key);
+    if (def?.template && DEFAULT_FREQUENCY[def.template]) setFrequency(DEFAULT_FREQUENCY[def.template]);
   };
 
   const submit = async () => {
     setErr("");
-    if (!template) return setErr("Choose a form.");
+    if (!activity) return setErr("Choose an activity.");
     if (!clientName.trim()) return setErr("Choose the client (plant).");
-    if (!weighbridgeId.trim()) return setErr("Enter the weighbridge ID.");
+    if (activityDef?.needsWeighbridge && !weighbridgeId.trim()) return setErr("Enter the weighbridge ID.");
     setBusy(true);
     const res = await fetch("/api/schedules", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ template, frequency, intervalDays, clientName, site, weighbridgeId, assignedName, assignedEmail, firstDueAt, notes }),
+      body: JSON.stringify({ activity, frequency, intervalDays, clientName, site, weighbridgeId, assignedName, assignedEmail, firstDueAt, notes }),
     });
     setBusy(false);
     if (!res.ok) return setErr((await res.json()).error || "Could not create schedule.");
@@ -350,12 +448,16 @@ function ScheduleForm({ profile, onCreated }) {
 
   return (
     <div className="card" style={{ padding: 16, marginBottom: 14, borderColor: GOLD }}>
-      <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK, marginBottom: 10 }}>New maintenance schedule</div>
+      <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK, marginBottom: 10 }}>New activity schedule</div>
       <div className="grid md-2" style={{ gap: 8 }}>
         <label className="field">
-          <span className="label">Form</span>
-          <select className="input" value={template} onChange={(e) => pickTemplate(e.target.value)}>
-            {manageable.map((t) => <option key={t.code} value={t.code}>{t.code} — {t.name}</option>)}
+          <span className="label">Activity</span>
+          <select className="input" value={activity} onChange={(e) => pickActivity(e.target.value)}>
+            {groups.map((g) => (
+              <optgroup key={g.group} label={g.group}>
+                {g.items.map((it) => <option key={it.key} value={it.key}>{it.label}</option>)}
+              </optgroup>
+            ))}
           </select>
         </label>
         <label className="field">
@@ -380,7 +482,7 @@ function ScheduleForm({ profile, onCreated }) {
           <input className="input" value={site} onChange={(e) => setSite(e.target.value)} placeholder="e.g. Dispatch gate" />
         </label>
         <label className="field">
-          <span className="label">Weighbridge</span>
+          <span className="label">Weighbridge{activityDef?.needsWeighbridge ? "" : " (optional)"}</span>
           {(() => {
             const list = weighbridges.filter((w) => { const c = clientName.trim().toLowerCase(); return !c || (w.client || "").toLowerCase() === c; });
             if (list.length === 0 || wbManual) {

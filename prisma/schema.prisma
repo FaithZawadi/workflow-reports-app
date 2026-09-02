@@ -368,6 +368,9 @@ model Task {
   client        Client?    @relation(fields: [clientId], references: [id], onDelete: SetNull)
   clientName    String?
   weighbridgeId String?
+  // A task can be a sub-task of a maintenance/activity schedule.
+  scheduleId    String?
+  schedule      Schedule?  @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   assignedToId  String?
   assignedTo    User?      @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: SetNull)
   assignedName  String?
@@ -383,6 +386,7 @@ model Task {
   @@index([projectId])
   @@index([clientId])
   @@index([assignedToId])
+  @@index([scheduleId])
   @@index([dueAt])
 }
 
@@ -455,7 +459,11 @@ model Schedule {
   site         String?
   weighbridgeId String?
 
-  template     String // WB01..WB06
+  // A schedulable activity: a report-form code (WB01..) OR a generic activity
+  // key (MAINTENANCE, CALIBRATION, SERVICE, INSPECTION, REPAIR, OTHER). `template`
+  // mirrors it and is only a real report form when the activity has one.
+  activity     String?
+  template     String // form code, or the activity key for generic activities
   templateName String
   frequency    MaintenanceFrequency
   intervalDays Int? // used when frequency = CUSTOM
@@ -470,6 +478,7 @@ model Schedule {
   active      Boolean  @default(true)
   notes       String?
   createdById String?
+  tasks       Task[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
