@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar, Field, Textarea } from "./ui";
 import CheckItem, { CheckHeader, CHECK_TABLE_MINWIDTH, defaultStates } from "./CheckItem";
 import Photos from "./Photos";
+import NewClientForm from "./NewClientForm";
 import { templatesForRoles, templateByCode, isSingleApproval } from "@/lib/templates";
 import { chainFor } from "@/lib/approvalChain";
 import { rolesOf, canRegisterClientsDirectly } from "@/lib/roles";
@@ -83,21 +84,13 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const [pendingDraft, setPendingDraft] = useState(null);
   const [draftReady, setDraftReady] = useState(isEdit);
   const [draftSavedAt, setDraftSavedAt] = useState(null);
-  // Inline "add a brand-new client + site" while filing (any filer).
+  // Inline "register a brand-new client (with full details)" while filing.
   const [addingClient, setAddingClient] = useState(false);
-  const [ncName, setNcName] = useState("");
-  const [ncSite, setNcSite] = useState("");
-  const [ncLat, setNcLat] = useState("");
-  const [ncLng, setNcLng] = useState("");
-  const [ncBusy, setNcBusy] = useState(false);
-  const [ncErr, setNcErr] = useState("");
   // Inline "add a NEW site to the already-chosen client".
   const [addingSite, setAddingSite] = useState(false);
   const [nsName, setNsName] = useState("");
   const [nsBusy, setNsBusy] = useState(false);
   const [nsErr, setNsErr] = useState("");
-  const [approvers, setApprovers] = useState([]);
-  const [ncApprover, setNcApprover] = useState("");
 
   // Validate the routing, then open the review dialog so the filer can re-read
   // everything before it is sent.
@@ -125,7 +118,6 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
         setManagers(d.managers || []);
         setTechnicalManagers(d.technicalManagers || []);
         setProjectManagers(d.projectManagers || []);
-        setApprovers(d.approvers || []);
       })
       .catch(() => {});
     fetch("/api/weighbridges")
@@ -193,38 +185,11 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
 
   // Add a brand-new client (+ optional site) inline. Server rejects any name
   // that already exists (any casing), so we never create a duplicate.
-  const addNewClient = async () => {
-    const name = ncName.trim();
-    if (!name) return setNcErr("Enter the new client's name.");
-    setNcBusy(true);
-    setNcErr("");
-    try {
-      const res = await fetch("/api/clients/quick", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, site: ncSite.trim(), lat: ncLat, lng: ncLng }),
-      });
-      const d = await res.json();
-      if (!res.ok) { setNcErr(d.error || "Could not add the client."); setNcBusy(false); return; }
-      setClients((cs) => (cs.some((c) => c.id === d.client.id) ? cs : [...cs, d.client]));
-      setClientName(d.client.name);
-      setSite(d.site || ncSite.trim() || "");
-      fetch("/api/sites").then((r) => r.json()).then((sd) => setSites(sd.sites || [])).catch(() => {});
-      setAddingClient(false);
-      setNcName(""); setNcSite(""); setNcLat(""); setNcLng(""); setNcApprover("");
-      if (d.client.approvalStatus === "PENDING") setMsg("New client submitted for approval — you can still use it on this report.");
-    } catch {
-      setNcErr("Network problem — try again.");
-    }
-    setNcBusy(false);
-  };
-  const ncUseLocation = () => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (p) => { setNcLat(p.coords.latitude.toFixed(6)); setNcLng(p.coords.longitude.toFixed(6)); },
-      () => {},
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
+  const onClientAdded = (c, _wasExisting, isPending) => {
+    setClients((cs) => (cs.some((x) => x.id === c.id) ? cs : [...cs, { id: c.id, name: c.name }]));
+    setClientName(c.name);
+    setAddingClient(false);
+    if (isPending) setMsg("New client submitted for approval — you can still use it on this report.");
   };
 
   // The chosen client's registry id (needed to add a site to it). Matched
@@ -645,38 +610,11 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
           {clientName && !siteOptions.length && (
             <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No sites registered for {clientName} yet — type the site above, or add one below.</div>
           )}
-          {/* Add a brand-new client + site inline (only clients not already listed). */}
+          {/* Register a brand-new client (with full details) inline. */}
           {!isEdit && (!addingClient ? (
-            <button type="button" className="btn" style={{ fontSize: 12, marginTop: 8 }} onClick={() => { setAddingClient(true); setNcErr(""); }}>+ New client &amp; site</button>
+            <button type="button" className="btn" style={{ fontSize: 12, marginTop: 8 }} onClick={() => setAddingClient(true)}>+ New client</button>
           ) : (
-            <div className="card" style={{ padding: 12, marginTop: 8, borderColor: GOLD }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: INK, marginBottom: 6 }}>Add a new client</div>
-              <div className="grid md-2" style={{ gap: 8 }}>
-                <label className="field"><span className="label">New client name</span>
-                  <input className="input" value={ncName} onChange={(e) => setNcName(e.target.value)} placeholder="e.g. Rift Valley Millers" />
-                </label>
-                <label className="field"><span className="label">Site / branch (optional)</span>
-                  <input className="input" value={ncSite} onChange={(e) => setNcSite(e.target.value)} placeholder="e.g. Nakuru plant" />
-                </label>
-                <label className="field"><span className="label">Latitude (optional)</span>
-                  <input className="input" inputMode="decimal" value={ncLat} onChange={(e) => setNcLat(e.target.value)} placeholder="-0.3031" />
-                </label>
-                <label className="field"><span className="label">Longitude (optional)</span>
-                  <input className="input" inputMode="decimal" value={ncLng} onChange={(e) => setNcLng(e.target.value)} placeholder="36.0800" />
-                </label>
-              </div>
-              <div className="muted" style={{ fontSize: 11.5 }}>
-                {canApproveClient
-                  ? "Only for a client not already in the list — existing ones (any spelling) can’t be added again."
-                  : "The new client goes to a manager (any project/technical manager or admin) for approval. You can still use it on this report right away. Existing clients (any spelling) can’t be added again."}
-              </div>
-              {ncErr && <div className="err" style={{ fontSize: 12, marginTop: 6 }}>{ncErr}</div>}
-              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                <button type="button" className="btn btn-dark" style={{ fontSize: 12 }} disabled={ncBusy} onClick={addNewClient}>{ncBusy ? "Adding…" : "Add & use"}</button>
-                <button type="button" className="btn" style={{ fontSize: 12 }} onClick={ncUseLocation}>Use my location</button>
-                <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => setAddingClient(false)}>Cancel</button>
-              </div>
-            </div>
+            <NewClientForm canAddDirectly={canApproveClient} onAdded={onClientAdded} onCancel={() => setAddingClient(false)} />
           ))}
 
           {/* Add a NEW site to the already-chosen (existing) client. */}

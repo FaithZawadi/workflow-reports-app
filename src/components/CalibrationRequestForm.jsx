@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar, Field, Textarea } from "./ui";
 import { rolesOf, canRegisterClientsDirectly } from "@/lib/roles";
 import { GOLD, COAL, INK, MUTE, WAIT } from "@/lib/theme";
+import NewClientForm from "./NewClientForm";
 
 const BLANK = { name: "", makeModel: "", serialNo: "", capacity: "", division: "", location: "", remarks: "" };
 const COLS = [
@@ -28,9 +29,6 @@ export default function CalibrationRequestForm({ profile }) {
   const [site, setSite] = useState("");
   // Inline add-new-client / add-new-site (registered, de-duplicated, approval-gated).
   const [addingClient, setAddingClient] = useState(false);
-  const [ncName, setNcName] = useState("");
-  const [ncBusy, setNcBusy] = useState(false);
-  const [ncErr, setNcErr] = useState("");
   const [addingSite, setAddingSite] = useState(false);
   const [nsName, setNsName] = useState("");
   const [nsBusy, setNsBusy] = useState(false);
@@ -69,24 +67,11 @@ export default function CalibrationRequestForm({ profile }) {
     setSite("");
   };
 
-  const addNewClient = async () => {
-    const name = ncName.trim();
-    if (!name) return setNcErr("Enter the new client's name in full.");
-    setNcBusy(true); setNcErr("");
-    try {
-      const res = await fetch("/api/clients/quick", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) });
-      const d = await res.json();
-      if (!res.ok) {
-        if (d.existing) { setClients((cs) => (cs.some((c) => c.id === d.existing.id) ? cs : [...cs, d.existing])); pickClient(d.existing.id); setAddingClient(false); setNcName(""); }
-        else setNcErr(d.error || "Could not add the client.");
-        setNcBusy(false); return;
-      }
-      setClients((cs) => [...cs, { id: d.client.id, name: d.client.name }]);
-      pickClient(d.client.id);
-      setAddingClient(false); setNcName("");
-      if (d.client.approvalStatus === "PENDING") setMsg("New client submitted for approval — you can still use it on this request.");
-    } catch { setNcErr("Network problem — try again."); }
-    setNcBusy(false);
+  const onClientAdded = (c, _wasExisting, isPending) => {
+    setClients((cs) => (cs.some((x) => x.id === c.id) ? cs : [...cs, { id: c.id, name: c.name }]));
+    pickClient(c.id);
+    setAddingClient(false);
+    if (isPending) setMsg("New client submitted for approval — you can still use it on this request.");
   };
 
   const addNewSite = async () => {
@@ -190,7 +175,7 @@ export default function CalibrationRequestForm({ profile }) {
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
               {!addingClient
-                ? <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => { setAddingClient(true); setNcErr(""); }}>+ New client</button>
+                ? <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => setAddingClient(true)}>+ New client</button>
                 : null}
               {clientId && !addingSite
                 ? <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => { setAddingSite(true); setNsErr(""); setNsName(""); }}>+ New site for {clientName}</button>
@@ -198,20 +183,7 @@ export default function CalibrationRequestForm({ profile }) {
             </div>
 
             {addingClient && (
-              <div className="card" style={{ padding: 12, marginTop: 8, borderColor: GOLD }}>
-                <div style={{ fontWeight: 800, fontSize: 13, color: INK, marginBottom: 6 }}>Add a new client</div>
-                <label className="field"><span className="label">New client name (in full)</span>
-                  <input className="input" value={ncName} onChange={(e) => setNcName(e.target.value)} placeholder="e.g. Kapa Oil Refineries Limited" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNewClient(); } }} />
-                </label>
-                <div className="muted" style={{ fontSize: 11.5 }}>
-                  {canAddDirectly ? "Existing clients (any spelling) can’t be added again." : "Goes to a manager for approval — usable on this request right away. Existing clients (any spelling) can’t be added again."}
-                </div>
-                {ncErr && <div className="err" style={{ fontSize: 12, marginTop: 6 }}>{ncErr}</div>}
-                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  <button type="button" className="btn btn-dark" style={{ fontSize: 12 }} disabled={ncBusy} onClick={addNewClient}>{ncBusy ? "Adding…" : "Add & use"}</button>
-                  <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => setAddingClient(false)}>Cancel</button>
-                </div>
-              </div>
+              <NewClientForm canAddDirectly={canAddDirectly} onAdded={onClientAdded} onCancel={() => setAddingClient(false)} />
             )}
             {addingSite && (
               <div className="card" style={{ padding: 12, marginTop: 8, borderColor: GOLD }}>

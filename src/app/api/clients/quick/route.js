@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { canFileReports, canRegisterClientsDirectly } from "@/lib/roles";
 import { resolveSiteByName } from "@/lib/clientResolve";
-import { siteDetailData } from "@/lib/clientFields";
+import { siteDetailData, clientDetailData, missingClientFields } from "@/lib/clientFields";
 import { notifyApprovers } from "@/lib/approvals";
 import { getSettings } from "@/lib/settings";
 
@@ -32,6 +32,11 @@ export async function POST(req) {
   const name = String(b.name || "").trim();
   if (!name) return Response.json({ error: "Enter the new client's name." }, { status: 400 });
 
+  // A new client must be registered WITH its details — not just a bare name.
+  const missing = missingClientFields(b);
+  if (missing.length)
+    return Response.json({ error: `Add the client's ${missing.join(", ")} before saving.`, missing }, { status: 400 });
+
   // Only-new rule: reject a case-insensitive match against any existing client.
   const clash = await prisma.client.findFirst({ where: { name: { equals: name, mode: "insensitive" } } });
   if (clash) {
@@ -53,6 +58,7 @@ export async function POST(req) {
   const client = await prisma.client.create({
     data: {
       name,
+      ...clientDetailData(b), // contact, address, KRA PIN, etc.
       approvalStatus: selfApproves ? "APPROVED" : "PENDING",
       registeredById: user.sub,
       registeredByName: user.name,

@@ -19,6 +19,23 @@ const TEXT_FIELDS = [
 
 const STATUSES = ["ACTIVE", "PROSPECT", "INACTIVE"];
 
+// The details a client MUST have when it is first registered (e.g. a technician
+// adding a client while filing). Name is validated separately. Keyed by field
+// with a human label for the error message.
+export const REQUIRED_CLIENT_FIELDS = [
+  ["contactPerson", "contact person"],
+  ["contactPhone", "contact phone"],
+  ["contactEmail", "contact email"],
+  ["address", "physical / postal address"],
+  ["city", "city / town"],
+  ["taxPin", "KRA PIN"],
+];
+
+// Returns the list of missing required field labels for a new-client body.
+export function missingClientFields(body = {}) {
+  return REQUIRED_CLIENT_FIELDS.filter(([k]) => !String(body?.[k] ?? "").trim()).map(([, label]) => label);
+}
+
 export function clientDetailData(body = {}) {
   const data = {};
   for (const k of TEXT_FIELDS) {
