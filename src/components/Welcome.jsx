@@ -41,7 +41,7 @@ export default function Welcome() {
         <p className="welcome-sub welcome-rise" style={{ animationDelay: "0.42s" }}>
           <strong>Qalibrated Systems Reports</strong> — digital weighbridge &amp; scale inspections,
           ISO/IEC 17025 calibration records, approvals, scheduling and branded PDF reports, on the web
-          and installable on your phone.
+          and on our mobile app.
         </p>
 
         <div className="welcome-chips">

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { Brand } from "./ui";
 import OutboxSync from "./OutboxSync";
-import InstallPrompt from "./InstallPrompt";
 import FeedbackPrompt from "./FeedbackPrompt";
 import NotificationBell from "./NotificationBell";
 import OfflineBadge from "./OfflineBadge";
@@ -242,7 +241,8 @@ export default function AppShell({ user, children }) {
       </div>
 
       <OutboxSync />
-      <InstallPrompt />
+      {/* Install/download-app prompt removed — the dedicated mobile app is the
+          way onto phones now, so the web app no longer asks people to install. */}
       <FeedbackPrompt />
 
       {/* Native-style bottom tab bar — shown on phones only (see globals.css) */}

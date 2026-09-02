@@ -55,7 +55,7 @@ export default function LoginForm() {
               <p style={{ color: "#cfc8ba", fontSize: 13.5, marginTop: 12, lineHeight: 1.55 }}>
                 File daily, weekly and monthly checks, route them through supervisor and
                 manager approval, generate branded PDF reports, and stay ahead of the
-                maintenance schedule — on the web and installable on your phone.
+                maintenance schedule — on the web and on our mobile app.
               </p>
             </div>
             <div className="mono" style={{ fontSize: 10.5, color: "#9a9282", letterSpacing: ".02em", lineHeight: 1.6 }}>

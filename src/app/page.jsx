@@ -5,7 +5,7 @@ import Welcome from "@/components/Welcome";
 export const metadata = {
   title: "Qalibrated Systems Reports — Weighbridge & Scale Maintenance",
   description:
-    "Qalibrated Systems Reports (reports.qalibrated.com): digital weighbridge & scale inspections, ISO/IEC 17025 calibration records, approvals, scheduling and branded PDF reports — on the web and installable on your phone.",
+    "Qalibrated Systems Reports (reports.qalibrated.com): digital weighbridge & scale inspections, ISO/IEC 17025 calibration records, approvals, scheduling and branded PDF reports — on the web and on our mobile app.",
   alternates: { canonical: "/" },
   openGraph: {
     title: "Qalibrated Systems — Maintenance Management System",
