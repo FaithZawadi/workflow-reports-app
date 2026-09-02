@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
-import { canFileReports, canApproveClients, canRegisterClientsDirectly } from "@/lib/roles";
+import { canFileReports, canRegisterClientsDirectly } from "@/lib/roles";
 import { resolveSiteByName } from "@/lib/clientResolve";
 import { siteDetailData } from "@/lib/clientFields";
-import { notifyUsers } from "@/lib/notify";
+import { notifyApprovers } from "@/lib/approvals";
 import { getSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
@@ -42,28 +42,18 @@ export async function POST(req) {
   }
 
   // Approval routing. Client approvers (admin/managers/PM/TM) and quotation
-  // creators (Sales) register directly; a technician-only user needs a chosen
-  // approver and the client stays PENDING until that manager approves it. When
-  // an admin turns approval off in System Settings, every new client is
-  // approved outright regardless of who registered it.
+  // creators (Sales) register directly; a technician-only user's client stays
+  // PENDING for any approver (admin / manager / PM / TM) to confirm — no single
+  // approver is chosen. When an admin turns approval off in System Settings,
+  // every new client is approved outright regardless of who registered it.
   const settings = await getSettings();
   const approvalRequired = settings.workflow.clientApprovalRequired;
   const selfApproves = !approvalRequired || canRegisterClientsDirectly(user);
-  let approverId = String(b.approverId || "").trim() || null;
-  let approver = null;
-  if (!selfApproves) {
-    if (!approverId) return Response.json({ error: "Choose an approval manager for the new client." }, { status: 400 });
-    approver = await prisma.user.findFirst({ where: { id: approverId, active: true }, select: { id: true, name: true, email: true } });
-    if (!approver || !canApproveClients(approver)) return Response.json({ error: "That approver can't approve clients." }, { status: 400 });
-  } else {
-    approverId = null;
-  }
 
   const client = await prisma.client.create({
     data: {
       name,
       approvalStatus: selfApproves ? "APPROVED" : "PENDING",
-      approverId,
       registeredById: user.sub,
       registeredByName: user.name,
       approvedAt: selfApproves ? new Date() : null,
@@ -77,7 +67,7 @@ export async function POST(req) {
     entityId: client.id,
     summary: selfApproves
       ? `Client ${client.name} added by ${user.name} while filing a report`
-      : `Client ${client.name} registered by ${user.name} — pending approval by ${approver?.name || "manager"}`,
+      : `Client ${client.name} registered by ${user.name} — pending approval`,
   });
 
   // Optional site for the new client (with any GPS / geofence details).
@@ -91,18 +81,13 @@ export async function POST(req) {
     await recordAudit({ actor: user, action: "CREATE", entity: "SITE", entityId: s.id, summary: `Site ${s.name} added under ${client.name} by ${user.name}` });
   }
 
-  // Notify the chosen approver that a client is awaiting their approval.
-  if (!selfApproves && approver) {
-    try {
-      await notifyUsers([approver.id], {
-        type: "APPROVAL",
-        title: `Client approval · ${client.name}`,
-        body: `${user.name} registered ${client.name}${site ? ` (${site})` : ""} — approve or reject it.`,
-        link: "/clients/pending",
-      });
-    } catch {
-      /* best-effort */
-    }
+  // Tell every approver a client is awaiting approval — any of them may act.
+  if (!selfApproves) {
+    await notifyApprovers({
+      title: `Client approval · ${client.name}`,
+      body: `${user.name} registered ${client.name}${site ? ` (${site})` : ""} — approve or reject it.`,
+      exceptUserId: user.sub,
+    });
   }
 
   return Response.json({ client, site });

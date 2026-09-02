@@ -1,11 +1,12 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { rolesOf } from "@/lib/roles";
+import { canApproveClients } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/clients/pending — clients awaiting approval that the current user may
-// act on: the chosen approver sees theirs; an admin sees all.
+// GET /api/clients/pending — every registration awaiting approval. Any approver
+// (admin / manager / PM / TM) sees ALL pending clients and pending sites, not
+// just the ones routed to them.
 export async function GET() {
   let user;
   try {
@@ -13,26 +14,39 @@ export async function GET() {
   } catch (res) {
     return res;
   }
-  const isAdmin = rolesOf(user).includes("ADMIN");
-  const where = { approvalStatus: "PENDING", ...(isAdmin ? {} : { approverId: user.sub }) };
+  if (!canApproveClients(user)) return Response.json({ clients: [], sites: [] });
 
-  const list = await prisma.client.findMany({
-    where,
-    orderBy: { createdAt: "asc" },
-    include: {
-      approver: { select: { name: true } },
-      sites: { where: { active: true }, select: { name: true } },
-    },
-  });
+  const [clients, sites] = await Promise.all([
+    prisma.client.findMany({
+      where: { approvalStatus: "PENDING" },
+      orderBy: { createdAt: "asc" },
+      include: {
+        approver: { select: { name: true } },
+        sites: { where: { active: true }, select: { name: true } },
+      },
+    }),
+    prisma.site.findMany({
+      where: { approvalStatus: "PENDING", active: true },
+      orderBy: { createdAt: "asc" },
+      include: { client: { select: { name: true } } },
+    }),
+  ]);
 
   return Response.json({
-    clients: list.map((c) => ({
+    clients: clients.map((c) => ({
       id: c.id,
       name: c.name,
       registeredByName: c.registeredByName,
       approverName: c.approver?.name || null,
       sites: c.sites.map((s) => s.name),
       createdAt: c.createdAt,
+    })),
+    sites: sites.map((s) => ({
+      id: s.id,
+      name: s.name,
+      clientName: s.client?.name || "—",
+      registeredByName: s.registeredByName,
+      createdAt: s.createdAt,
     })),
   });
 }

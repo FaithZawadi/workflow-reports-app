@@ -91,6 +91,11 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const [ncLng, setNcLng] = useState("");
   const [ncBusy, setNcBusy] = useState(false);
   const [ncErr, setNcErr] = useState("");
+  // Inline "add a NEW site to the already-chosen client".
+  const [addingSite, setAddingSite] = useState(false);
+  const [nsName, setNsName] = useState("");
+  const [nsBusy, setNsBusy] = useState(false);
+  const [nsErr, setNsErr] = useState("");
   const [approvers, setApprovers] = useState([]);
   const [ncApprover, setNcApprover] = useState("");
 
@@ -191,14 +196,13 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const addNewClient = async () => {
     const name = ncName.trim();
     if (!name) return setNcErr("Enter the new client's name.");
-    if (!canApproveClient && !ncApprover) return setNcErr("Choose an approval manager for the new client.");
     setNcBusy(true);
     setNcErr("");
     try {
       const res = await fetch("/api/clients/quick", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, site: ncSite.trim(), lat: ncLat, lng: ncLng, approverId: canApproveClient ? undefined : ncApprover }),
+        body: JSON.stringify({ name, site: ncSite.trim(), lat: ncLat, lng: ncLng }),
       });
       const d = await res.json();
       if (!res.ok) { setNcErr(d.error || "Could not add the client."); setNcBusy(false); return; }
@@ -221,6 +225,43 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
       () => {},
       { enableHighAccuracy: true, timeout: 8000 }
     );
+  };
+
+  // The chosen client's registry id (needed to add a site to it). Matched
+  // case-insensitively against the loaded client list.
+  const selectedClientId = (clients.find((c) => (c.name || "").trim().toLowerCase() === clientName.trim().toLowerCase()) || {}).id || null;
+
+  // Add a NEW site to the already-chosen (existing) client. The server refuses a
+  // duplicate (any casing) so a site is never double-added, and routes a
+  // technician's site for approval.
+  const addNewSite = async () => {
+    const name = nsName.trim();
+    if (!name) return setNsErr("Enter the new site's name.");
+    if (!selectedClientId) return setNsErr("Pick the client first.");
+    setNsBusy(true);
+    setNsErr("");
+    try {
+      const res = await fetch("/api/sites/quick", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clientId: selectedClientId, name }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        // Already exists — just adopt it on the form.
+        if (d.existing) { setSite(d.existing.name); setAddingSite(false); setNsName(""); }
+        else setNsErr(d.error || "Could not add the site.");
+        setNsBusy(false);
+        return;
+      }
+      setSite(d.site.name);
+      fetch("/api/sites").then((r) => r.json()).then((sd) => setSites(sd.sites || [])).catch(() => {});
+      setAddingSite(false); setNsName("");
+      if (d.site.approvalStatus === "PENDING") setMsg("New site submitted for approval — you can still use it on this report.");
+    } catch {
+      setNsErr("Network problem — try again.");
+    }
+    setNsBusy(false);
   };
 
   // Site options for the chosen client: registered sites PLUS the sites (branches)
@@ -623,25 +664,39 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
                 <label className="field"><span className="label">Longitude (optional)</span>
                   <input className="input" inputMode="decimal" value={ncLng} onChange={(e) => setNcLng(e.target.value)} placeholder="36.0800" />
                 </label>
-                {!canApproveClient && (
-                  <label className="field"><span className="label">Approval manager</span>
-                    <select className="input" value={ncApprover} onChange={(e) => setNcApprover(e.target.value)}>
-                      <option value="">— choose who approves —</option>
-                      {approvers.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                    </select>
-                  </label>
-                )}
               </div>
               <div className="muted" style={{ fontSize: 11.5 }}>
                 {canApproveClient
                   ? "Only for a client not already in the list — existing ones (any spelling) can’t be added again."
-                  : "The new client goes to your chosen manager for approval. You can still use it on this report right away. Existing clients (any spelling) can’t be added again."}
+                  : "The new client goes to a manager (any project/technical manager or admin) for approval. You can still use it on this report right away. Existing clients (any spelling) can’t be added again."}
               </div>
               {ncErr && <div className="err" style={{ fontSize: 12, marginTop: 6 }}>{ncErr}</div>}
               <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                 <button type="button" className="btn btn-dark" style={{ fontSize: 12 }} disabled={ncBusy} onClick={addNewClient}>{ncBusy ? "Adding…" : "Add & use"}</button>
                 <button type="button" className="btn" style={{ fontSize: 12 }} onClick={ncUseLocation}>Use my location</button>
                 <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => setAddingClient(false)}>Cancel</button>
+              </div>
+            </div>
+          ))}
+
+          {/* Add a NEW site to the already-chosen (existing) client. */}
+          {!isEdit && !addingClient && selectedClientId && (!addingSite ? (
+            <button type="button" className="btn" style={{ fontSize: 12, marginTop: 8 }} onClick={() => { setAddingSite(true); setNsErr(""); setNsName(""); }}>+ New site for {clientName}</button>
+          ) : (
+            <div className="card" style={{ padding: 12, marginTop: 8, borderColor: GOLD }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: INK, marginBottom: 6 }}>Add a site to {clientName}</div>
+              <label className="field"><span className="label">New site / branch</span>
+                <input className="input" value={nsName} onChange={(e) => setNsName(e.target.value)} placeholder="e.g. Eldoret depot" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addNewSite(); } }} />
+              </label>
+              <div className="muted" style={{ fontSize: 11.5 }}>
+                {canApproveClient
+                  ? "Only for a site not already listed for this client — duplicates (any spelling) are blocked."
+                  : "The new site goes to a manager for approval. You can still use it on this report right away. Duplicate sites (any spelling) are blocked."}
+              </div>
+              {nsErr && <div className="err" style={{ fontSize: 12, marginTop: 6 }}>{nsErr}</div>}
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                <button type="button" className="btn btn-dark" style={{ fontSize: 12 }} disabled={nsBusy} onClick={addNewSite}>{nsBusy ? "Adding…" : "Add & use"}</button>
+                <button type="button" className="btn" style={{ fontSize: 12 }} onClick={() => setAddingSite(false)}>Cancel</button>
               </div>
             </div>
           ))}

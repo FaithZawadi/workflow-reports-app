@@ -232,11 +232,20 @@ model Site {
   contactPerson String?
   contactPhone  String?
   notes         String?
+  // Registration approval — a site a technician adds to an existing client is
+  // PENDING until any approver (admin / manager / PM / TM) confirms it. Sites
+  // created directly (by approvers, or alongside a new client) are APPROVED.
+  approvalStatus   String   @default("APPROVED") // PENDING | APPROVED | REJECTED
+  registeredById   String?
+  registeredByName String?
+  approvedAt       DateTime?
+  approvalNote     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([clientId])
   @@index([active])
+  @@index([approvalStatus])
 }
 
 // A star rating + optional comment left by a user from the periodic in-app

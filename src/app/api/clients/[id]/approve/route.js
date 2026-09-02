@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
-import { rolesOf } from "@/lib/roles";
+import { canApproveClients } from "@/lib/roles";
 import { notifyUsers } from "@/lib/notify";
 
 export const dynamic = "force-dynamic";
@@ -19,9 +19,9 @@ export async function POST(req, { params }) {
   const client = await prisma.client.findUnique({ where: { id: params.id } });
   if (!client) return Response.json({ error: "Client not found." }, { status: 404 });
 
-  const isAdmin = rolesOf(user).includes("ADMIN");
-  const isApprover = client.approverId && client.approverId === user.sub;
-  if (!isAdmin && !isApprover) return Response.json({ error: "Only the chosen approver or an admin can act on this." }, { status: 403 });
+  // Any approver (admin / manager / PM / TM) may decide — not just the one the
+  // technician happened to route it to.
+  if (!canApproveClients(user)) return Response.json({ error: "Only an approver can act on this." }, { status: 403 });
   if (client.approvalStatus !== "PENDING") return Response.json({ error: "This client has already been decided." }, { status: 400 });
 
   const b = await req.json().catch(() => ({}));
