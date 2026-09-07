@@ -90,7 +90,7 @@ function PayTable({ pairs }) {
 }
 
 const s = StyleSheet.create({
-  page: { paddingTop: 26, paddingBottom: 44, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
+  page: { paddingTop: 26, paddingBottom: 74, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brandRow: { flexDirection: "row", alignItems: "flex-start", flex: 1, paddingRight: 14 },
   logo: { width: 62, height: 62, marginRight: 12, objectFit: "contain" },
@@ -174,7 +174,9 @@ const s = StyleSheet.create({
   payValText: { fontSize: 8.2, fontFamily: "Helvetica-Bold", color: INK, textAlign: "center" },
   termsFull: { marginTop: 10, padding: 8, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1" },
   qrBlock: { flexDirection: "row", alignItems: "center", marginTop: 14, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: "#E4DCCB" },
-  qrImg: { width: 68, height: 68, marginRight: 10 },
+  qrImg: { width: 46, height: 46 },
+  // Pinned bottom-right, above the footer, page 1 only.
+  qrFixed: { position: "absolute", bottom: 24, right: 32, alignItems: "flex-end" },
   qrText: { flex: 1 },
   qrTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4 },
   qrSub: { fontSize: 7.5, color: MUTE, marginTop: 2, lineHeight: 1.3, maxWidth: 260 },
@@ -212,7 +214,6 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc, internal = false 
   const items = Array.isArray(q.items) ? q.items : [];
   const paymentDetails = q.paymentDetails || DEFAULT_PAYMENT_DETAILS;
   const terms = q.terms || DEFAULT_QUOTE_TERMS;
-  const amendments = internal && Array.isArray(q.amendments) ? [...q.amendments].sort((a, b) => (b.rev || 0) - (a.rev || 0)) : [];
 
   return (
     <Document>
@@ -227,7 +228,7 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc, internal = false 
           ]}
           meta={[
             { k: "DATE", v: fmt(q.quotedAt || q.createdAt) },
-            { k: "NO.", v: `${q.number}${q.revision > 0 ? `  Rev ${q.revision}` : ""}`, mono: true },
+            { k: "NO.", v: q.number, mono: true },
             { k: "FILE NO.", v: q.fileNo || "-" },
             { k: "VALID TO", v: q.validUntil ? fmt(q.validUntil) : "-" },
           ]}
@@ -351,33 +352,21 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc, internal = false 
           ) : null}
         </View>
 
-        {/* Amendment history — who revised the quote, when and why. */}
-        {amendments.length ? (
-          <View style={s.amendWrap} wrap={false}>
-            <Text style={s.amendTitle}>Amendment history</Text>
-            <View style={[s.amendRow, { backgroundColor: "#F5EEDD" }]}>
-              <Text style={[s.amendRev, { fontFamily: "Helvetica-Bold" }]}>Rev</Text>
-              <Text style={[s.amendWho, { fontFamily: "Helvetica-Bold" }]}>Amended by</Text>
-              <Text style={[s.amendWhen, { fontFamily: "Helvetica-Bold", color: INK }]}>Date</Text>
-              <Text style={[s.amendNote, { fontFamily: "Helvetica-Bold" }]}>Reason</Text>
-            </View>
-            {amendments.map((a, i) => (
-              <View style={s.amendRow} key={i} wrap={false}>
-                <Text style={s.amendRev}>{a.rev}</Text>
-                <Text style={s.amendWho}>{a.byName || "-"}</Text>
-                <Text style={s.amendWhen}>{a.at ? fmt(a.at, true) : "-"}</Text>
-                <Text style={s.amendNote}>{a.note || "-"}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
+        {/* Amendment / revision history is deliberately NOT printed on the client
+            PDF — repeated revisions confuse clients. It stays on the on-screen
+            preview (staff) and in the audit log. */}
 
-        {/* Verify QR — the code only, no caption. */}
+        {/* Verify QR — pinned to the bottom of page 1 only, so a long quote's
+            overflow flows onto page 2 without dragging the QR onto its own page. */}
         {qrSrc ? (
-          <View style={s.qrBlock} wrap={false}>
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <Image src={qrSrc} style={s.qrImg} />
-          </View>
+          <View
+            fixed
+            style={s.qrFixed}
+            render={({ pageNumber }) => (pageNumber === 1 ? (
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image src={qrSrc} style={s.qrImg} />
+            ) : null)}
+          />
         ) : null}
 
         <View style={s.footer} fixed>

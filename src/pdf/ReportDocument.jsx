@@ -29,7 +29,7 @@ const STATUS = {
 // tighter section spacing/table padding, and compact 3-up photos. Larger
 // calibration sheets still flow onto extra pages naturally.
 const s = StyleSheet.create({
-  page: { paddingTop: 24, paddingBottom: 40, paddingHorizontal: 30, fontSize: 9, color: INK, fontFamily: "Helvetica" },
+  page: { paddingTop: 24, paddingBottom: 74, paddingHorizontal: 30, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brand: { fontSize: 15, fontFamily: "Helvetica-Bold", color: COAL, letterSpacing: 0.3 },
   brandGold: { color: GOLD_DK },
@@ -61,9 +61,10 @@ const s = StyleSheet.create({
   box: { width: 10, height: 10, borderWidth: 1, borderColor: "#111", textAlign: "center", fontSize: 8 },
   freeField: { fontSize: 8.5, marginVertical: 1.5 },
   photoWrap: { flexDirection: "row", flexWrap: "wrap", marginTop: 3 },
-  photoCell: { width: "31.3%", margin: "1%" },
-  photoImg: { width: "100%", height: 82, objectFit: "contain", backgroundColor: "#f3eee2", borderWidth: 1, borderColor: "#999" },
-  photoCap: { fontSize: 6.5, marginTop: 1.5 },
+  photoCell: { width: "48%", margin: "1%" },
+  photoImg: { width: "100%", height: 150, objectFit: "contain", backgroundColor: "#f3eee2", borderWidth: 1, borderColor: "#999" },
+  photoCap: { fontSize: 7.5, marginTop: 2, color: INK, lineHeight: 1.25 },
+  photoMeta: { fontSize: 6.2, color: MUTE, marginTop: 1, fontFamily: "Courier" },
   narrative: { marginTop: 4 },
   narrativeLabel: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: MUTE, textTransform: "uppercase" },
   narrativeText: { fontSize: 8.5, marginTop: 1.5, lineHeight: 1.25 },
@@ -104,6 +105,10 @@ const s = StyleSheet.create({
   sysNoteSub: { fontSize: 7.5, color: MUTE, marginTop: 2 },
   footNote: { marginTop: 8, padding: 6, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA", flexDirection: "row", alignItems: "center" },
   footQr: { width: 52, height: 52, marginLeft: 6 },
+  // QR pinned bottom-right on page 1 only — a long report's overflow flows onto
+  // later pages without dragging the QR onto its own page.
+  qrFixed: { position: "absolute", bottom: 24, right: 30, alignItems: "flex-end" },
+  qrFixedImg: { width: 46, height: 46 },
   footer: { position: "absolute", bottom: 16, left: 30, right: 30, borderTopWidth: 2, borderTopColor: GOLD, paddingTop: 4, alignItems: "center" },
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
   qrBlock: { flexDirection: "row", alignItems: "center", marginTop: 14, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: "#E4DCCB" },
@@ -458,7 +463,7 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
           <View style={{ marginTop: 8 }}>
             <View style={s.sectionBar}>
               <View style={s.swatch} />
-              <Text style={s.sectionTitle}>Photo evidence</Text>
+              <Text style={s.sectionTitle}>Photographs</Text>
             </View>
             <View style={s.photoWrap}>
               {photos.map((p, i) => (
@@ -466,10 +471,15 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
                   {/* eslint-disable-next-line jsx-a11y/alt-text */}
                   <Image style={s.photoImg} src={p.dataUrl} />
                   <Text style={s.photoCap}>
-                    {i + 1}. {p.caption || "(no caption)"}
-                    {p.takenAt ? ` · ${fmt(p.takenAt)}` : ""}
-                    {p.gpsLat != null ? ` · GPS ${p.gpsLat.toFixed(5)}, ${p.gpsLng.toFixed(5)}` : ""}
+                    <Text style={{ fontFamily: "Helvetica-Bold" }}>Photo {i + 1}: </Text>
+                    {p.caption || "(no description)"}
                   </Text>
+                  {(p.takenAt || p.gpsLat != null) ? (
+                    <Text style={s.photoMeta}>
+                      {p.takenAt ? fmt(p.takenAt) : ""}
+                      {p.gpsLat != null ? `${p.takenAt ? " · " : ""}GPS ${p.gpsLat.toFixed(5)}, ${p.gpsLng.toFixed(5)}` : ""}
+                    </Text>
+                  ) : null}
                 </View>
               ))}
             </View>
@@ -536,31 +546,31 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
                 </React.Fragment>
               ))}
             </View>
-            {qrSrc ? (
-              <View style={{ flexDirection: "row", alignItems: "center", marginTop: 10 }}>
-                {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                <Image src={qrSrc} style={[s.footQr, { marginLeft: 0, marginRight: 8 }]} />
-                <Text style={s.sysNoteSub}>Scan to verify this instruction online.</Text>
-              </View>
-            ) : null}
           </View>
         ) : (
-          /* Electronic-signature note + scan-to-verify QR as one compact block, so
-             the QR never orphans onto a near-empty extra page. */
+          /* Electronic-signature note (the QR is pinned separately, below). */
           <View style={s.footNote} wrap={false}>
-            <View style={{ flex: 1, paddingRight: 8 }}>
+            <View style={{ flex: 1 }}>
               <Text style={s.sysNoteText}>System-generated document — no physical signature required.</Text>
               <Text style={s.sysNoteSub}>
                 All approvals are captured electronically by the named approvers and recorded in the approval trail above.
-                {qrSrc ? " Scan the code to verify this report online." : ""}
+                {qrSrc ? " Scan the code on the first page to verify this report online." : ""}
               </Text>
             </View>
-            {qrSrc ? (
-              // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={qrSrc} style={s.footQr} />
-            ) : null}
           </View>
         )}
+
+        {/* Verify QR — pinned bottom-right on page 1 only. */}
+        {qrSrc ? (
+          <View
+            fixed
+            style={s.qrFixed}
+            render={({ pageNumber }) => (pageNumber === 1 ? (
+              // eslint-disable-next-line jsx-a11y/alt-text
+              <Image src={qrSrc} style={s.qrFixedImg} />
+            ) : null)}
+          />
+        ) : null}
 
         {/* Footer carries only the document identity + page number — the company
             contact block lives in the header and is not repeated here. */}

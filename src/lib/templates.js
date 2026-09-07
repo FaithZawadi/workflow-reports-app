@@ -346,6 +346,9 @@ export const TEMPLATES = [
     cadence: "Field service / calibration visit",
     who: "Technician (approved by Project Manager)",
     desc: "In-house field service report: nature of visit, machine details, fault, findings, correction, result, parts and job time (QSL Technical Report).",
+    // Technical reports carry site photos (each with a description) and may
+    // attach supporting PDFs whose pages are appended as appendices.
+    allowAttachments: true,
     sections: [
       {
         type: "fields",
