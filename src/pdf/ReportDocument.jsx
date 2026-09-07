@@ -60,8 +60,13 @@ const s = StyleSheet.create({
   tdCell: { fontSize: 8, padding: 2.5, borderWidth: 0.5, borderColor: "#DDD" },
   box: { width: 10, height: 10, borderWidth: 1, borderColor: "#111", textAlign: "center", fontSize: 8 },
   freeField: { fontSize: 8.5, marginVertical: 1.5 },
-  photoWrap: { flexDirection: "row", flexWrap: "wrap", marginTop: 3 },
-  photoCell: { width: "48%", margin: "1%" },
+  photoWrap: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", marginTop: 3 },
+  // Two per row. A percentage `margin` on a flex child makes react-pdf's Yoga
+  // engine overflow the row (48% + 1% + 1% rounds past 50%), so each cell wraps
+  // onto its own line — which is why photos used to stack. Fixed width + no
+  // horizontal margin + space-between keeps them reliably side by side, with
+  // marginBottom giving the gap between rows.
+  photoCell: { width: "49%", marginBottom: 8 },
   photoImg: { width: "100%", height: 150, objectFit: "contain", backgroundColor: "#f3eee2", borderWidth: 1, borderColor: "#999" },
   photoCap: { fontSize: 7.5, marginTop: 2, color: INK, lineHeight: 1.25 },
   photoMeta: { fontSize: 6.2, color: MUTE, marginTop: 1, fontFamily: "Courier" },
