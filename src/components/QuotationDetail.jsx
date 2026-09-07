@@ -193,6 +193,26 @@ export default function QuotationDetail({ id, profile }) {
     setBusy(false);
   };
 
+  // Staff record the outcome (client often accepts/declines offline).
+  const recordOutcome = async (staffDecision) => {
+    if (staffDecision === "DECLINED" && !window.confirm("Mark this quotation as declined?")) return;
+    setBusy(true);
+    setNote("");
+    try {
+      const res = await fetch(`/api/quotations/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ staffDecision }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setNote(d.error || "Could not save."); setBusy(false); return; }
+      await load();
+    } catch {
+      setNote("Network problem — try again.");
+    }
+    setBusy(false);
+  };
+
   if (err) return <div className="err" style={{ marginTop: 16 }}>{err}</div>;
   if (!q) return <div className="muted" style={{ marginTop: 24 }}>Loading…</div>;
 
@@ -351,6 +371,20 @@ export default function QuotationDetail({ id, profile }) {
                 <input className="input" value={amendReason} onChange={(e) => setAmendReason(e.target.value)} placeholder="e.g. Revised scope — added load-cell replacement" />
                 <span className="muted" style={{ fontSize: 11 }}>Re-issuing records a new revision (Rev {(q.revision || 0) + 1}) with your name, the date and this reason.</span>
               </label>
+            )}
+
+            {/* Prompt the preparer to record the outcome once a quote has been out. */}
+            {q.status === "QUOTED" && q.quotedAt && (
+              <div className="card" style={{ marginTop: 12, padding: 12, borderLeftWidth: 5, borderColor: WAIT, background: "#FCF7EA" }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: INK }}>
+                  Awaiting the client&apos;s decision{(() => { const d = Math.floor((Date.now() - new Date(q.quotedAt).getTime()) / 86400000); return d > 0 ? ` — issued ${d} day${d === 1 ? "" : "s"} ago` : ""; })()}
+                </div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>Has it been accepted? Record the outcome so the pipeline stays accurate.</div>
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                  <button className="btn" style={{ fontSize: 12, background: PASS, color: "#fff", borderColor: PASS, fontWeight: 800 }} disabled={busy} onClick={() => recordOutcome("ACCEPTED")}>Mark accepted</button>
+                  <button className="btn" style={{ fontSize: 12, color: FAIL, borderColor: "#e6dfce" }} disabled={busy} onClick={() => recordOutcome("DECLINED")}>Mark declined</button>
+                </div>
+              </div>
             )}
 
             {note && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, margin: "8px 0" }}>{note}</div>}

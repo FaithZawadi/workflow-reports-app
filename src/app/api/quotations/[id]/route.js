@@ -150,6 +150,17 @@ export async function PATCH(req, { params }) {
     return Response.json({ ok: true, status: updated.status });
   }
 
+  // --- Staff record the outcome (client often accepts/declines offline) ---
+  if (body.staffDecision) {
+    if (!staff) return Response.json({ error: "Only PM / TM can record the outcome." }, { status: 403 });
+    if (q.status !== "QUOTED") return Response.json({ error: "This quotation can't be actioned now." }, { status: 400 });
+    const decision = body.staffDecision === "ACCEPTED" ? "ACCEPTED" : body.staffDecision === "DECLINED" ? "DECLINED" : null;
+    if (!decision) return Response.json({ error: "Invalid decision." }, { status: 400 });
+    const updated = await prisma.quotation.update({ where: { id: q.id }, data: { status: decision, decidedAt: new Date() } });
+    await recordAudit({ actor: user, action: "UPDATE", entity: "QUOTATION", entityId: q.number, summary: `Quotation ${q.number} recorded ${decision.toLowerCase()} by ${user.name}` });
+    return Response.json({ ok: true, status: updated.status });
+  }
+
   // --- Staff prepare / issue ---
   if (!staff) return Response.json({ error: "Only PM / TM can prepare a quotation." }, { status: 403 });
 
@@ -228,6 +239,8 @@ export async function PATCH(req, { params }) {
     data.status = "QUOTED";
     data.preparedByName = user.name;
     data.quotedAt = new Date();
+    // Restart the "still awaiting a decision?" nudge clock on each (re)issue.
+    data.followupSentAt = null;
     // Mint the shareable link now so the client can be emailed/messaged the PDF.
     if (!q.shareToken) data.shareToken = crypto.randomBytes(18).toString("base64url");
   }

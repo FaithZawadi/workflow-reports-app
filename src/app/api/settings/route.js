@@ -71,6 +71,7 @@ function clean(patch) {
       escalateAfterDays: Math.round(num(w.escalateAfterDays, 0, 90, 3)),
       contractReminderDays: str(w.contractReminderDays).replace(/[^0-9,]/g, "") || "30,14,7,1",
       emailEnabled: bool(w.emailEnabled),
+      quoteFollowupDays: Math.round(num(w.quoteFollowupDays, 0, 120, 5)),
     };
   }
   return out;

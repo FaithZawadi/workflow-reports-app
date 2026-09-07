@@ -856,7 +856,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
               : `Photos are optional${tpl.code === "TR01" ? " — a technical report can be submitted without any" : ""}.`}
           </div>
 
-          {tpl.allowAttachments && (
+          {tpl.allowAttachments !== false && (
             <div style={{ marginTop: 16 }}>
               <SectionBar>Attach a PDF</SectionBar>
               <div className="muted" style={{ fontSize: 11.5, margin: "2px 0 8px" }}>

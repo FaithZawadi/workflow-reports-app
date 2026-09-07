@@ -718,6 +718,9 @@ model Quotation {
   preparedByName String?
   quotedAt       DateTime?
   decidedAt      DateTime?
+  // When the last "still awaiting a decision?" follow-up nudge was sent to the
+  // preparer. Reset on each (re)issue; cleared once accepted/declined.
+  followupSentAt DateTime?
 
   // Amendment / revision tracking. `revision` is 0 for the first issue and
   // increments each time an already-issued quote is re-issued. `amendments` is

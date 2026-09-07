@@ -78,6 +78,42 @@ async function processEscalations(now, alertList) {
   return results;
 }
 
+// Nudge a quote's preparer to record whether it was accepted or declined, once
+// it has been issued (status QUOTED) for `quoteFollowupDays` without a decision.
+// Repeats every interval until decided.
+async function processQuoteFollowups(now) {
+  const settings = await getSettings();
+  const days = Number(settings.workflow.quoteFollowupDays) || 0;
+  if (days <= 0) return [];
+  const cutoff = new Date(now.getTime() - days * 86400000);
+  const pending = await prisma.quotation.findMany({
+    where: {
+      status: "QUOTED",
+      quotedAt: { lte: cutoff },
+      requestedById: { not: null },
+      OR: [{ followupSentAt: null }, { followupSentAt: { lte: cutoff } }],
+    },
+    select: { id: true, number: true, clientName: true, requestedById: true, quotedAt: true, currency: true, grandTotal: true },
+  });
+  const results = [];
+  for (const q of pending) {
+    const waiting = daysBetween(q.quotedAt, now);
+    try {
+      await notifyUsers([q.requestedById], {
+        type: "APPROVAL",
+        title: `Awaiting decision · ${q.number}`,
+        body: `${q.clientName} — quoted ${waiting} day(s) ago. Has it been accepted? Record accepted or declined.`,
+        link: `/quotations/${q.id}`,
+      });
+    } catch {
+      /* best-effort */
+    }
+    await prisma.quotation.update({ where: { id: q.id }, data: { followupSentAt: now } });
+    results.push({ number: q.number, waiting });
+  }
+  return results;
+}
+
 // GET/POST /api/schedule/reminders — emails everyone whose maintenance is
 // overdue or due soon. Meant to be hit daily by a cron (Render cron job,
 // GitHub Action, cron-job.org…) with the CRON_SECRET, e.g.:
@@ -146,6 +182,8 @@ async function run(req) {
   const contracts = await processContracts(now);
   // 3) Escalation of stale pending approvals.
   const escalations = await processEscalations(now, alertList);
+  // 4) Nudge quote preparers to record accepted/declined.
+  const quoteFollowups = await processQuoteFollowups(now);
 
   return Response.json({
     ok: true,
@@ -154,6 +192,7 @@ async function run(req) {
     emails,
     contracts,
     escalations,
+    quoteFollowups,
   });
 }
 

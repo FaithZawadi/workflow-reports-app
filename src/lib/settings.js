@@ -38,6 +38,9 @@ export function defaultSettings() {
       escalateAfterDays: Number(process.env.ESCALATE_AFTER_DAYS) || 3,
       contractReminderDays: process.env.CONTRACT_REMINDER_DAYS || "30,14,7,1",
       emailEnabled: process.env.EMAIL_ENABLED === "true", // master email switch
+      // Nudge a quote's preparer to record accepted/declined this many days after
+      // it was issued, repeating until decided. 0 turns the nudges off.
+      quoteFollowupDays: 5,
     },
   };
 }

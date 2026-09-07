@@ -175,8 +175,9 @@ export default function SystemSettings() {
             <div className="grid md-2" style={{ marginTop: 12 }}>
               <Field label="Escalate overdue after (days)" type="number" value={w.escalateAfterDays} onChange={(v) => set("workflow", "escalateAfterDays", v)} />
               <Field label="Contract reminder days" value={w.contractReminderDays} onChange={(v) => set("workflow", "contractReminderDays", v)} placeholder="30,14,7,1" />
+              <Field label="Quote follow-up after (days)" type="number" value={w.quoteFollowupDays} onChange={(v) => set("workflow", "quoteFollowupDays", v)} />
             </div>
-            <p className="muted" style={{ fontSize: 12 }}>Reminder days are days-before-expiry, comma-separated.</p>
+            <p className="muted" style={{ fontSize: 12 }}>Reminder days are days-before-expiry, comma-separated. Quote follow-up nudges the preparer to record accepted/declined after that many days (0 = off).</p>
             <SaveRow group="workflow" />
           </div>
         )}
