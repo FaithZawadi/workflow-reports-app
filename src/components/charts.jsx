@@ -67,7 +67,7 @@ export function Donut({ segments, size = 156, thickness = 20, centerLabel, cente
   let offset = 0;
   return (
     <div style={{ display: "flex", gap: 18, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0, maxWidth: "100%", height: "auto" }}>
         <circle cx={cx} cy={cx} r={r} fill="none" stroke={LINE} strokeWidth={thickness} />
         {total > 0 &&
           segments.map((s, i) => {
@@ -204,7 +204,7 @@ export function Gauge({ value, max = 5, label }) {
   };
   return (
     <div style={{ textAlign: "center" }}>
-      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ maxWidth: "100%", height: "auto" }}>
         <path d={arc(Math.PI, 0)} fill="none" stroke={LINE} strokeWidth={14} strokeLinecap="round" />
         <path d={arc(Math.PI, ang)} fill="none" stroke={color} strokeWidth={14} strokeLinecap="round" style={{ transition: "all .5s ease" }} />
         <circle cx={ex} cy={ey} r={6} fill={color} />

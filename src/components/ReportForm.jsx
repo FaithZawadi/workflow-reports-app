@@ -526,7 +526,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
           style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(22,19,16,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
           onClick={() => setConfirming(false)}
         >
-          <div className="card" style={{ maxWidth: 460, width: "100%", padding: 18, background: "#fff", borderColor: GOLD }} onClick={(e) => e.stopPropagation()}>
+          <div className="card modal-card" style={{ maxWidth: 460, width: "100%", padding: 18, background: "#fff", borderColor: GOLD }} onClick={(e) => e.stopPropagation()}>
             <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 14, color: INK }}>
               {isEdit ? "Re-read your changes" : "Please re-read before sending"}
             </div>

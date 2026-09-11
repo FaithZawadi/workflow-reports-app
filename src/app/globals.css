@@ -65,8 +65,10 @@ input, textarea, select { font-family: inherit; }
 }
 
 /* Login: single column on phones, branded split panel on wider screens */
-.login-shell { min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
-.login-card { width: 100%; max-width: 440px; }
+/* Flex centering (not grid place-items) so the card's max-width can't size the
+   track wider than the viewport — that overflowed the card off narrow phones. */
+.login-shell { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+.login-card { width: 100%; max-width: 440px; min-width: 0; }
 .login-grid { display: grid; grid-template-columns: 1fr; }
 .login-brandpane { display: none; }
 .login-formpane { padding: 26px 24px; }
@@ -381,4 +383,42 @@ img { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .welcome-glow, .welcome-ring, .welcome-chip, .welcome-rise, .welcome-enter, .welcome-enter span { animation: none !important; transition: none !important; }
   .welcome-rise { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   Responsive hardening — global safety nets for small screens.
+   The app is mobile-first (drawer nav, bottom tab bar, safe-area
+   insets); these rules catch the remaining edge cases app-wide so
+   nothing forces a horizontal page scroll on a phone.
+   ============================================================ */
+
+/* Media / embedded content can never widen the layout. */
+svg, canvas, video, img { max-width: 100%; }
+table { max-width: 100%; }
+
+/* Momentum scrolling for every scroll region (wide tables, drawer, popovers). */
+* { -webkit-overflow-scrolling: touch; }
+
+/* Wide data tables scroll sideways inside their card instead of stretching the
+   page. `.tbl-scroll` is the reusable wrapper; the subtle scrollbar makes the
+   swipe affordance visible on desktop trackpads and touch alike. */
+.tbl-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
+.app-content ::-webkit-scrollbar { height: 8px; width: 8px; }
+.app-content ::-webkit-scrollbar-thumb { background: #cfc8ba; border-radius: 8px; }
+.app-content ::-webkit-scrollbar-track { background: transparent; }
+
+/* Dialogs never exceed the viewport height on short / phone screens — the card
+   scrolls within itself rather than pushing controls off the bottom edge. */
+.modal-card { max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain; }
+
+/* Tighter gutters and grid gaps on small phones so content fills the width. */
+@media (max-width: 480px) {
+  .app-content { padding-left: 12px; padding-right: 12px; padding-bottom: 32px; }
+  .grid { gap: 10px; }
+}
+
+/* Very small phones (<=360px): shave gutters and tap padding a touch more. */
+@media (max-width: 360px) {
+  .app-content { padding-left: 10px; padding-right: 10px; }
+  .btn { padding: 10px 12px; font-size: 12.5px; }
 }
