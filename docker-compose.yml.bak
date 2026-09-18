@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: qsl
+      POSTGRES_PASSWORD: qsl_password
+      POSTGRES_DB: qsl
+    volumes:
+      - qsl_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qsl -d qsl"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Override host to the compose service name regardless of .env value.
+      DATABASE_URL: "postgresql://qsl:qsl_password@db:5432/qsl?schema=public"
+      # For a trusted LAN server reached over plain HTTP by IP, uncomment so
+      # phones/laptops can log in (see .env.example). Omit for localhost/HTTPS.
+      # COOKIE_SECURE: "false"
+    # No host port here on purpose:
+    #  - local/LAN  → docker-compose.override.yml publishes 3000 (auto-loaded)
+    #  - production → docker-compose.prod.yml fronts it with Caddy (HTTPS)
+
+  # Daily scheduler: calls the reminders endpoint once a day, which sends
+  # maintenance-schedule reminders, contract service reminders (client + QSL
+  # Technical Manager, several times before due) and escalates stale approvals.
+  # Requires CRON_SECRET to be set in .env — without it the endpoint refuses
+  # unauthenticated calls and nothing is sent.
+  reminders:
+    image: alpine:3
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      CRON_SECRET: ${CRON_SECRET:-}
+    command: >
+      sh -c "apk add --no-cache curl >/dev/null 2>&1;
+      sleep 60;
+      while true; do
+        curl -fsS -H \"Authorization: Bearer $$CRON_SECRET\" http://app:3000/api/schedule/reminders || true;
+        sleep 86400;
+      done"
+
+volumes:
+  qsl_db:
