@@ -244,6 +244,7 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc, internal = false 
           <View style={s.clientMain}>
             <Text style={s.clientLabel}>PREPARED FOR</Text>
             <Text style={s.clientName}>{q.clientName || "-"}</Text>
+            {q.siteName ? <Text style={s.clientLine}>Site: {q.siteName}</Text> : null}
             {q.contactPerson ? <Text style={s.clientLine}>Attn: {q.contactPerson}</Text> : null}
             {q.contactEmail ? <Text style={s.clientLine}>{q.contactEmail}</Text> : null}
             {q.contactPhone ? <Text style={s.clientLine}>{q.contactPhone}</Text> : null}

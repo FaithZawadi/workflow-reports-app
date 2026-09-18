@@ -20,6 +20,55 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
     if (clientOnly) return;
     fetch("/api/clients").then((r) => r.json()).then((d) => setClients(d.clients || [])).catch(() => {});
   }, [clientOnly]);
+
+  // Sites for the chosen client — the picker only appears when the client has
+  // some (a client with none simply omits it). Optional on every quote.
+  const [sites, setSites] = useState([]);
+  const [siteId, setSiteId] = useState("");
+  useEffect(() => {
+    if (clientOnly || !clientName.trim()) { setSites([]); return; }
+    let cancelled = false;
+    fetch(`/api/sites?client=${encodeURIComponent(clientName.trim())}`)
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) setSites(d.sites || []); })
+      .catch(() => { if (!cancelled) setSites([]); });
+    return () => { cancelled = true; };
+  }, [clientName, clientOnly]);
+  // If the client changes, drop a chosen site that's no longer offered.
+  useEffect(() => {
+    if (siteId && !sites.some((s) => s.id === siteId)) setSiteId("");
+  }, [sites, siteId]);
+
+  // Inline "add a site" to the selected (existing) client — mirrors the
+  // new-client shortcut. Staff who may register clients directly get it.
+  const [addingSite, setAddingSite] = useState(false);
+  const [newSite, setNewSite] = useState("");
+  const [siteBusy, setSiteBusy] = useState(false);
+  const addSite = async () => {
+    const name = newSite.trim();
+    if (!name) return;
+    if (!clientId) { setMsg("Pick the client first, then add its site."); return; }
+    setSiteBusy(true);
+    try {
+      const res = await fetch("/api/sites/quick", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ clientId, name }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setMsg(d.error || "Could not add the site."); setSiteBusy(false); return; }
+      const s = { id: d.site?.id, name: d.site?.name || name, clientId, client: clientName };
+      setSites((arr) => (arr.some((x) => x.id === s.id) ? arr : [...arr, s]));
+      if (s.id) setSiteId(s.id);
+      setAddingSite(false);
+      setNewSite("");
+      if (d.site?.approvalStatus === "PENDING")
+        setMsg("New site submitted for approval — you can still use it on this quotation.");
+    } catch {
+      setMsg("Network problem adding the site.");
+    }
+    setSiteBusy(false);
+  };
   // A client raising their own request pre-fills their own details; staff start
   // blank and enter the CLIENT's contact details (not their own).
   const [contactPerson, setContactPerson] = useState(clientOnly ? profile.name || "" : "");
@@ -55,6 +104,7 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
         body: JSON.stringify({
           clientId: clientId || undefined,
           clientName: clientName.trim(),
+          siteId: siteId || undefined,
           contactPerson: contactPerson.trim(),
           contactEmail: contactEmail.trim(),
           contactPhone: contactPhone.trim(),
@@ -124,6 +174,48 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
         {canAddClient && adding && (
           <NewClientForm canAddDirectly onAdded={onClientAdded} onCancel={() => setAdding(false)} />
         )}
+
+        {/* Site / location — appears only once a client is chosen; the dropdown
+            shows only if that client has registered sites. Always optional. */}
+        {!clientOnly && !calibrationRequestId && clientId && (sites.length > 0 || canAddClient) && (
+          <label className="field">
+            <span className="label">
+              Site / location <span style={{ color: MUTE, fontWeight: 400, fontSize: 11 }}>(optional)</span>
+            </span>
+            {sites.length > 0 ? (
+              <select className="input" value={siteId} onChange={(e) => setSiteId(e.target.value)}>
+                <option value="">— no specific site —</option>
+                {sites.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}{!s.clientId ? " (shared)" : ""}</option>
+                ))}
+              </select>
+            ) : (
+              <span className="muted" style={{ fontSize: 11.5, display: "block", color: MUTE }}>
+                This client has no registered sites yet — a site is optional.
+              </span>
+            )}
+            {canAddClient && (
+              addingSite ? (
+                <div style={{ marginTop: 8 }}>
+                  <Field label="New site name" value={newSite} onChange={setNewSite} placeholder="e.g. Athi River plant" />
+                  <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                    <button type="button" className="btn btn-primary" onClick={addSite} disabled={siteBusy} style={{ padding: "7px 14px", fontSize: 13 }}>
+                      {siteBusy ? "Adding…" : "Add site"}
+                    </button>
+                    <button type="button" className="btn" onClick={() => { setAddingSite(false); setNewSite(""); }} style={{ padding: "7px 14px", fontSize: 13 }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setAddingSite(true)} style={{ background: "none", border: 0, padding: 0, marginTop: 6, color: "#8a6d00", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>
+                  + Add a site to this client
+                </button>
+              )
+            )}
+          </label>
+        )}
+
         <div className="grid md-2">
           <Field label="Client contact person" value={contactPerson} onChange={setContactPerson} placeholder="e.g. Jane Doe" />
           <Field label="Client email" type="email" value={contactEmail} onChange={setContactEmail} placeholder="client@company.com" />

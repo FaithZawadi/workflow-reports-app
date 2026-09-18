@@ -207,6 +207,24 @@ export async function PATCH(req, { params }) {
   // details + terms-of-sale blocks printed on the quotation PDF.
   if (body.subject !== undefined) data.subject = String(body.subject || "").trim() || null;
   if (body.fileNo !== undefined) data.fileNo = String(body.fileNo || "").trim() || null;
+  // Optional site — accepted only when it belongs to this quote's client (or is
+  // a global, client-less site). An empty value clears it.
+  if (body.siteId !== undefined) {
+    const raw = String(body.siteId || "").trim();
+    if (!raw) {
+      data.siteId = null;
+      data.siteName = null;
+    } else {
+      const site = await prisma.site.findUnique({
+        where: { id: raw },
+        select: { id: true, name: true, clientId: true, active: true },
+      });
+      if (site && site.active && (!site.clientId || site.clientId === q.clientId)) {
+        data.siteId = site.id;
+        data.siteName = site.name;
+      }
+    }
+  }
   if (body.paymentDetails !== undefined) data.paymentDetails = String(body.paymentDetails || "").trim() || null;
   if (body.terms !== undefined) data.terms = String(body.terms || "").trim() || null;
   // When issuing without payment/terms text, fall back to the configured

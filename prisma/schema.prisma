@@ -240,6 +240,7 @@ model Site {
   registeredByName String?
   approvedAt       DateTime?
   approvalNote     String?
+  quotations Quotation[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -680,6 +681,13 @@ model Quotation {
   clientId   String?
   client     Client?         @relation(fields: [clientId], references: [id])
   clientName String
+  // Optional site/location this quote is for. The form shows a site picker only
+  // when the chosen client has registered sites; a client with none simply omits
+  // it. siteName is denormalised (like clientName) so the PDF stays stable if the
+  // site is later renamed or removed.
+  siteId     String?
+  site       Site?           @relation(fields: [siteId], references: [id])
+  siteName   String?
   contactPerson String?
   contactEmail  String?
   contactPhone  String?
@@ -743,6 +751,7 @@ model Quotation {
   updatedAt DateTime @updatedAt
 
   @@index([clientId])
+  @@index([siteId])
   @@index([status])
   @@index([createdAt])
 }

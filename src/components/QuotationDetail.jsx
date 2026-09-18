@@ -256,6 +256,7 @@ export default function QuotationDetail({ id, profile }) {
 
         <h1 className="h1" style={{ marginTop: 10 }}>Quotation — {q.clientName}</h1>
         <div className="muted" style={{ fontSize: 12 }}>
+          {q.siteName ? `Site: ${q.siteName} · ` : ""}
           {q.contactPerson || "-"}{q.contactEmail ? ` · ${q.contactEmail}` : ""} · raised {new Date(q.createdAt).toLocaleDateString()}
           {q.preparedByName ? ` · prepared by ${q.preparedByName}` : ""}
         </div>

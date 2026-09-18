@@ -103,6 +103,21 @@ export async function POST(req) {
   }
   if (!clientName) return Response.json({ error: "Client is required." }, { status: 400 });
 
+  // Optional site — only accepted when it belongs to this client (or is a
+  // global, client-less site). Silently ignored otherwise, never an error.
+  let siteId = null;
+  let siteName = null;
+  if (body.siteId) {
+    const site = await prisma.site.findUnique({
+      where: { id: String(body.siteId) },
+      select: { id: true, name: true, clientId: true, active: true },
+    });
+    if (site && site.active && (!site.clientId || site.clientId === clientId)) {
+      siteId = site.id;
+      siteName = site.name;
+    }
+  }
+
   const settings = await getSettings();
   const number = await nextSerial(settings.finance.quotePrefix || "Q");
   const created = await prisma.quotation.create({
@@ -110,6 +125,8 @@ export async function POST(req) {
       number,
       clientId,
       clientName,
+      siteId,
+      siteName,
       // Seed the finance defaults from System Settings (a quote can override).
       currency: settings.finance.currency || "KES",
       vatRate: settings.finance.vatRate ?? 16,
