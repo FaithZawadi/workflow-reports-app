@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar, Field, Textarea } from "./ui";
-import { rolesOf, canRegisterClientsDirectly } from "@/lib/roles";
+import { rolesOf, canRegisterClientsDirectly, canFileReports, canRaiseOwnQuotes } from "@/lib/roles";
 import { WAIT, MUTE } from "@/lib/theme";
 import NewClientForm from "./NewClientForm";
 
@@ -79,10 +79,14 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
 
-  // Quotation creators (PM/TM/managers/admin/Sales) may register a new client
-  // right here, approved immediately. Technician-only users don't get this — they
-  // must have new clients approved, so they register via the report flow instead.
-  const canAddClient = !clientOnly && canRegisterClientsDirectly(profile);
+  // Anyone who can raise a quotation may add a client / site right here — Site
+  // Technicians and Sales included. Direct-register roles (PM/TM/managers/admin/
+  // engineers/supervisors) are approved immediately; everyone else submits for
+  // approval through the same quick-add endpoints (a PENDING record they can
+  // still use on this quotation). `canAddDirectly` below carries that split.
+  const canRegisterDirect = canRegisterClientsDirectly(profile);
+  const canAddClient =
+    !clientOnly && (canRegisterDirect || canFileReports(profile) || canRaiseOwnQuotes(profile));
   const [adding, setAdding] = useState(false);
 
   const onClientAdded = (c, _wasExisting, isPending) => {
@@ -172,7 +176,7 @@ export default function QuotationNew({ profile, calibrationRequestId }) {
           </label>
         )}
         {canAddClient && adding && (
-          <NewClientForm canAddDirectly onAdded={onClientAdded} onCancel={() => setAdding(false)} />
+          <NewClientForm canAddDirectly={canRegisterDirect} onAdded={onClientAdded} onCancel={() => setAdding(false)} />
         )}
 
         {/* Site / location — appears only once a client is chosen; the dropdown

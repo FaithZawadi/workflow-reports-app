@@ -31,6 +31,15 @@ services:
     # No host port here on purpose:
     #  - local/LAN  → docker-compose.override.yml publishes 3000 (auto-loaded)
     #  - production → docker-compose.prod.yml fronts it with Caddy (HTTPS)
+    # Production edge is the qalitrack API gateway, which forwards
+    # reports.qalibrated.com → http://qsl-app:3000 over the external `proxy`
+    # network. Joining it here (with the `qsl-app` alias) keeps the app
+    # reachable across rebuilds, so a deploy never drops the site to a 502.
+    networks:
+      default: {}
+      proxy:
+        aliases:
+          - qsl-app
 
   # Daily scheduler: calls the reminders endpoint once a day, which sends
   # maintenance-schedule reminders, contract service reminders (client + QSL
@@ -54,3 +63,11 @@ services:
 
 volumes:
   qsl_db:
+
+networks:
+  # `proxy` is created by the qalitrack gateway stack; we only join it.
+  # For LOCAL docker-compose use (not needed if you run `npm run dev`), create
+  # it once with:  docker network create proxy
+  default:
+  proxy:
+    external: true
