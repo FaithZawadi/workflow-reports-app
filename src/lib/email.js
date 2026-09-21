@@ -22,7 +22,7 @@ function getTransport() {
 
 // Returns { sent: boolean, reason?: string }. Never throws — a failed email
 // must not break the workflow; the event is still recorded in the audit trail.
-export async function sendMail({ to, subject, text, html }) {
+export async function sendMail({ to, subject, text, html, cc, attachments }) {
   // Admin master switch — an administrator can turn all outgoing email off (or
   // on, if SMTP is configured) in System Settings, without a redeploy.
   try {
@@ -40,7 +40,9 @@ export async function sendMail({ to, subject, text, html }) {
       to,
       subject,
       text,
+      ...(cc ? { cc } : {}),
       ...(html ? { html } : {}),
+      ...(Array.isArray(attachments) && attachments.length ? { attachments } : {}),
     });
     return { sent: true };
   } catch (err) {

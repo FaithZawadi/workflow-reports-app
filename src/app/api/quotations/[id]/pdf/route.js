@@ -1,12 +1,7 @@
-import React from "react";
-import { renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/db";
-import { QuotationDocument } from "@/pdf/QuotationDocument";
-import { logoDataUrl } from "@/lib/logo";
-import { qrDataUrl } from "@/lib/qr";
 import { getCurrentUser } from "@/lib/auth";
 import { isClient } from "@/lib/roles";
-import { syncCompany, getSettings } from "@/lib/settings";
+import { renderQuotationPdf } from "@/lib/quotationPdf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,31 +15,14 @@ export async function GET(_req, { params }) {
   if (!q) return Response.json({ error: "Not found." }, { status: 404 });
 
   // ?download=1 forces a file download (used by the "Send to client" panel so the
-  // preparer can attach the PDF to an email / WhatsApp); default is inline view.
+  // preparer can attach the PDF to WhatsApp); default is inline view.
   const download = new URL(_req.url).searchParams.get("download");
 
-  const qrText = [
-    `QSL Quotation ${q.number}`,
-    `Client: ${q.clientName}`,
-    `Total: ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}`,
-    q.validUntil ? `Valid until ${new Date(q.validUntil).toLocaleDateString()}` : null,
-  ].filter(Boolean).join("\n");
-  const qrSrc = await qrDataUrl(qrText);
   // Amendment history is internal-only: include it only for an authenticated QSL
   // staff session (never for a client, and never when opened without login).
   const viewer = await getCurrentUser().catch(() => null);
   const internal = !!viewer && !isClient(viewer);
-  await syncCompany(); // reflect any branding changes from System Settings
-  // Payment details & terms follow System Settings when this quote hasn't frozen
-  // its own (a draft, or one never edited): so an admin's change in Settings shows
-  // on the quotation. An issued quote keeps whatever it was issued with.
-  const settings = await getSettings();
-  const doc = {
-    ...q,
-    paymentDetails: q.paymentDetails || settings.finance?.paymentDetails,
-    terms: q.terms || settings.finance?.quoteTerms,
-  };
-  const buffer = await renderToBuffer(React.createElement(QuotationDocument, { quotation: doc, logoSrc: logoDataUrl(), qrSrc, internal }));
+  const buffer = await renderQuotationPdf(q, { internal });
 
   return new Response(buffer, {
     status: 200,
