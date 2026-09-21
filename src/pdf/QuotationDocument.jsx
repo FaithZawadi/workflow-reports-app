@@ -74,7 +74,7 @@ function PayTable({ pairs }) {
                   </View>
                 ))}
               </View>
-              <View style={[s.payBand, lastBand ? null : { borderBottomWidth: 0.5, borderBottomColor: "#EAE3D5" }]}>
+              <View style={[s.payBand, lastBand ? null : { borderBottomWidth: 0.5, borderBottomColor: "#C9C1B0" }]}>
                 {band.map((p, ci) => (
                   <View key={ci} style={[s.payValCell, { width: w }, ci === band.length - 1 ? { borderRightWidth: 0 } : null]}>
                     <Text style={s.payValText}>{p.value}</Text>
@@ -102,8 +102,8 @@ const s = StyleSheet.create({
   contact: { fontSize: 7.2, color: INK, marginTop: 2, fontFamily: "Helvetica", lineHeight: 1.3 },
   // Boxed DATE / NO / FILE NO panel, top-right (invoice style).
   metaBox: { borderWidth: 0.8, borderColor: COAL, width: 196 },
-  metaLine: { flexDirection: "row", alignItems: "center", minHeight: 16, borderBottomWidth: 0.5, borderBottomColor: "#CFC7B6" },
-  metaK: { width: "36%", alignSelf: "stretch", backgroundColor: "#F5EEDD", paddingVertical: 3.5, paddingHorizontal: 5, fontSize: 7.5, fontFamily: "Helvetica-Bold", color: COAL, letterSpacing: 0.3, borderRightWidth: 0.5, borderRightColor: "#CFC7B6" },
+  metaLine: { flexDirection: "row", alignItems: "center", minHeight: 16, borderBottomWidth: 0.5, borderBottomColor: "#C9C1B0" },
+  metaK: { width: "36%", alignSelf: "stretch", backgroundColor: "#F5EEDD", paddingVertical: 3.5, paddingHorizontal: 5, fontSize: 7.5, fontFamily: "Helvetica-Bold", color: COAL, letterSpacing: 0.3, borderRightWidth: 0.5, borderRightColor: "#C9C1B0" },
   metaV: { width: "64%", paddingVertical: 3.5, paddingHorizontal: 6, fontSize: 7.8, fontFamily: "Courier-Bold", color: COAL },
   rule: { borderBottomWidth: 2, borderBottomColor: COAL, marginTop: 5, marginBottom: 6 },
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
@@ -111,16 +111,16 @@ const s = StyleSheet.create({
   titleBadge: { fontSize: 13, fontFamily: "Helvetica-Bold", color: COAL, backgroundColor: GOLD, paddingVertical: 3, paddingHorizontal: 12, letterSpacing: 1, textTransform: "uppercase" },
   statusBadge: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#fff", paddingVertical: 2.5, paddingHorizontal: 6, borderRadius: 2 },
   row: { flexDirection: "row" },
-  key: { backgroundColor: "#F5EEDD", fontFamily: "Helvetica-Bold", padding: 3, width: "16%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
-  val: { padding: 3, width: "34%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
+  key: { backgroundColor: "#F5EEDD", fontFamily: "Helvetica-Bold", padding: 3, width: "16%", borderWidth: 0.5, borderColor: "#C9C1B0", fontSize: 8 },
+  val: { padding: 3, width: "34%", borderWidth: 0.5, borderColor: "#C9C1B0", fontSize: 8 },
   subjectBar: { marginTop: 8, backgroundColor: "#F5EEDD", borderLeftWidth: 3, borderLeftColor: GOLD_DK, paddingVertical: 4, paddingHorizontal: 8 },
   subjectLabel: { fontSize: 6.5, color: MUTE, fontFamily: "Helvetica-Bold", textTransform: "uppercase", letterSpacing: 0.6 },
   subjectText: { fontSize: 10, fontFamily: "Helvetica-Bold", color: COAL, textTransform: "uppercase", marginTop: 1 },
   th: { backgroundColor: COAL, color: "#fff", fontSize: 8, padding: 4, fontFamily: "Helvetica-Bold", borderRightWidth: 0.5, borderColor: "#2c2720" },
-  td: { fontSize: 8.5, padding: 4, borderWidth: 0.5, borderColor: "#D9D2C4" },
+  td: { fontSize: 8.5, padding: 4, borderWidth: 0.5, borderColor: "#C9C1B0" },
   totalRow: { flexDirection: "row", justifyContent: "flex-end" },
-  totalKey: { width: "26%", padding: 3, fontFamily: "Helvetica-Bold", fontSize: 8.5, backgroundColor: "#F5EEDD", borderWidth: 0.5, borderColor: "#E4DCCB", textAlign: "right" },
-  totalVal: { width: "22%", padding: 3, fontSize: 8.5, borderWidth: 0.5, borderColor: "#E4DCCB", textAlign: "right" },
+  totalKey: { width: "26%", padding: 3, fontFamily: "Helvetica-Bold", fontSize: 8.5, backgroundColor: "#F5EEDD", borderWidth: 0.5, borderColor: "#C9C1B0", textAlign: "right" },
+  totalVal: { width: "22%", padding: 3, fontSize: 8.5, borderWidth: 0.5, borderColor: "#C9C1B0", textAlign: "right" },
   words: { marginTop: 8, fontSize: 9, fontFamily: "Helvetica-Bold" },
   // --- Preset table quotation ---------------------------------------------
   // "Prepared for" card + details.
@@ -130,23 +130,23 @@ const s = StyleSheet.create({
   clientName: { fontSize: 12, fontFamily: "Helvetica-Bold", color: COAL },
   clientLine: { fontSize: 8, color: INK, marginTop: 2 },
   clientSide: { width: "42%" },
-  csRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#EAE3D4", minHeight: 15, alignItems: "center" },
-  csK: { width: "42%", alignSelf: "stretch", backgroundColor: "#FAF4E6", paddingVertical: 3.5, paddingHorizontal: 6, fontSize: 7.5, fontFamily: "Helvetica-Bold", color: COAL, borderRightWidth: 0.5, borderRightColor: "#EAE3D4" },
+  csRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#C9C1B0", minHeight: 15, alignItems: "center" },
+  csK: { width: "42%", alignSelf: "stretch", backgroundColor: "#FAF4E6", paddingVertical: 3.5, paddingHorizontal: 6, fontSize: 7.5, fontFamily: "Helvetica-Bold", color: COAL, borderRightWidth: 0.5, borderRightColor: "#C9C1B0" },
   csV: { width: "58%", paddingVertical: 3.5, paddingHorizontal: 6, fontSize: 8, color: INK },
   // Line-items table.
   itemsTable: { marginTop: 12, borderWidth: 0.7, borderColor: "#C9C1B0", borderRadius: 3, overflow: "hidden" },
   itemsHead: { flexDirection: "row", backgroundColor: COAL },
   // Column dividers in the coal header are black (matching the background) — a
   // thin white line here renders with a green fringe in some PDF viewers.
-  ihCell: { color: "#fff", fontSize: 7.5, fontFamily: "Helvetica-Bold", letterSpacing: 0.4, paddingVertical: 5, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: COAL },
-  itemsRow: { flexDirection: "row", borderTopWidth: 0.5, borderTopColor: "#EAE3D4", alignItems: "stretch", minHeight: 19 },
+  ihCell: { color: "#fff", fontSize: 7.5, fontFamily: "Helvetica-Bold", letterSpacing: 0.4, paddingVertical: 5, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: GOLD_DK },
+  itemsRow: { flexDirection: "row", borderTopWidth: 0.5, borderTopColor: "#C9C1B0", alignItems: "stretch", minHeight: 19 },
   itemsRowAlt: { backgroundColor: "#FBF8F1" },
   iCell: { fontSize: 8.5, color: INK, paddingVertical: 5, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "#EFE9DB", justifyContent: "center" },
   iCellNum: { fontSize: 8.3, color: INK, fontFamily: "Courier-Bold", paddingVertical: 5, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "#EFE9DB", justifyContent: "center", textAlign: "right" },
   // Totals panel.
   totalsWrap: { flexDirection: "row", justifyContent: "flex-end", marginTop: 8 },
   totalsBox: { width: "50%", borderWidth: 0.7, borderColor: "#C9C1B0", borderRadius: 3, overflow: "hidden" },
-  tRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4.5, paddingHorizontal: 9, borderBottomWidth: 0.5, borderBottomColor: "#EAE3D4" },
+  tRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4.5, paddingHorizontal: 9, borderBottomWidth: 0.5, borderBottomColor: "#C9C1B0" },
   tK: { fontSize: 8.5, color: MUTE, fontFamily: "Helvetica-Bold" },
   tV: { fontSize: 8.5, color: INK, fontFamily: "Courier-Bold" },
   tGrand: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: COAL, paddingVertical: 6, paddingHorizontal: 9 },
@@ -158,8 +158,8 @@ const s = StyleSheet.create({
   footText: { fontSize: 6.5, color: MUTE, fontFamily: "Courier", textAlign: "center" },
   // Payment details + terms of sale blocks at the foot of the quotation.
   blocks: { flexDirection: "row", marginTop: 12 },
-  pay: { flex: 1, padding: 8, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1", marginRight: 8 },
-  terms: { flex: 1, padding: 8, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1" },
+  pay: { flex: 1, padding: 8, borderWidth: 0.5, borderColor: "#C9C1B0", borderRadius: 3, backgroundColor: "#FBF8F1", marginRight: 8 },
+  terms: { flex: 1, padding: 8, borderWidth: 0.5, borderColor: "#C9C1B0", borderRadius: 3, backgroundColor: "#FBF8F1" },
   blockTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, borderBottomWidth: 0.5, borderBottomColor: GOLD_DK, paddingBottom: 2 },
   payText: { fontSize: 7.8, color: INK, lineHeight: 1.5, fontFamily: "Courier" },
   termsText: { fontSize: 7.8, color: INK, lineHeight: 1.5 },
@@ -168,14 +168,14 @@ const s = StyleSheet.create({
   payBanner: { backgroundColor: COAL, borderTopLeftRadius: 4, borderTopRightRadius: 4, paddingVertical: 4, paddingHorizontal: 8, flexDirection: "row", alignItems: "center" },
   payBannerDot: { width: 7, height: 7, borderRadius: 2, backgroundColor: GOLD, marginRight: 6 },
   payBannerText: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: GOLD, textTransform: "uppercase", letterSpacing: 1 },
-  payTable: { borderWidth: 0.6, borderColor: "#D9D2C4", borderTopWidth: 0, overflow: "hidden" },
+  payTable: { borderWidth: 0.6, borderColor: "#C9C1B0", borderTopWidth: 0, overflow: "hidden" },
   payBand: { flexDirection: "row" },
-  payHeadCell: { backgroundColor: "#22201C", paddingVertical: 4, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "rgba(255,255,255,0.18)", borderBottomWidth: 0.5, borderBottomColor: GOLD, justifyContent: "center" },
+  payHeadCell: { backgroundColor: "#22201C", paddingVertical: 4, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: GOLD_DK, borderBottomWidth: 0.5, borderBottomColor: GOLD_DK, justifyContent: "center" },
   payHeadText: { fontSize: 6.6, fontFamily: "Helvetica-Bold", color: GOLD, textTransform: "uppercase", letterSpacing: 0.4, textAlign: "center" },
-  payValCell: { paddingVertical: 6, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "#EAE3D5", justifyContent: "center" },
+  payValCell: { paddingVertical: 6, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "#C9C1B0", justifyContent: "center" },
   payValText: { fontSize: 8.2, fontFamily: "Helvetica-Bold", color: INK, textAlign: "center" },
-  termsFull: { marginTop: 10, padding: 8, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1" },
-  qrBlock: { flexDirection: "row", alignItems: "center", marginTop: 14, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: "#E4DCCB" },
+  termsFull: { marginTop: 10, padding: 8, borderWidth: 0.5, borderColor: "#C9C1B0", borderRadius: 3, backgroundColor: "#FBF8F1" },
+  qrBlock: { flexDirection: "row", alignItems: "center", marginTop: 14, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: "#C9C1B0" },
   qrImg: { width: 46, height: 46 },
   // Pinned bottom-right, above the footer, page 1 only.
   qrFixed: { position: "absolute", bottom: 24, right: 32, alignItems: "flex-end" },
@@ -183,9 +183,9 @@ const s = StyleSheet.create({
   qrTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4 },
   qrSub: { fontSize: 7.5, color: MUTE, marginTop: 2, lineHeight: 1.3, maxWidth: 260 },
   // Amendment / revision history block.
-  amendWrap: { marginTop: 12, borderWidth: 0.5, borderColor: "#D9D2C4", borderRadius: 3, backgroundColor: "#FBF8F1" },
+  amendWrap: { marginTop: 12, borderWidth: 0.5, borderColor: "#C9C1B0", borderRadius: 3, backgroundColor: "#FBF8F1" },
   amendTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4, padding: 6, borderBottomWidth: 0.5, borderBottomColor: GOLD_DK },
-  amendRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#EAE3D4", paddingVertical: 3, paddingHorizontal: 6 },
+  amendRow: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#C9C1B0", paddingVertical: 3, paddingHorizontal: 6 },
   amendRev: { width: "12%", fontSize: 8, fontFamily: "Helvetica-Bold", color: COAL },
   amendWho: { width: "26%", fontSize: 8 },
   amendWhen: { width: "26%", fontSize: 7.5, color: MUTE, fontFamily: "Courier" },
