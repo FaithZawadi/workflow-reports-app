@@ -48,6 +48,9 @@ export default function QuotationDetail({ id, profile }) {
       .then(({ ok, d }) => {
         if (!ok) return setErr(d.error || "Could not load.");
         const quote = d.quotation;
+        // Live finance defaults from System Settings (fall back to the build-time
+        // constants only if the API is older / omits them).
+        const dflt = d.defaults || {};
         setQ(quote);
         setPerm(d.permissions || {});
         setItems(Array.isArray(quote.items) && quote.items.length ? quote.items : [{ ...BLANK }]);
@@ -61,8 +64,8 @@ export default function QuotationDetail({ id, profile }) {
         setContactPhone(quote.contactPhone || "");
         setSubject(quote.subject || "");
         setFileNo(quote.fileNo || "");
-        setPaymentDetails(quote.paymentDetails || DEFAULT_PAYMENT_DETAILS);
-        setTerms(quote.terms || DEFAULT_QUOTE_TERMS);
+        setPaymentDetails(quote.paymentDetails || dflt.paymentDetails || DEFAULT_PAYMENT_DETAILS);
+        setTerms(quote.terms || dflt.terms || DEFAULT_QUOTE_TERMS);
       })
       .catch(() => setErr("Could not load."));
 

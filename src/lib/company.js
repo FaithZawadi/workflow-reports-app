@@ -18,13 +18,13 @@ export const COMPANY = {
   // is env-overridable so the account can be corrected without a code change.
   bank: {
     accountName: process.env.NEXT_PUBLIC_BANK_ACCOUNT_NAME || "QALIBRATED SYSTEMS LIMITED",
-    name: process.env.NEXT_PUBLIC_BANK_NAME || "SIDIAN BANK LIMITED",
-    branch: process.env.NEXT_PUBLIC_BANK_BRANCH || "KENYATTA MARKET",
-    accountNo: process.env.NEXT_PUBLIC_BANK_ACCOUNT_NO || "01014020006131",
-    paybill: process.env.NEXT_PUBLIC_MPESA_PAYBILL || "111999",
-    swift: process.env.NEXT_PUBLIC_BANK_SWIFT || "SIDNKENA",
-    bankCode: process.env.NEXT_PUBLIC_BANK_CODE || "66",
-    branchCode: process.env.NEXT_PUBLIC_BANK_BRANCH_CODE || "014",
+    name: process.env.NEXT_PUBLIC_BANK_NAME || "KENYA COMMERCIAL BANK",
+    branch: process.env.NEXT_PUBLIC_BANK_BRANCH || "INDUSTRIAL AREA",
+    accountNo: process.env.NEXT_PUBLIC_BANK_ACCOUNT_NO || "1319820654",
+    paybill: process.env.NEXT_PUBLIC_MPESA_PAYBILL || "522522",
+    swift: process.env.NEXT_PUBLIC_BANK_SWIFT || "KCBLKENX",
+    bankCode: process.env.NEXT_PUBLIC_BANK_CODE || "01",
+    branchCode: process.env.NEXT_PUBLIC_BANK_BRANCH_CODE || "113",
   },
 };
 

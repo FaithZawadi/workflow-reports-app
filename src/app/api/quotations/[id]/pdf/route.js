@@ -6,7 +6,7 @@ import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl } from "@/lib/qr";
 import { getCurrentUser } from "@/lib/auth";
 import { isClient } from "@/lib/roles";
-import { syncCompany } from "@/lib/settings";
+import { syncCompany, getSettings } from "@/lib/settings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,7 +35,16 @@ export async function GET(_req, { params }) {
   const viewer = await getCurrentUser().catch(() => null);
   const internal = !!viewer && !isClient(viewer);
   await syncCompany(); // reflect any branding changes from System Settings
-  const buffer = await renderToBuffer(React.createElement(QuotationDocument, { quotation: q, logoSrc: logoDataUrl(), qrSrc, internal }));
+  // Payment details & terms follow System Settings when this quote hasn't frozen
+  // its own (a draft, or one never edited): so an admin's change in Settings shows
+  // on the quotation. An issued quote keeps whatever it was issued with.
+  const settings = await getSettings();
+  const doc = {
+    ...q,
+    paymentDetails: q.paymentDetails || settings.finance?.paymentDetails,
+    terms: q.terms || settings.finance?.quoteTerms,
+  };
+  const buffer = await renderToBuffer(React.createElement(QuotationDocument, { quotation: doc, logoSrc: logoDataUrl(), qrSrc, internal }));
 
   return new Response(buffer, {
     status: 200,

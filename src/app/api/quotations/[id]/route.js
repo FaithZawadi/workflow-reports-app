@@ -71,8 +71,16 @@ export async function GET(_req, { params }) {
     }
   }
 
+  // Current System Settings finance defaults — the preparer's form falls back to
+  // these (not a static build-time constant) so a change in Settings shows up on
+  // new/unedited quotations.
+  const settings = await getSettings();
   return Response.json({
     quotation: q,
+    defaults: {
+      paymentDetails: settings.finance?.paymentDetails || "",
+      terms: settings.finance?.quoteTerms || "",
+    },
     permissions: {
       canPrepare: canPrepareThis(user, q),
       canDecide: ownedByClient(user, q) && q.status === "QUOTED",
