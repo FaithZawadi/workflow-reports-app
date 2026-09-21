@@ -19,6 +19,10 @@ export async function GET(_req, { params }) {
   const q = await prisma.quotation.findUnique({ where: { id: params.id } });
   if (!q) return Response.json({ error: "Not found." }, { status: 404 });
 
+  // ?download=1 forces a file download (used by the "Send to client" panel so the
+  // preparer can attach the PDF to an email / WhatsApp); default is inline view.
+  const download = new URL(_req.url).searchParams.get("download");
+
   const qrText = [
     `QSL Quotation ${q.number}`,
     `Client: ${q.clientName}`,
@@ -37,7 +41,7 @@ export async function GET(_req, { params }) {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="${q.number}.pdf"`,
+      "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${q.number}.pdf"`,
       "Cache-Control": "no-store",
       "X-Robots-Tag": "noindex, nofollow",
     },

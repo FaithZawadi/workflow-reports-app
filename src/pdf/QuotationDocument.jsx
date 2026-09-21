@@ -136,7 +136,9 @@ const s = StyleSheet.create({
   // Line-items table.
   itemsTable: { marginTop: 12, borderWidth: 0.7, borderColor: "#C9C1B0", borderRadius: 3, overflow: "hidden" },
   itemsHead: { flexDirection: "row", backgroundColor: COAL },
-  ihCell: { color: "#fff", fontSize: 7.5, fontFamily: "Helvetica-Bold", letterSpacing: 0.4, paddingVertical: 5, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "rgba(255,255,255,0.16)" },
+  // Column dividers in the coal header are black (matching the background) — a
+  // thin white line here renders with a green fringe in some PDF viewers.
+  ihCell: { color: "#fff", fontSize: 7.5, fontFamily: "Helvetica-Bold", letterSpacing: 0.4, paddingVertical: 5, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: COAL },
   itemsRow: { flexDirection: "row", borderTopWidth: 0.5, borderTopColor: "#EAE3D4", alignItems: "stretch", minHeight: 19 },
   itemsRowAlt: { backgroundColor: "#FBF8F1" },
   iCell: { fontSize: 8.5, color: INK, paddingVertical: 5, paddingHorizontal: 5, borderRightWidth: 0.5, borderRightColor: "#EFE9DB", justifyContent: "center" },

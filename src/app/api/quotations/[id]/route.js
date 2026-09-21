@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { rolesOf, canPrepareQuotes, isClient, canRaiseOwnQuotes } from "@/lib/roles";
 import { amountInWords, quoteTotals } from "@/lib/money";
-import { sendMail, quoteIssuedEmail, quoteDecisionEmail } from "@/lib/email";
+import { sendMail, quoteDecisionEmail } from "@/lib/email";
 import { notifyEmails, notifyUsers } from "@/lib/notify";
 import { getSettings } from "@/lib/settings";
 
@@ -277,14 +277,9 @@ export async function PATCH(req, { params }) {
         : `Quotation ${q.number} draft saved`,
   });
 
-  // On issue, email the client the quote.
-  if (issue && updated.contactEmail) {
-    try {
-      await sendMail(quoteIssuedEmail(updated.contactEmail, updated));
-    } catch {
-      /* best-effort */
-    }
-  }
+  // Issuing NO LONGER emails the client automatically. The preparer reviews the
+  // PDF and sends it themselves (email/WhatsApp, with the PDF attached) from the
+  // "Send to client" panel — so nothing goes out without a person choosing to.
 
   return Response.json({
     ok: true,

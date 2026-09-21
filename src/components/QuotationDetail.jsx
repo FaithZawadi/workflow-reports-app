@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { PaperCard, SectionBar } from "./ui";
 import { StatusBadge } from "./CalibrationRequests";
 import { QUOTE_STATUS } from "./Quotations";
-import ShareButtons from "./ShareButtons";
 import { quoteTotals, amountInWords } from "@/lib/money";
 import { DEFAULT_PAYMENT_DETAILS, DEFAULT_QUOTE_TERMS } from "@/lib/company";
 import { isClient } from "@/lib/roles";
@@ -102,20 +101,14 @@ export default function QuotationDetail({ id, profile }) {
         setBusy(false);
         return;
       }
-      // On issue, open the client's email app with the quotation link ready to send.
-      if (issue && d.shareToken && d.contactEmail) {
-        const link = `${window.location.origin}/d/${d.shareToken}`;
-        const subject = `Quotation ${d.number} — Qalibrated Systems`;
-        const body = `Dear ${contactPerson.trim() || "Sir/Madam"},\n\nPlease find our quotation ${d.number} for ${q?.clientName || "your organisation"}. Total ${d.currency} ${Number(d.grandTotal || 0).toLocaleString()}.\n\nOpen the quotation (PDF):\n${link}\n\nKind regards,\n${profile?.name || "Qalibrated Systems"}\nQalibrated Systems Limited`;
-        window.location.href = `mailto:${encodeURIComponent(d.contactEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      }
+      // Issuing does NOT send anything to the client — nothing is emailed or
+      // opened automatically. The preparer reviews the PDF and then decides to
+      // send it by email or WhatsApp using the "Send to client" panel below.
       await load();
       setAmendReason("");
       setNote(
         issue
-          ? contactEmail.trim()
-            ? "Quotation issued. Your email app should open, ready to send — or use the share buttons above (Email / WhatsApp / Download PDF)."
-            : "Quotation issued. No email on file — share it via WhatsApp or Download PDF using the buttons above."
+          ? "Quotation issued. Download the PDF and send it to the client — Email or WhatsApp — using the “Send to client” panel below. Nothing was sent automatically."
           : "Draft saved."
       );
     } catch {
@@ -267,19 +260,34 @@ export default function QuotationDetail({ id, profile }) {
           </div>
         )}
 
-        {q.status !== "REQUESTED" && q.shareToken && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: MUTE, marginBottom: 6 }}>Share quotation</div>
-            <ShareButtons
-              subject={`Quotation ${q.number} — Qalibrated Systems`}
-              message={`Quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}${q.validUntil ? `, valid until ${new Date(q.validUntil).toLocaleDateString()}` : ""}. Open the PDF:`}
-              url={typeof window !== "undefined" ? `${window.location.origin}/d/${q.shareToken}` : ""}
-              to={q.contactEmail}
-              phone={q.contactPhone}
-            />
-            <div style={{ fontSize: 11, color: MUTE, marginTop: 6 }}>
-              This is a private, unguessable link that opens only the quotation PDF — it doesn&apos;t expose the system.
+        {/* Send to client — the preparer sends the PDF itself (email/WhatsApp).
+            Nothing is sent automatically, and no public link is shared. */}
+        {staffViewer && q.status !== "REQUESTED" && (
+          <div className="card" style={{ marginTop: 12, padding: 14, borderColor: GOLD, background: "#fdf6e3" }}>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: INK, marginBottom: 2 }}>Send to client</div>
+            <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+              Nothing is sent automatically. <b>1.</b> Download the PDF, then <b>2.</b> send it by Email or WhatsApp and attach the downloaded file. No link is shared with the client.
             </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <a className="btn btn-dark" href={`/api/quotations/${id}/pdf?download=1`} style={{ fontSize: 13, textDecoration: "none" }}>⬇ Download PDF</a>
+              <a
+                className="btn"
+                href={`mailto:${encodeURIComponent(q.contactEmail || "")}?subject=${encodeURIComponent(`Quotation ${q.number} — Qalibrated Systems Limited`)}&body=${encodeURIComponent(`Dear ${q.contactPerson || "Sir/Madam"},\n\nPlease find attached our quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}${q.validUntil ? `, valid until ${new Date(q.validUntil).toLocaleDateString()}` : ""}.\n\n(Please attach the PDF you downloaded before sending.)\n\nKind regards,\n${profile?.name || "Qalibrated Systems Limited"}\nQalibrated Systems Limited`)}`}
+                style={{ fontSize: 13, textDecoration: "none", background: "#fff", color: INK, borderColor: "#cfc8ba" }}
+              >✉ Email</a>
+              <a
+                className="btn"
+                href={`https://wa.me/${String(q.contactPhone || "").replace(/[^\d]/g, "")}?text=${encodeURIComponent(`Hello ${q.contactPerson || ""}, please find our quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}. I'm attaching the PDF.`)}`}
+                target="_blank" rel="noreferrer"
+                style={{ fontSize: 13, textDecoration: "none", background: "#25D366", color: "#fff", borderColor: "#25D366" }}
+              >🟢 WhatsApp</a>
+            </div>
+            {(!q.contactEmail || !q.contactPhone) && (
+              <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>
+                {!q.contactEmail ? "No client email on file — add one under Client contact to prefill the email. " : ""}
+                {!q.contactPhone ? "No client phone on file — add one to prefill WhatsApp." : ""}
+              </div>
+            )}
           </div>
         )}
 
