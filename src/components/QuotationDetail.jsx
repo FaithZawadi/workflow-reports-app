@@ -131,6 +131,22 @@ export default function QuotationDetail({ id, profile }) {
   const [sendMsg, setSendMsg] = useState("");
   const [preview, setPreview] = useState(null); // "email" | "whatsapp" | null
   const [recipient, setRecipient] = useState(""); // client email typed in the preview
+  // Preview the PDF as a blob (not a framed URL): the gateway's security headers
+  // (X-Frame-Options / CSP) block embedding the PDF endpoint directly, which shows
+  // a broken-file icon. Fetching it and displaying an object URL sidesteps that.
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewErr, setPreviewErr] = useState(false);
+  useEffect(() => {
+    if (!preview) { setPreviewUrl(""); setPreviewErr(false); return; }
+    let url = "";
+    let cancelled = false;
+    setPreviewUrl(""); setPreviewErr(false);
+    fetch(`/api/quotations/${id}/pdf`, { credentials: "same-origin" })
+      .then((r) => { if (!r.ok) throw new Error("pdf"); return r.blob(); })
+      .then((blob) => { if (cancelled) return; url = URL.createObjectURL(blob); setPreviewUrl(url); })
+      .catch(() => { if (!cancelled) setPreviewErr(true); });
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
+  }, [preview, id]);
   const downloadPdf = () => window.open(`/api/quotations/${id}/pdf?download=1`, "_blank");
   const mailtoLink = (to) => {
     const subject = `Quotation ${q.number} — Qalibrated Systems Limited`;
@@ -562,12 +578,18 @@ export default function QuotationDetail({ id, profile }) {
               <b style={{ fontSize: 14, color: INK }}>Preview quotation {q.number}</b>
               <button className="btn" onClick={() => setPreview(null)} style={{ fontSize: 12 }}>Close</button>
             </div>
-            <object data={`/api/quotations/${id}/pdf`} type="application/pdf" style={{ flex: 1, width: "100%", border: 0 }}>
-              <div style={{ padding: 20, textAlign: "center" }}>
-                <p className="muted" style={{ fontSize: 13 }}>Preview couldn’t display inline.</p>
-                <a className="btn" href={`/api/quotations/${id}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 13, textDecoration: "none" }}>Open the PDF in a new tab</a>
-              </div>
-            </object>
+            <div style={{ flex: 1, minHeight: 0, background: "#525659", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {previewErr ? (
+                <div style={{ padding: 20, textAlign: "center", color: "#fff" }}>
+                  <p style={{ fontSize: 13, marginBottom: 10 }}>Couldn’t load the preview here.</p>
+                  <a className="btn" href={`/api/quotations/${id}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 13, textDecoration: "none" }}>Open the PDF in a new tab</a>
+                </div>
+              ) : previewUrl ? (
+                <iframe title="Quotation preview" src={previewUrl} style={{ width: "100%", height: "100%", border: 0 }} />
+              ) : (
+                <div style={{ color: "#fff", fontSize: 13 }}>Loading preview…</div>
+              )}
+            </div>
             <div style={{ padding: "10px 14px", borderTop: "1px solid #e6e0d2", display: "flex", gap: 10, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
               {preview === "email" ? (
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, flex: "1 1 260px" }}>
