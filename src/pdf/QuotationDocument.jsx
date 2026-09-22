@@ -176,9 +176,9 @@ const s = StyleSheet.create({
   payValText: { fontSize: 8.2, fontFamily: "Helvetica-Bold", color: INK, textAlign: "center" },
   termsFull: { marginTop: 10, padding: 8, borderWidth: 0.5, borderColor: "#C9C1B0", borderRadius: 3, backgroundColor: "#FBF8F1" },
   qrBlock: { flexDirection: "row", alignItems: "center", marginTop: 14, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: "#C9C1B0" },
-  qrImg: { width: 46, height: 46 },
+  qrImg: { width: 40, height: 40 },
   // Pinned bottom-right, above the footer, page 1 only.
-  qrFixed: { position: "absolute", bottom: 24, right: 32, alignItems: "flex-end" },
+  qrFixed: { position: "absolute", bottom: 33, right: 32, alignItems: "flex-end" },
   qrText: { flex: 1 },
   qrTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK, textTransform: "uppercase", letterSpacing: 0.4 },
   qrSub: { fontSize: 7.5, color: MUTE, marginTop: 2, lineHeight: 1.3, maxWidth: 260 },

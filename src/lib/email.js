@@ -22,7 +22,7 @@ function getTransport() {
 
 // Returns { sent: boolean, reason?: string }. Never throws — a failed email
 // must not break the workflow; the event is still recorded in the audit trail.
-export async function sendMail({ to, subject, text, html, cc, attachments }) {
+export async function sendMail({ to, subject, text, html, cc, attachments, from, replyTo }) {
   // Admin master switch — an administrator can turn all outgoing email off (or
   // on, if SMTP is configured) in System Settings, without a redeploy.
   try {
@@ -34,9 +34,15 @@ export async function sendMail({ to, subject, text, html, cc, attachments }) {
   const t = getTransport();
   if (!t) return { sent: false, reason: "email disabled" };
   if (!to) return { sent: false, reason: "no recipient" };
+  const systemFrom = process.env.EMAIL_FROM || process.env.SMTP_USER;
   try {
     await t.sendMail({
-      from: process.env.EMAIL_FROM || process.env.SMTP_USER,
+      // A caller can present a different visible From (e.g. the quotation
+      // preparer). Keep the SMTP envelope sender on the authenticated account so
+      // SPF/DMARC still pass and the mail isn't rejected; replies go to replyTo.
+      from: from || systemFrom,
+      ...(from && from !== systemFrom ? { sender: systemFrom } : {}),
+      ...(replyTo ? { replyTo } : {}),
       to,
       subject,
       text,

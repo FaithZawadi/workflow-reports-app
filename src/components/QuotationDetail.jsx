@@ -123,10 +123,13 @@ export default function QuotationDetail({ id, profile }) {
   const [lpoBusy, setLpoBusy] = useState(false);
   const [lpoMsg, setLpoMsg] = useState("");
 
-  // Email the quotation PDF straight to the client (server-side, real attachment).
-  // Deliberate action — nothing is sent until the preparer clicks.
+  // Send-to-client: the preparer previews the quotation PDF first, then confirms
+  // to send. Nothing goes out until they confirm in the preview. Email attaches
+  // the PDF server-side (real attachment, no link); WhatsApp downloads the PDF to
+  // attach (WhatsApp can't attach from a link).
   const [sending, setSending] = useState(false);
   const [sendMsg, setSendMsg] = useState("");
+  const [preview, setPreview] = useState(null); // "email" | "whatsapp" | null
   const emailPdf = async () => {
     setSending(true);
     setSendMsg("");
@@ -142,6 +145,19 @@ export default function QuotationDetail({ id, profile }) {
       setSendMsg("Network problem — try again.");
     }
     setSending(false);
+  };
+  const waLink = () =>
+    `https://wa.me/${String(q.contactPhone || "").replace(/[^\d]/g, "")}?text=${encodeURIComponent(`Hello ${q.contactPerson || ""}, please find our quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}. I'm attaching the PDF.`)}`;
+  // Confirm from the preview: actually send by the chosen channel.
+  const confirmSend = async () => {
+    if (preview === "email") {
+      await emailPdf();
+    } else if (preview === "whatsapp") {
+      window.open(`/api/quotations/${id}/pdf?download=1`, "_blank"); // download to attach
+      window.open(waLink(), "_blank", "noopener");
+      setSendMsg("PDF downloaded — attach it in WhatsApp before sending.");
+    }
+    setPreview(null);
   };
 
   const uploadLpo = async (file) => {
@@ -244,25 +260,25 @@ export default function QuotationDetail({ id, profile }) {
     <div className="card" style={{ marginTop: 12, padding: 14, borderColor: GOLD, background: "#fdf6e3" }}>
       <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: INK, marginBottom: 2 }}>Send to client</div>
       <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
-        <b>Email</b> sends the quotation PDF straight to {q.contactEmail || "the client"} — attached, no link.
-        For <b>WhatsApp</b>, download the PDF first and attach it (WhatsApp can’t attach from a link).
+        You’ll <b>preview the quotation</b> first, then confirm to send. <b>Email</b> attaches the PDF to {q.contactEmail || "the client"} — no link.
+        <b> WhatsApp</b> downloads the PDF so you can attach it (WhatsApp can’t attach from a link).
       </div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <button
           type="button"
           className="btn btn-primary"
-          onClick={emailPdf}
+          onClick={() => setPreview("email")}
           disabled={sending || !q.contactEmail}
-          title={!q.contactEmail ? "Add a client email under Client contact first" : "Email the PDF to the client"}
+          title={!q.contactEmail ? "Add a client email under Client contact first" : "Preview, then email the PDF to the client"}
           style={{ fontSize: 13 }}
-        >{sending ? "Sending…" : "✉ Email PDF to client"}</button>
-        <a className="btn btn-dark" href={`/api/quotations/${id}/pdf?download=1`} style={{ fontSize: 13, textDecoration: "none" }}>⬇ Download PDF</a>
-        <a
+        >✉ Preview &amp; email</button>
+        <button
+          type="button"
           className="btn"
-          href={`https://wa.me/${String(q.contactPhone || "").replace(/[^\d]/g, "")}?text=${encodeURIComponent(`Hello ${q.contactPerson || ""}, please find our quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}. I'm attaching the PDF.`)}`}
-          target="_blank" rel="noreferrer"
-          style={{ fontSize: 13, textDecoration: "none", background: "#25D366", color: "#fff", borderColor: "#25D366" }}
-        >🟢 WhatsApp</a>
+          onClick={() => setPreview("whatsapp")}
+          style={{ fontSize: 13, background: "#25D366", color: "#fff", borderColor: "#25D366" }}
+        >🟢 Preview &amp; WhatsApp</button>
+        <a className="btn btn-dark" href={`/api/quotations/${id}/pdf?download=1`} style={{ fontSize: 13, textDecoration: "none" }}>⬇ Download PDF</a>
       </div>
       {sendMsg && (
         <div style={{ fontSize: 12, fontWeight: 700, marginTop: 8, color: sendMsg.startsWith("✓") ? PASS : WAIT }}>{sendMsg}</div>
@@ -537,6 +553,45 @@ export default function QuotationDetail({ id, profile }) {
             scrolling through the quotation. */}
         {sendPanel}
       </PaperCard>
+
+      {/* Preview-before-send: review the actual quotation PDF, then confirm to
+          send by the chosen channel. Nothing goes out until "Send" is clicked. */}
+      {preview && (
+        <div
+          onClick={() => setPreview(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "#fff", borderRadius: 8, width: "min(920px, 100%)", height: "90vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+          >
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid #e6e0d2", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <b style={{ fontSize: 14, color: INK }}>Preview quotation {q.number}</b>
+              <button className="btn" onClick={() => setPreview(null)} style={{ fontSize: 12 }}>Close</button>
+            </div>
+            <iframe title="Quotation preview" src={`/api/quotations/${id}/pdf`} style={{ flex: 1, width: "100%", border: 0 }} />
+            <div style={{ padding: "10px 14px", borderTop: "1px solid #e6e0d2", display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+              <span className="muted" style={{ fontSize: 12 }}>
+                {preview === "email"
+                  ? `Will be emailed with the PDF attached to ${q.contactEmail || "the client"}.`
+                  : "The PDF will download so you can attach it in WhatsApp."}
+              </span>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button className="btn" onClick={() => setPreview(null)} style={{ fontSize: 13 }}>Cancel</button>
+                {preview === "email" ? (
+                  <button className="btn btn-primary" onClick={confirmSend} disabled={sending || !q.contactEmail} style={{ fontSize: 13 }}>
+                    {sending ? "Sending…" : `✉ Send by Email to ${q.contactEmail || "client"}`}
+                  </button>
+                ) : (
+                  <button className="btn" onClick={confirmSend} style={{ fontSize: 13, background: "#25D366", color: "#fff", borderColor: "#25D366" }}>
+                    🟢 Download &amp; open WhatsApp
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -54,9 +54,16 @@ Kind regards,
 ${senderName}
 ${COMPANY.name}`;
 
+  // Send as the preparer, not the system mailbox: their name + email is the
+  // visible From and Reply-To, so the client replies straight to them. (The SMTP
+  // envelope sender stays on the authenticated account for deliverability.)
+  const fromHeader = user?.email ? `${senderName} <${user.email}>` : undefined;
+
   const res = await sendMail({
     to,
     cc: cc || undefined,
+    from: fromHeader,
+    replyTo: user?.email || undefined,
     subject: `Quotation ${q.number} — ${COMPANY.name}`,
     text,
     attachments: [{ filename: `${q.number}.pdf`, content: buffer, contentType: "application/pdf" }],
