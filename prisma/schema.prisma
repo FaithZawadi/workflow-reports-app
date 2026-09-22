@@ -726,6 +726,13 @@ model Quotation {
   preparedByName String?
   quotedAt       DateTime?
   decidedAt      DateTime?
+  // A quotation prepared by a Technician / Sales user needs PM/TM/Manager/Admin
+  // sign-off before it can be shared with the client. Quotes prepared by an
+  // approver role are APPROVED outright. Legacy rows default to APPROVED.
+  approvalStatus String    @default("APPROVED") // APPROVED | PENDING
+  approvedById   String?
+  approvedByName String?
+  approvedAt     DateTime?
   // When the last "still awaiting a decision?" follow-up nudge was sent to the
   // preparer. Reset on each (re)issue; cleared once accepted/declined.
   followupSentAt DateTime?

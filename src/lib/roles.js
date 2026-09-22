@@ -110,6 +110,12 @@ export const canPrepareQuotes = (input) => intersects(input, QUOTE_ROLES);
 export const OWN_QUOTE_ROLES = ["TECHNICIAN", "SALES"];
 export const canRaiseOwnQuotes = (input) => intersects(input, OWN_QUOTE_ROLES);
 
+// A quotation prepared by a Technician / Sales user must be approved by a Project
+// Manager / Technical Manager / Manager / Admin before it can be shared with the
+// client. These roles may approve (and never need approval for their own quotes).
+export const QUOTE_APPROVER_ROLES = ["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "MANAGER"];
+export const canApproveQuotes = (input) => intersects(input, QUOTE_APPROVER_ROLES);
+
 // PM/TM/admin see & prepare all quotations; supervisors get a scoped read view;
 // Technicians & Sales see only their own; clients raise requests.
 export const canSeeQuotations = (input) =>

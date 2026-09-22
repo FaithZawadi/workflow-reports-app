@@ -111,7 +111,7 @@ export default function QuotationDetail({ id, profile }) {
       setAmendReason("");
       setNote(
         issue
-          ? "Quotation issued. Use the “Send to client” panel to email the PDF to the client (or download it for WhatsApp). Nothing was sent automatically."
+          ? "Quotation issued. Once approved, download the PDF or share it on WhatsApp from the “Send to client” panel. It is never emailed automatically."
           : "Draft saved."
       );
     } catch {
@@ -123,51 +123,36 @@ export default function QuotationDetail({ id, profile }) {
   const [lpoBusy, setLpoBusy] = useState(false);
   const [lpoMsg, setLpoMsg] = useState("");
 
-  // Send-to-client: the preparer previews the quotation PDF, then sends it from
-  // their OWN device — nothing goes through a system mailbox. Email opens the
-  // device's default mail app (mailto) to whatever client address they enter, so
-  // it comes from the preparer's own account; WhatsApp opens WhatsApp. Neither can
-  // attach a file from a link, so we download the PDF first for them to attach.
+  // Send-to-client: quotations are NOT emailed. The preparer downloads the PDF and,
+  // when needed, shares it over WhatsApp (the PDF downloads so they can attach it).
   const [sendMsg, setSendMsg] = useState("");
-  const [preview, setPreview] = useState(null); // "email" | "whatsapp" | null
-  const [recipient, setRecipient] = useState(""); // client email typed in the preview
-  // Preview the PDF as a blob (not a framed URL): the gateway's security headers
-  // (X-Frame-Options / CSP) block embedding the PDF endpoint directly, which shows
-  // a broken-file icon. Fetching it and displaying an object URL sidesteps that.
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [previewErr, setPreviewErr] = useState(false);
-  useEffect(() => {
-    if (!preview) { setPreviewUrl(""); setPreviewErr(false); return; }
-    let url = "";
-    let cancelled = false;
-    setPreviewUrl(""); setPreviewErr(false);
-    fetch(`/api/quotations/${id}/pdf`, { credentials: "same-origin" })
-      .then((r) => { if (!r.ok) throw new Error("pdf"); return r.blob(); })
-      .then((blob) => { if (cancelled) return; url = URL.createObjectURL(blob); setPreviewUrl(url); })
-      .catch(() => { if (!cancelled) setPreviewErr(true); });
-    return () => { cancelled = true; if (url) URL.revokeObjectURL(url); };
-  }, [preview, id]);
   const downloadPdf = () => window.open(`/api/quotations/${id}/pdf?download=1`, "_blank");
-  const mailtoLink = (to) => {
-    const subject = `Quotation ${q.number} — Qalibrated Systems Limited`;
-    const body = `Dear ${q.contactPerson || "Sir/Madam"},\n\nPlease find attached our quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}${q.validUntil ? `, valid until ${new Date(q.validUntil).toLocaleDateString()}` : ""}.\n\nKind regards,\n${profile?.name || ""}`;
-    return `mailto:${encodeURIComponent((to || "").trim())}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const whatsappToClient = () => {
+    downloadPdf();
+    window.open(`https://wa.me/${String(q.contactPhone || "").replace(/[^\d]/g, "")}?text=${encodeURIComponent(`Hello ${q.contactPerson || ""}, please find our quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}. I'm attaching the PDF.`)}`, "_blank", "noopener");
+    setSendMsg("PDF downloaded — attach it in WhatsApp before sending.");
   };
-  const waLink = () =>
-    `https://wa.me/${String(q.contactPhone || "").replace(/[^\d]/g, "")}?text=${encodeURIComponent(`Hello ${q.contactPerson || ""}, please find our quotation ${q.number} for ${q.clientName}. Total ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}. I'm attaching the PDF.`)}`;
-  const openSend = (mode) => { setRecipient(q.contactEmail || ""); setSendMsg(""); setPreview(mode); };
-  // Confirm from the preview: hand off to the preparer's own app.
-  const confirmSend = () => {
-    if (preview === "email") {
-      downloadPdf(); // so the PDF is ready to attach in their mail app
-      window.location.href = mailtoLink(recipient); // opens their default email app
-      setSendMsg(`Opened your email app to ${recipient || "the client"} — attach the downloaded PDF and send.`);
-    } else if (preview === "whatsapp") {
-      downloadPdf();
-      window.open(waLink(), "_blank", "noopener");
-      setSendMsg("PDF downloaded — attach it in WhatsApp before sending.");
+
+  // A quotation prepared by a Technician/Sales must be approved by a PM/TM/Admin
+  // before it can be shared with the client.
+  const [approveBusy, setApproveBusy] = useState(false);
+  const approved = !q || q.approvalStatus !== "PENDING"; // legacy quotes have no status → treat as approved
+  const approveQuote = async () => {
+    setApproveBusy(true);
+    setSendMsg("");
+    try {
+      const res = await fetch(`/api/quotations/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ approve: true }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) { await load(); setSendMsg("✓ Approved — it can now be shared with the client."); }
+      else setSendMsg(d.error || "Could not approve.");
+    } catch {
+      setSendMsg("Network problem — try again.");
     }
-    setPreview(null);
+    setApproveBusy(false);
   };
 
   const uploadLpo = async (file) => {
@@ -269,34 +254,55 @@ export default function QuotationDetail({ id, profile }) {
   const sendPanel = staffViewer && q.status !== "REQUESTED" ? (
     <div className="card" style={{ marginTop: 12, padding: 14, borderColor: GOLD, background: "#fdf6e3" }}>
       <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: INK, marginBottom: 2 }}>Send to client</div>
-      <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
-        You’ll <b>preview the quotation</b> first, then send it from your own device — it does <b>not</b> go through a system mailbox.
-        <b> Email</b> opens your mail app (from your own address) to whatever client email you enter; <b>WhatsApp</b> opens WhatsApp.
-        The PDF downloads so you can attach it.
-      </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => openSend("email")}
-          title="Preview, then open your email app to send the quotation"
-          style={{ fontSize: 13 }}
-        >✉ Preview &amp; email</button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => openSend("whatsapp")}
-          style={{ fontSize: 13, background: "#25D366", color: "#fff", borderColor: "#25D366" }}
-        >🟢 Preview &amp; WhatsApp</button>
-        <a className="btn btn-dark" href={`/api/quotations/${id}/pdf?download=1`} style={{ fontSize: 13, textDecoration: "none" }}>⬇ Download PDF</a>
-      </div>
-      {sendMsg && (
-        <div style={{ fontSize: 12, fontWeight: 700, marginTop: 8, color: WAIT }}>{sendMsg}</div>
-      )}
-      {!q.contactPhone && (
-        <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>
-          No client phone on file — add one under Client contact to prefill WhatsApp.
+
+      {!approved ? (
+        // Pending PM/Admin approval — no sharing until approved.
+        <div>
+          <div style={{ display: "inline-block", fontSize: 11, fontWeight: 800, color: "#8a5a00", background: "#fff3d6", border: "1px solid #e6cf97", borderRadius: 999, padding: "3px 10px", marginBottom: 8 }}>
+            ⏳ Pending approval
+          </div>
+          {perm.canApprove ? (
+            <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+              This quotation was prepared by {q.preparedByName || "a technician"} and needs your approval before it can be shared with the client.
+            </div>
+          ) : (
+            <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+              Awaiting a Project Manager / Administrator approval before it can be shared with the client.
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            {perm.canApprove && (
+              <button type="button" className="btn btn-primary" onClick={approveQuote} disabled={approveBusy} style={{ fontSize: 13 }}>
+                {approveBusy ? "Approving…" : "✔ Approve to send"}
+              </button>
+            )}
+            <a className="btn btn-dark" href={`/api/quotations/${id}/pdf?download=1`} style={{ fontSize: 13, textDecoration: "none" }}>⬇ Download PDF</a>
+          </div>
         </div>
+      ) : (
+        <>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+            Quotations are <b>not emailed</b>. Download the PDF, or share it over <b>WhatsApp</b> when needed
+            (the PDF downloads so you can attach it).
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <a className="btn btn-dark" href={`/api/quotations/${id}/pdf?download=1`} style={{ fontSize: 13, textDecoration: "none" }}>⬇ Download PDF</a>
+            <button
+              type="button"
+              className="btn"
+              onClick={whatsappToClient}
+              style={{ fontSize: 13, background: "#25D366", color: "#fff", borderColor: "#25D366" }}
+            >🟢 Share on WhatsApp</button>
+          </div>
+          {!q.contactPhone && (
+            <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>
+              No client phone on file — add one under Client contact to prefill WhatsApp.
+            </div>
+          )}
+        </>
+      )}
+      {sendMsg && (
+        <div style={{ fontSize: 12, fontWeight: 700, marginTop: 8, color: sendMsg.startsWith("✓") ? PASS : WAIT }}>{sendMsg}</div>
       )}
     </div>
   ) : null;
@@ -562,65 +568,6 @@ export default function QuotationDetail({ id, profile }) {
             scrolling through the quotation. */}
         {sendPanel}
       </PaperCard>
-
-      {/* Preview-before-send: review the actual quotation PDF, then confirm to
-          send by the chosen channel. Nothing goes out until "Send" is clicked. */}
-      {preview && (
-        <div
-          onClick={() => setPreview(null)}
-          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{ background: "#fff", borderRadius: 8, width: "min(920px, 100%)", height: "90vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
-          >
-            <div style={{ padding: "10px 14px", borderBottom: "1px solid #e6e0d2", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-              <b style={{ fontSize: 14, color: INK }}>Preview quotation {q.number}</b>
-              <button className="btn" onClick={() => setPreview(null)} style={{ fontSize: 12 }}>Close</button>
-            </div>
-            <div style={{ flex: 1, minHeight: 0, background: "#525659", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {previewErr ? (
-                <div style={{ padding: 20, textAlign: "center", color: "#fff" }}>
-                  <p style={{ fontSize: 13, marginBottom: 10 }}>Couldn’t load the preview here.</p>
-                  <a className="btn" href={`/api/quotations/${id}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 13, textDecoration: "none" }}>Open the PDF in a new tab</a>
-                </div>
-              ) : previewUrl ? (
-                <iframe title="Quotation preview" src={previewUrl} style={{ width: "100%", height: "100%", border: 0 }} />
-              ) : (
-                <div style={{ color: "#fff", fontSize: 13 }}>Loading preview…</div>
-              )}
-            </div>
-            <div style={{ padding: "10px 14px", borderTop: "1px solid #e6e0d2", display: "flex", gap: 10, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
-              {preview === "email" ? (
-                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, flex: "1 1 260px" }}>
-                  <span className="muted" style={{ whiteSpace: "nowrap" }}>Client email</span>
-                  <input
-                    type="email"
-                    value={recipient}
-                    onChange={(e) => setRecipient(e.target.value)}
-                    placeholder="client@company.com"
-                    style={{ flex: 1, minWidth: 160, padding: "6px 8px", border: "1px solid #cfc8ba", borderRadius: 4, fontSize: 13 }}
-                  />
-                </label>
-              ) : (
-                <span className="muted" style={{ fontSize: 12 }}>The PDF will download so you can attach it in WhatsApp.</span>
-              )}
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button className="btn" onClick={() => setPreview(null)} style={{ fontSize: 13 }}>Cancel</button>
-                {preview === "email" ? (
-                  <button className="btn btn-primary" onClick={confirmSend} style={{ fontSize: 13 }}>
-                    ✉ Open email app
-                  </button>
-                ) : (
-                  <button className="btn" onClick={confirmSend} style={{ fontSize: 13, background: "#25D366", color: "#fff", borderColor: "#25D366" }}>
-                    🟢 Download &amp; open WhatsApp
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

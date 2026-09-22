@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
-import { rolesOf, canPrepareQuotes, isClient, canRaiseOwnQuotes } from "@/lib/roles";
+import { rolesOf, canPrepareQuotes, isClient, canRaiseOwnQuotes, canApproveQuotes } from "@/lib/roles";
 import { amountInWords, quoteTotals } from "@/lib/money";
 import { sendMail, quoteDecisionEmail } from "@/lib/email";
 import { notifyEmails, notifyUsers } from "@/lib/notify";
@@ -86,6 +86,8 @@ export async function GET(_req, { params }) {
       canDecide: ownedByClient(user, q) && q.status === "QUOTED",
       // The owning client may attach/replace their LPO once the quote is issued.
       canUploadLpo: ownedByClient(user, q) && q.status !== "REQUESTED",
+      // A PM/TM/Manager/Admin may approve a technician's pending quotation.
+      canApprove: canApproveQuotes(user),
     },
   });
 }
@@ -167,6 +169,24 @@ export async function PATCH(req, { params }) {
     const updated = await prisma.quotation.update({ where: { id: q.id }, data: { status: decision, decidedAt: new Date() } });
     await recordAudit({ actor: user, action: "UPDATE", entity: "QUOTATION", entityId: q.number, summary: `Quotation ${q.number} recorded ${decision.toLowerCase()} by ${user.name}` });
     return Response.json({ ok: true, status: updated.status });
+  }
+
+  // --- Approve a technician's pending quotation (PM / TM / Manager / Admin) ---
+  if (body.approve) {
+    if (!canApproveQuotes(user)) return Response.json({ error: "Only a Project Manager or Administrator can approve a quotation." }, { status: 403 });
+    if (q.status === "REQUESTED") return Response.json({ error: "The quotation must be prepared before it can be approved." }, { status: 400 });
+    const updated = await prisma.quotation.update({
+      where: { id: q.id },
+      data: { approvalStatus: "APPROVED", approvedById: user.sub, approvedByName: user.name, approvedAt: new Date() },
+    });
+    await recordAudit({ actor: user, action: "APPROVE", entity: "QUOTATION", entityId: q.number, summary: `Quotation ${q.number} approved by ${user.name}` });
+    // Let the preparer know it's cleared to share.
+    try {
+      if (q.requestedById) await notifyUsers([q.requestedById], { type: "SYSTEM", title: `Quote approved · ${q.number}`, body: `${user.name} approved the quotation — you can now share it with the client`, link: `/quotations/${q.id}` });
+    } catch {
+      /* best-effort */
+    }
+    return Response.json({ ok: true, approvalStatus: "APPROVED" });
   }
 
   // --- Staff prepare / issue ---
@@ -267,8 +287,21 @@ export async function PATCH(req, { params }) {
     data.quotedAt = new Date();
     // Restart the "still awaiting a decision?" nudge clock on each (re)issue.
     data.followupSentAt = null;
-    // Mint the shareable link now so the client can be emailed/messaged the PDF.
+    // Mint the shareable link now so the client can be messaged the PDF.
     if (!q.shareToken) data.shareToken = crypto.randomBytes(18).toString("base64url");
+    // A Technician / Sales preparer's quote needs PM/TM/Manager/Admin approval
+    // before it can be shared; an approver-role preparer is cleared outright.
+    if (canApproveQuotes(user)) {
+      data.approvalStatus = "APPROVED";
+      data.approvedById = user.sub;
+      data.approvedByName = user.name;
+      data.approvedAt = new Date();
+    } else {
+      data.approvalStatus = "PENDING";
+      data.approvedById = null;
+      data.approvedByName = null;
+      data.approvedAt = null;
+    }
   }
 
   const updated = await prisma.quotation.update({ where: { id: q.id }, data });
@@ -285,9 +318,19 @@ export async function PATCH(req, { params }) {
         : `Quotation ${q.number} draft saved`,
   });
 
-  // Issuing NO LONGER emails the client automatically. The preparer reviews the
-  // PDF and sends it themselves (email/WhatsApp, with the PDF attached) from the
-  // "Send to client" panel — so nothing goes out without a person choosing to.
+  // Issuing NO LONGER emails the client automatically, and quotations are not
+  // emailed at all — the preparer downloads the PDF and shares it (e.g. WhatsApp)
+  // from the "Send to client" panel, once approved.
+
+  // A technician's issued quote is pending approval — ping the approvers.
+  if (issue && updated.approvalStatus === "PENDING") {
+    try {
+      const approvers = await prisma.user.findMany({ where: { active: true, roles: { hasSome: ["PROJECT_MANAGER", "TECHNICAL_MANAGER", "MANAGER", "ADMIN"] } }, select: { id: true } });
+      await notifyUsers(approvers.map((u) => u.id), { type: "SYSTEM", title: `Quote needs approval · ${q.number}`, body: `${user.name} issued a quotation for ${q.clientName} — approve it before it goes to the client`, link: `/quotations/${q.id}` });
+    } catch {
+      /* best-effort */
+    }
+  }
 
   return Response.json({
     ok: true,
