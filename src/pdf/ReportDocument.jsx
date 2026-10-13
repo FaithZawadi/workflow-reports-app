@@ -105,6 +105,19 @@ const s = StyleSheet.create({
   signField: { flexDirection: "row", alignItems: "flex-end", marginTop: 8 },
   signFieldK: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: MUTE, width: 58, textTransform: "uppercase", letterSpacing: 0.3 },
   signFieldLine: { flex: 1, borderBottomWidth: 0.7, borderBottomColor: "#8a8171", height: 11 },
+  // Captured billing sign-off (Qalibrated signs first, then the client + stamp).
+  boWrap: { marginTop: 12 },
+  boRow: { flexDirection: "row" },
+  boCol: { flex: 1, borderWidth: 0.5, borderColor: "#E4DCCB", borderRadius: 3, overflow: "hidden" },
+  boGap: { width: 14 },
+  boTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: COAL, textTransform: "uppercase", letterSpacing: 0.4, backgroundColor: "#F5EEDD", paddingVertical: 3, paddingHorizontal: 6, borderBottomWidth: 0.5, borderBottomColor: "#E4DCCB" },
+  boBody: { padding: 6, minHeight: 74 },
+  boImgs: { flexDirection: "row", alignItems: "center", gap: 8 },
+  boSig: { height: 52, width: "60%", objectFit: "contain" },
+  boStamp: { height: 52, width: "36%", objectFit: "contain" },
+  boBlankLine: { borderBottomWidth: 0.7, borderBottomColor: "#8a8171", height: 40, marginBottom: 4 },
+  boMeta: { fontSize: 7, color: MUTE, marginTop: 5, borderTopWidth: 0.5, borderTopColor: "#E4DCCB", paddingTop: 3 },
+  boMetaB: { fontFamily: "Helvetica-Bold", color: COAL },
   sysNote: { marginTop: 10, padding: 6, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA" },
   sysNoteText: { fontSize: 8, color: INK, fontFamily: "Helvetica-Bold" },
   sysNoteSub: { fontSize: 7.5, color: MUTE, marginTop: 2 },
@@ -564,6 +577,54 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
             </View>
           </View>
         )}
+
+        {/* Captured billing sign-off — shown once Qalibrated has signed. The
+            client column stays open (blank line) until the client signs/stamps. */}
+        {report.qslSignatureImage ? (
+          <View style={s.boWrap} wrap={false}>
+            <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Sign-off for billing</Text></View>
+            <View style={s.boRow}>
+              <View style={s.boCol}>
+                <Text style={s.boTitle}>For {COMPANY.name}</Text>
+                <View style={s.boBody}>
+                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                  <Image src={report.qslSignatureImage} style={s.boSig} />
+                  <Text style={s.boMeta}>
+                    <Text style={s.boMetaB}>{report.qslSignedByName || "—"}</Text>
+                    {report.qslSignedAt ? `  ·  ${fmt(report.qslSignedAt)}` : ""}
+                  </Text>
+                </View>
+              </View>
+              <View style={s.boGap} />
+              <View style={s.boCol}>
+                <Text style={s.boTitle}>For the Client — {report.clientName}</Text>
+                <View style={s.boBody}>
+                  {report.clientSignatureImage ? (
+                    <>
+                      <View style={s.boImgs}>
+                        {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                        <Image src={report.clientSignatureImage} style={report.clientStampImage ? s.boSig : { height: 52, width: "100%", objectFit: "contain" }} />
+                        {report.clientStampImage ? (
+                          // eslint-disable-next-line jsx-a11y/alt-text
+                          <Image src={report.clientStampImage} style={s.boStamp} />
+                        ) : null}
+                      </View>
+                      <Text style={s.boMeta}>
+                        <Text style={s.boMetaB}>{report.clientSignedByName || "—"}</Text>
+                        {report.clientSignedAt ? `  ·  ${fmt(report.clientSignedAt)}` : ""}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <View style={s.boBlankLine} />
+                      <Text style={s.boMeta}>Client name, signature &amp; stamp</Text>
+                    </>
+                  )}
+                </View>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         {/* Verify QR — pinned bottom-right on page 1 only. */}
         {qrSrc ? (

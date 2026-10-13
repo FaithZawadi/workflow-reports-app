@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { canView, canAct, canEdit } from "@/lib/rbac";
 import { recordAudit } from "@/lib/audit";
 import { templateByCode } from "@/lib/templates";
-import { rolesOf } from "@/lib/roles";
+import { rolesOf, isClient } from "@/lib/roles";
 
 export async function GET(req, { params }) {
   let user;
@@ -49,6 +49,9 @@ export async function GET(req, { params }) {
     permissions: {
       actAs: canAct(report, user), // "SUPERVISOR" | "MANAGER" | null
       canEdit: canEdit(report, user),
+      // Billing sign-off: Qalibrated (staff) signs first, then the client.
+      canSignQsl: report.status === "APPROVED" && !isClient(user),
+      canSignClient: report.status === "APPROVED" && !!report.qslSignatureImage,
     },
   });
 }
