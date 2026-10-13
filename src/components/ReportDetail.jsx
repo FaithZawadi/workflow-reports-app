@@ -6,25 +6,17 @@ import { templateByCode, isSingleApproval } from "@/lib/templates";
 import { defaultStates, colorFor } from "./CheckItem";
 import { COAL, GOLD, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 import { GEOFENCE_META, fmtDistance } from "@/lib/geofence";
-import SignaturePad from "./SignaturePad";
 
 export default function ReportDetail({ serial, profile }) {
   const [rep, setRep] = useState(null);
   const [actAs, setActAs] = useState(null);
   const [reviewers, setReviewers] = useState(null);
   const [canEditReport, setCanEditReport] = useState(false);
-  const [perm, setPerm] = useState({});
   const [lightbox, setLightbox] = useState(null); // index of the open photo, or null
   const [err, setErr] = useState("");
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
-  // Billing sign-off capture (Qalibrated first, then the client + stamp).
-  const [qslSig, setQslSig] = useState("");
-  const [clientSig, setClientSig] = useState("");
-  const [clientStamp, setClientStamp] = useState("");
-  const [signBusy, setSignBusy] = useState(false);
-  const [signMsg, setSignMsg] = useState("");
 
   const load = async () => {
     setErr("");
@@ -35,7 +27,6 @@ export default function ReportDetail({ serial, profile }) {
     setActAs(data.permissions?.actAs || null);
     setReviewers(data.reviewers || null);
     setCanEditReport(!!data.permissions?.canEdit);
-    setPerm(data.permissions || {});
   };
 
   useEffect(() => {
@@ -58,33 +49,6 @@ export default function ReportDetail({ serial, profile }) {
     setNote(data.emailSent ? "Done. Notification sent." : "Saved. (Email notification is off or failed.)");
     setComment("");
     load();
-  };
-
-  // Billing sign-off — POST a captured signature (and the client's stamp).
-  const submitSignoff = async (party) => {
-    const signatureImage = party === "QSL" ? qslSig : clientSig;
-    if (!signatureImage) return setSignMsg("Please sign first.");
-    setSignBusy(true);
-    setSignMsg("Saving…");
-    const res = await fetch(`/api/reports/${serial}/signoff`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ party, signatureImage, stampImage: party === "CLIENT" ? clientStamp || null : null }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setSignBusy(false);
-    if (!res.ok) return setSignMsg(data.error || "Could not save the signature.");
-    setSignMsg(party === "QSL" ? "Qalibrated signature saved." : "Client signature saved.");
-    setQslSig(""); setClientSig(""); setClientStamp("");
-    load();
-  };
-  const readStampFile = (file) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) return setSignMsg("The stamp must be an image file.");
-    if (file.size > 700 * 1024) return setSignMsg("The stamp image must be 700 KB or smaller.");
-    const fr = new FileReader();
-    fr.onload = () => setClientStamp(String(fr.result || ""));
-    fr.readAsDataURL(file);
   };
 
   if (err)
@@ -382,79 +346,6 @@ export default function ReportDetail({ serial, profile }) {
         {rep.status === "APPROVED" && (
           <div style={{ marginTop: 12, padding: 12, borderRadius: 2, fontWeight: 900, textTransform: "uppercase", color: "#fff", background: PASS, textAlign: "center" }}>
             Fully approved — record closed
-          </div>
-        )}
-
-        {/* Billing sign-off — Qalibrated signs first, then the client signs & stamps.
-            Captured signatures print on the report PDF and are used for billing. */}
-        {rep.status === "APPROVED" && (
-          <div style={{ marginTop: 16 }}>
-            <SectionBar>Sign-off for billing</SectionBar>
-            <p className="muted" style={{ fontSize: 12, margin: "4px 0 12px" }}>
-              Qalibrated signs first, then the client signs and applies their stamp. These appear on the report PDF used for billing.
-            </p>
-            <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-              {/* Qalibrated */}
-              <div className="card" style={{ padding: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: INK, marginBottom: 6 }}>Qalibrated Systems</div>
-                {rep.qslSignatureImage ? (
-                  <div>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={rep.qslSignatureImage} alt="Qalibrated signature" style={{ maxWidth: "100%", height: 90, objectFit: "contain", border: "1px solid #eae4d6", borderRadius: 4, background: "#fff" }} />
-                    <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                      Signed by <b>{rep.qslSignedByName || "—"}</b>{rep.qslSignedAt ? ` · ${new Date(rep.qslSignedAt).toLocaleString()}` : ""}
-                    </div>
-                  </div>
-                ) : perm.canSignQsl ? (
-                  <div>
-                    <SignaturePad onChange={setQslSig} />
-                    <button className="btn btn-primary" onClick={() => submitSignoff("QSL")} disabled={signBusy || !qslSig} style={{ marginTop: 8, fontSize: 13, padding: "7px 14px" }}>
-                      {signBusy ? "Saving…" : "Save Qalibrated signature"}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="muted" style={{ fontSize: 12 }}>Awaiting Qalibrated signature.</div>
-                )}
-              </div>
-
-              {/* Client */}
-              <div className="card" style={{ padding: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", color: INK, marginBottom: 6 }}>Client — {rep.clientName}</div>
-                {rep.clientSignatureImage ? (
-                  <div>
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-start" }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={rep.clientSignatureImage} alt="Client signature" style={{ maxWidth: "100%", height: 90, objectFit: "contain", border: "1px solid #eae4d6", borderRadius: 4, background: "#fff", flex: "1 1 160px" }} />
-                      {rep.clientStampImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={rep.clientStampImage} alt="Client stamp" style={{ height: 90, objectFit: "contain", border: "1px solid #eae4d6", borderRadius: 4, background: "#fff" }} />
-                      ) : null}
-                    </div>
-                    <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                      Signed by <b>{rep.clientSignedByName || "—"}</b>{rep.clientSignedAt ? ` · ${new Date(rep.clientSignedAt).toLocaleString()}` : ""}
-                    </div>
-                  </div>
-                ) : !rep.qslSignatureImage ? (
-                  <div className="muted" style={{ fontSize: 12 }}>Qalibrated must sign first.</div>
-                ) : perm.canSignClient ? (
-                  <div>
-                    <SignaturePad onChange={setClientSig} />
-                    <label className="btn" style={{ display: "inline-block", marginTop: 8, fontSize: 12, cursor: "pointer" }}>
-                      {clientStamp ? "Stamp attached ✓ — replace" : "Attach client stamp (optional)"}
-                      <input type="file" accept="image/*" hidden onChange={(e) => readStampFile(e.target.files?.[0])} />
-                    </label>
-                    <div>
-                      <button className="btn btn-primary" onClick={() => submitSignoff("CLIENT")} disabled={signBusy || !clientSig} style={{ marginTop: 8, fontSize: 13, padding: "7px 14px" }}>
-                        {signBusy ? "Saving…" : "Save client signature"}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="muted" style={{ fontSize: 12 }}>Awaiting the client signature.</div>
-                )}
-              </div>
-            </div>
-            {signMsg && <div style={{ fontSize: 13, fontWeight: 700, color: signMsg.includes("saved") ? PASS : WAIT, marginTop: 10 }}>{signMsg}</div>}
           </div>
         )}
       </PaperCard>

@@ -87,6 +87,18 @@ const s = StyleSheet.create({
   apxHead: { borderBottomWidth: 0.5, borderColor: "#E6E0D2", paddingBottom: 3, marginBottom: 2 },
   apxSerial: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: INK },
   apxMeta: { fontSize: 7, color: MUTE, marginTop: 1 },
+  // Billing sign-off block (printed): Qalibrated signs first, then the client.
+  soStatement: { fontSize: 8.5, color: INK, lineHeight: 1.4, marginBottom: 12 },
+  soRow: { flexDirection: "row" },
+  soCol: { flex: 1, borderWidth: 0.6, borderColor: "#C9C1B0", borderRadius: 3, overflow: "hidden" },
+  soGap: { width: 16 },
+  soTitle: { fontSize: 8.5, fontFamily: "Helvetica-Bold", color: COAL, textTransform: "uppercase", letterSpacing: 0.4, backgroundColor: "#F5EEDD", paddingVertical: 4, paddingHorizontal: 8, borderBottomWidth: 0.6, borderBottomColor: "#C9C1B0" },
+  soBody: { padding: 10 },
+  soField: { marginTop: 14 },
+  soFieldK: { fontSize: 7.5, fontFamily: "Helvetica-Bold", color: MUTE, textTransform: "uppercase", letterSpacing: 0.3, marginBottom: 12 },
+  soLine: { borderBottomWidth: 0.8, borderBottomColor: "#8a8171" },
+  soStampBox: { marginTop: 16, height: 86, borderWidth: 0.8, borderColor: "#B7AD98", borderStyle: "dashed", borderRadius: 3, alignItems: "center", justifyContent: "center" },
+  soStampLabel: { fontSize: 7.5, color: MUTE, textTransform: "uppercase", letterSpacing: 0.5 },
 });
 
 function fmtDate(d) {
@@ -560,6 +572,44 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
           </View>
         </Page>
       ) : null}
+
+      {/* Billing sign-off — Qalibrated signs first, then the client signs and
+          applies their company stamp. This page is printed and signed; it is the
+          acceptance used for billing against the work in this report. */}
+      <Page size="A4" style={s.page} wrap>
+        <View style={s.sectionBar} wrap={false}>
+          <View style={s.swatch} />
+          <Text style={s.sectionTitle}>Sign-off &amp; acceptance (for billing)</Text>
+        </View>
+        <Text style={s.soStatement}>
+          We confirm that the maintenance and services detailed in this report have been carried out and
+          are accepted. This signed document forms the basis for billing. Qalibrated Systems Limited signs
+          first; the client then signs and applies their official stamp to confirm acceptance.
+        </Text>
+        <View style={s.soRow}>
+          <View style={s.soCol}>
+            <Text style={s.soTitle}>For {COMPANY.name}</Text>
+            <View style={s.soBody}>
+              <View style={s.soField}><Text style={s.soFieldK}>Name</Text><View style={s.soLine} /></View>
+              <View style={s.soField}><Text style={s.soFieldK}>Signature</Text><View style={s.soLine} /></View>
+              <View style={s.soField}><Text style={s.soFieldK}>Date</Text><View style={s.soLine} /></View>
+            </View>
+          </View>
+          <View style={s.soGap} />
+          <View style={s.soCol}>
+            <Text style={s.soTitle}>For the Client</Text>
+            <View style={s.soBody}>
+              <View style={s.soField}><Text style={s.soFieldK}>Name</Text><View style={s.soLine} /></View>
+              <View style={s.soField}><Text style={s.soFieldK}>Signature</Text><View style={s.soLine} /></View>
+              <View style={s.soField}><Text style={s.soFieldK}>Date</Text><View style={s.soLine} /></View>
+              <View style={s.soStampBox}><Text style={s.soStampLabel}>Client stamp</Text></View>
+            </View>
+          </View>
+        </View>
+        <View style={s.footer} fixed>
+          <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · Management Report · Page ${pageNumber} of ${totalPages}`} />
+        </View>
+      </Page>
     </Document>
   );
 }
