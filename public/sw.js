@@ -1,12 +1,29 @@
 // Service worker: install-to-home-screen + offline-capable shell + read-through
 // caching of report/schedule data so past records are viewable offline. Report
 // submissions are queued in IndexedDB by the page and forwarded when back online.
-const CACHE = "qsl-v4";
+const CACHE = "qsl-v5";
 const API_CACHE = "qsl-api-v1";
-const SHELL = ["/dashboard", "/reports/new", "/login", "/manifest.webmanifest"];
+const SHELL = ["/dashboard", "/reports/new", "/login", "/manifest.webmanifest", "/vendor/face-api.js"];
+// Face-recognition model weights — precached so the clocking station's face
+// check works with no connection (best-effort; large files are added one by one
+// so a single failure never aborts the install).
+const MODELS = [
+  "/models/tiny_face_detector_model-weights_manifest.json",
+  "/models/tiny_face_detector_model.bin",
+  "/models/face_landmark_68_model-weights_manifest.json",
+  "/models/face_landmark_68_model.bin",
+  "/models/face_recognition_model-weights_manifest.json",
+  "/models/face_recognition_model.bin",
+];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => {}));
+  e.waitUntil(
+    caches.open(CACHE).then((c) => {
+      c.addAll(SHELL).catch(() => {});
+      MODELS.forEach((m) => c.add(m).catch(() => {}));
+      return Promise.resolve();
+    }).catch(() => {})
+  );
   self.skipWaiting();
 });
 
@@ -30,6 +47,7 @@ function isCacheableApiGet(req) {
   if (p === "/api/schedules") return true; // schedule list
   if (p === "/api/clients") return true;
   if (p === "/api/users/directory") return true;
+  if (p === "/api/attendance/workers") return true; // clocking station roster
   if (/^\/api\/reports\/[^/]+$/.test(p)) return true; // a single report's detail
   return false;
 }

@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
+import { ensureFace, descriptorFromDataUrl, faceDistance, MATCH_THRESHOLD } from "@/lib/faceClient";
+import { queuePunch, flushQueue, queuedCount } from "@/lib/clockQueue";
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -44,6 +46,16 @@ export default function ClockStation({ manager }) {
   const [busyId, setBusyId] = useState(null);
   const [toast, setToast] = useState(null); // { text, ok }
   const [showReg, setShowReg] = useState(false);
+  const [faceState, setFaceState] = useState("loading"); // loading | ready | off
+  const [pending, setPending] = useState(0); // punches queued offline
+  const pendingRef = useRef(null); // { id, ts } — mismatch override within a short window
+
+  // Preload the face models once (best-effort). Clocking still works if they fail.
+  useEffect(() => {
+    let cancel = false;
+    ensureFace().then(() => { if (!cancel) setFaceState("ready"); }).catch(() => { if (!cancel) setFaceState("off"); });
+    return () => { cancel = true; };
+  }, []);
 
   // Start the front camera once; keep it live so a punch is instant.
   useEffect(() => {
@@ -70,24 +82,98 @@ export default function ClockStation({ manager }) {
 
   const flash = (text, ok = true) => { setToast({ text, ok }); setTimeout(() => setToast(null), 2600); };
 
+  const refreshPending = useCallback(() => { queuedCount().then(setPending).catch(() => {}); }, []);
+  // Sync any punches queued while offline, then refresh. Runs on mount and when
+  // the device comes back online.
+  const doFlush = useCallback(async () => {
+    refreshPending();
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+    const n = await flushQueue().catch(() => 0);
+    if (n > 0) { flash(`${n} offline punch${n > 1 ? "es" : ""} synced.`, true); await loadWorkers(); }
+    refreshPending();
+  }, [loadWorkers, refreshPending]);
+  useEffect(() => {
+    doFlush();
+    const on = () => doFlush();
+    window.addEventListener("online", on);
+    return () => window.removeEventListener("online", on);
+  }, [doFlush]);
+
+  // Optimistically flip a worker's state so the card and the next punch toggle
+  // correctly even before the server confirms (and while offline).
+  const bumpLocal = (id, type, at) => setWorkers((ws) => ws.map((x) => (x.id === id ? { ...x, lastType: type, lastAt: at } : x)));
+
   const punch = async (w) => {
     if (busyId) return;
-    setBusyId(w.id);
     const selfie = grabFrame(videoRef.current);
+    let matched = null;
+    let matchScore = null;
+
+    // Automatic face verification (1:1) when the worker has a registered face and
+    // the models are loaded. A mismatch asks the manager to tap again to override.
+    const canCheck = faceState === "ready" && Array.isArray(w.faceDescriptor) && w.faceDescriptor.length > 0 && !!selfie;
+    if (canCheck) {
+      setBusyId(w.id);
+      const desc = await descriptorFromDataUrl(selfie);
+      if (!desc) {
+        setBusyId(null);
+        flash(`No face detected — look at the camera and tap ${w.name.split(" ")[0]} again.`, false);
+        return;
+      }
+      const dist = faceDistance(desc, w.faceDescriptor);
+      matchScore = Math.round(dist * 1000) / 1000;
+      matched = dist <= MATCH_THRESHOLD;
+      if (!matched) {
+        const p = pendingRef.current;
+        const recent = p && p.id === w.id && Date.now() - p.ts < 8000;
+        if (!recent) {
+          pendingRef.current = { id: w.id, ts: Date.now() };
+          setBusyId(null);
+          flash(`Face didn't match ${w.name.split(" ")[0]}. Tap again within 8s to clock anyway.`, false);
+          return;
+        }
+        // second tap within the window → manager override, record as not matched
+      }
+      pendingRef.current = null;
+    } else {
+      setBusyId(w.id);
+    }
+
     const loc = await getLocation();
+    // Decide IN/OUT on the device so offline punches keep the right direction.
+    const type = w.lastType === "IN" ? "OUT" : "IN";
+    const at = new Date().toISOString();
+    const payload = { workerId: w.id, type, at, selfie: selfie || undefined, matched, matchScore, ...loc };
+    const tag = matched === true ? " · face ✓" : matched === false ? " · face ✗ (override)" : "";
+    const hhmm = new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    const queueIt = async () => {
+      await queuePunch({ id: `${w.id}-${Date.now()}`, ...payload });
+      bumpLocal(w.id, type, at);
+      refreshPending();
+      flash(`${w.name} clocked ${type} offline — will sync${tag}`, true);
+    };
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      await queueIt();
+      setBusyId(null);
+      return;
+    }
     try {
       const r = await fetch("/api/attendance/clock", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ workerId: w.id, selfie: selfie || undefined, ...loc }),
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
       });
       const d = await r.json();
       if (!r.ok) { flash(d.error || "Could not record.", false); }
       else {
-        flash(`${w.name} clocked ${d.type} · ${new Date(d.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`, true);
+        bumpLocal(w.id, d.type || type, at);
+        flash(`${w.name} clocked ${d.type || type} · ${hhmm}${tag}`, matched !== false);
         await loadWorkers();
       }
-    } catch { flash("Network problem — try again.", false); }
+    } catch {
+      // Network dropped mid-punch → queue and sync later.
+      await queueIt();
+    }
     setBusyId(null);
   };
 
@@ -100,7 +186,14 @@ export default function ClockStation({ manager }) {
           <div style={{ fontWeight: 800, fontSize: 15 }}>Clocking station</div>
           <div style={{ fontSize: 11.5, color: "#c9c1b0" }}>Operated by {manager?.name}</div>
         </div>
-        <a href="/attendance" style={{ color: GOLD, fontWeight: 700, fontSize: 12.5, textDecoration: "none" }}>Reports →</a>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {pending > 0 && (
+            <span onClick={doFlush} title="Tap to sync now" style={{ fontSize: 11, fontWeight: 800, color: "#ffb37a", background: "#000a", border: "1px solid #5a4a2a", borderRadius: 999, padding: "3px 9px", cursor: "pointer" }}>
+              ⧖ {pending} to sync
+            </span>
+          )}
+          <a href="/attendance" style={{ color: GOLD, fontWeight: 700, fontSize: 12.5, textDecoration: "none" }}>Reports →</a>
+        </div>
       </div>
 
       {/* Live camera */}
@@ -108,6 +201,9 @@ export default function ClockStation({ manager }) {
         <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "6px 12px", background: "linear-gradient(transparent,#000a)", fontSize: 12, color: "#eee", textAlign: "center" }}>
           {camErr ? camErr : "Look at the camera, then tap your name to clock in or out"}
+        </div>
+        <div style={{ position: "absolute", top: 8, right: 8, fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 999, background: "#000a", color: faceState === "ready" ? "#8fe3a6" : faceState === "off" ? "#ffb37a" : "#c9c1b0" }}>
+          {faceState === "ready" ? "● Face check on" : faceState === "off" ? "Face check off" : "Loading face check…"}
         </div>
       </div>
 
@@ -155,7 +251,7 @@ export default function ClockStation({ manager }) {
       )}
 
       {showReg && (
-        <RegisterWorker videoRef={videoRef} onClose={() => setShowReg(false)} onSaved={() => { setShowReg(false); loadWorkers(); flash("Worker registered.", true); }} grabFrame={grabFrame} />
+        <RegisterWorker videoRef={videoRef} onClose={() => setShowReg(false)} onSaved={(msg) => { setShowReg(false); loadWorkers(); flash(msg || "Worker registered.", true); }} grabFrame={grabFrame} />
       )}
     </div>
   );
@@ -169,18 +265,25 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
-  const capture = () => { const d = grabFrame(videoRef.current); if (d) setPhoto(d); else setErr("Camera not ready — allow camera access."); };
+  const capture = () => { const d = grabFrame(videoRef.current); if (d) { setPhoto(d); setErr(""); } else setErr("Camera not ready — allow camera access."); };
   const save = async () => {
     if (!name.trim()) return setErr("Enter the worker's name.");
     setBusy(true); setErr("");
+    // Compute the face descriptor from the reference photo (best-effort) so the
+    // worker can be auto-verified when they clock in later.
+    let faceDescriptor = [];
+    if (photo) {
+      const d = await descriptorFromDataUrl(photo).catch(() => null);
+      if (d) faceDescriptor = d;
+    }
     try {
       const r = await fetch("/api/attendance/workers", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, phone, jobTitle, photo: photo || undefined }),
+        body: JSON.stringify({ name, phone, jobTitle, photo: photo || undefined, faceDescriptor }),
       });
       const d = await r.json();
       if (!r.ok) { setErr(d.error || "Could not save."); setBusy(false); return; }
-      onSaved();
+      onSaved(photo && faceDescriptor.length === 0 ? "Worker saved — but no face was detected in the photo; retake for face check." : "");
     } catch { setErr("Network problem — try again."); setBusy(false); }
   };
 

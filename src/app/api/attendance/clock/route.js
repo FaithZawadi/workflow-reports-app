@@ -38,10 +38,21 @@ export async function POST(req) {
   if (selfie && selfie.length > MAX_IMG) return Response.json({ error: "The selfie is too large." }, { status: 413 });
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
 
+  // Offline punches are queued on the device and synced later, so honour an
+  // explicit punch time (`at`) when it's sane: not in the future, not older than
+  // 30 days. Otherwise stamp it now.
+  let at = undefined;
+  if (body.at) {
+    const t = new Date(body.at);
+    const ms = t.getTime();
+    if (Number.isFinite(ms) && ms <= Date.now() + 120000 && ms >= Date.now() - 30 * 86400000) at = t;
+  }
+
   const event = await prisma.clockEvent.create({
     data: {
       workerId: worker.id,
       type,
+      ...(at ? { at } : {}),
       lat: num(body.lat),
       lng: num(body.lng),
       selfie,

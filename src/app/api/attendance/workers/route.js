@@ -38,6 +38,7 @@ export async function GET(req) {
     photo: w.photo,
     active: w.active,
     hasFace: Array.isArray(w.faceDescriptor) && w.faceDescriptor.length > 0,
+    faceDescriptor: Array.isArray(w.faceDescriptor) ? w.faceDescriptor : [],
     lastType: w.clockEvents[0]?.type || null,
     lastAt: w.clockEvents[0]?.at || null,
   }));
