@@ -116,6 +116,12 @@ export const canRaiseOwnQuotes = (input) => intersects(input, OWN_QUOTE_ROLES);
 export const QUOTE_APPROVER_ROLES = ["ADMIN", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "MANAGER"];
 export const canApproveQuotes = (input) => intersects(input, QUOTE_APPROVER_ROLES);
 
+// Attendance / clocking is run by a manager (a registered workflow user). Only
+// these roles may open the clocking station, register workers, and see the
+// attendance reports. The workers who clock in/out are NOT system users.
+export const ATTENDANCE_MANAGER_ROLES = ["ADMIN", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
+export const canManageAttendance = (input) => intersects(input, ATTENDANCE_MANAGER_ROLES);
+
 // PM/TM/admin see & prepare all quotations; supervisors get a scoped read view;
 // Technicians & Sales see only their own; clients raise requests.
 export const canSeeQuotations = (input) =>

@@ -828,3 +828,48 @@ model VisitEvent {
   @@index([sessionId])
   @@index([createdAt])
 }
+
+// ── Attendance / clocking ────────────────────────────────────────────────────
+// A Worker is NOT a system login. They are registered once (name + a reference
+// face photo) on the manager's clocking phone, and that registration is what
+// tracks their attendance. Casuals and one-off workers live here, not in User.
+model Worker {
+  id               String       @id @default(cuid())
+  name             String
+  phone            String?
+  jobTitle         String? // e.g. "Casual", "Technician"
+  photo            String? // reference face photo (data URL), captured at registration
+  // face-api 128-d descriptor of the reference photo, used for 1:1 verification
+  // at clock-in. Empty when face models weren't available during registration.
+  faceDescriptor   Float[]      @default([])
+  active           Boolean      @default(true)
+  registeredById   String?
+  registeredByName String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  clockEvents      ClockEvent[]
+
+  @@index([active])
+  @@index([name])
+}
+
+// One clock IN or OUT punch for a Worker, taken on the manager's phone.
+model ClockEvent {
+  id            String   @id @default(cuid())
+  workerId      String
+  worker        Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  type          String // IN | OUT
+  at            DateTime @default(now())
+  lat           Float?
+  lng           Float?
+  selfie        String? // the clock-in/out selfie (data URL)
+  matchScore    Float? // face-match distance (lower = closer), null if not computed
+  matched       Boolean? // whether the selfie matched the registered face
+  byManagerId   String?
+  byManagerName String? // the manager operating the clocking phone
+  deviceLabel   String?
+
+  @@index([workerId])
+  @@index([at])
+  @@index([type])
+}
