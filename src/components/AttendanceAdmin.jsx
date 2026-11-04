@@ -18,7 +18,7 @@ export default function AttendanceAdmin() {
           <Link href="/clock" className="btn btn-primary" style={{ textDecoration: "none", fontSize: 13, padding: "9px 16px" }}>▶ Open clocking station</Link>
         </div>
         <p className="muted" style={{ fontSize: 13 }}>
-          Workers clock in/out on the manager's phone at the clocking station. They are registered once (name + photo) and are not system users.
+          Workers clock in/out on the manager’s phone at the clocking station. They are registered once (name + photo) and are not system users.
         </p>
         <div style={{ display: "flex", gap: 6, marginTop: 10, borderBottom: "1px solid #e6e0d2" }}>
           {[["log", "Clock log"], ["workers", "Workers"]].map(([k, label]) => (

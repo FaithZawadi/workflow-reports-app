@@ -309,7 +309,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
         <button onClick={save} disabled={busy} style={{ width: "100%", marginTop: 10, padding: 14, borderRadius: 12, border: 0, background: GOLD, color: COAL, fontWeight: 800, fontSize: 15 }}>
           {busy ? "Saving…" : "Save worker"}
         </button>
-        <p style={{ fontSize: 11.5, color: "#9a9284", marginTop: 8 }}>This one-time registration is what tracks the worker's attendance. They are not given a login.</p>
+        <p style={{ fontSize: 11.5, color: "#9a9284", marginTop: 8 }}>This one-time registration is what tracks the worker’s attendance. They are not given a login.</p>
       </div>
     </div>
   );
