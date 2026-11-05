@@ -1,8 +1,8 @@
 // The QSL weighbridge maintenance form catalogue.
 // Codes and content mirror the printed QSL/F/WB-01..06 sheets.
 
-export const TECH_TEMPLATES = ["WB01", "WB02", "WB03", "TR01"];
-export const ENGINEER_TEMPLATES = ["WB04", "WB05", "WB06", "SI01", "TR01"];
+export const TECH_TEMPLATES = ["WB01", "WB02", "WB03", "TR01", "GD01"];
+export const ENGINEER_TEMPLATES = ["WB04", "WB05", "WB06", "SI01", "TR01", "GD01"];
 
 // Result-state sets for engineer checklists.
 const OK_ATTN_NA = [
@@ -380,6 +380,61 @@ export const TEMPLATES = [
         title: "Job time",
         cols: ["Time in", "Time out", "Mileage (km)"],
         rows: 1,
+      },
+    ],
+  },
+  {
+    // A general, non-weighbridge daily activity report so any technician or
+    // engineer can record whatever work they did that day — installations,
+    // repairs, inspections, support, deliveries, workshop or office work, etc.
+    code: "GD01",
+    name: "General Daily Activity",
+    cadence: "Daily report",
+    who: "Technician / Engineer",
+    desc: "Daily record of general field or workshop work beyond weighbridge service — any task a technician or engineer carries out that day.",
+    allowAttachments: true,
+    anyone: true, // any report-filing role may file it (technicians, engineers, etc.)
+    geofence: false, // general work happens anywhere — don't tie it to a site fence
+    sections: [
+      {
+        type: "choices",
+        k: "activityTypes",
+        title: "Type of work done today",
+        multi: true, // a day can include several kinds of work
+        options: [
+          "Installation",
+          "Repair",
+          "Preventive maintenance",
+          "Inspection",
+          "Calibration / verification",
+          "Site survey",
+          "Customer support",
+          "Delivery / collection",
+          "Training",
+          "Travel",
+          "Workshop / office work",
+          "Other",
+        ],
+      },
+      {
+        type: "fields",
+        fields: [
+          { k: "equipment", label: "Equipment / machine worked on" },
+          { k: "contactPerson", label: "Contact person" },
+          { k: "telNo", label: "Tel. no." },
+        ],
+      },
+      { type: "textarea", k: "workDone", label: "Work done today (summary)" },
+      { type: "textarea", k: "issuesFound", label: "Issues or faults found" },
+      { type: "textarea", k: "actionsTaken", label: "Actions taken" },
+      { type: "textarea", k: "partsUsed", label: "Parts / materials used" },
+      { type: "textarea", k: "followUp", label: "Follow-up required" },
+      {
+        type: "rows",
+        key: "timeLog",
+        title: "Time log",
+        cols: ["Activity", "Time in", "Time out"],
+        rows: 3,
       },
     ],
   },

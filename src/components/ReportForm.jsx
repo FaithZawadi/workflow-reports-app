@@ -541,7 +541,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
               <div><b>Form:</b> {tpl.code} — {tpl.name}</div>
               <div><b>Client:</b> {clientName || "—"}</div>
               <div><b>Site / location:</b> {site || "—"}</div>
-              {tpl.code !== "TR01" && <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>}
+              {tpl.code !== "TR01" && tpl.code !== "GD01" && <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>}
               <div><b>{chain ? chain.SUPERVISOR.label : singleApproval ? "Client" : "Equipment User"}{supervisorEmails.length > 1 ? "s" : ""}:</b> {supervisorEmails.join(", ") || "—"}</div>
               {!singleApproval && <div><b>{chain ? chain.MANAGER.label : "Client/Manager"}:</b> {managerEmail}</div>}
               <div><b>Entries filled:</b> {filledCount} · <b>Photos:</b> {photos.length}</div>
@@ -639,9 +639,9 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
             </div>
           ))}
 
-          {/* The Technical Report is a field-service report (scales, analysers,
-              general equipment) — it is not tied to a weighbridge. */}
-          {tpl.code !== "TR01" && (
+          {/* Field-service and general daily-activity reports are not tied to a
+              weighbridge, so the picker is hidden for them. */}
+          {tpl.code !== "TR01" && tpl.code !== "GD01" && (
             <div style={{ maxWidth: 460 }}>
               <WeighbridgePicker
                 list={weighbridges.filter((w) => {

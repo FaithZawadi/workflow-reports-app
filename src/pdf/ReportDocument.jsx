@@ -189,12 +189,17 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
   // earlier than the creation/"generated" date shown in the header.
   const serviceDate = report.reportDate || report.createdAt;
   // The Technical Report isn't tied to a weighbridge — show the vehicle instead.
+  // The General Daily Activity report isn't tied to one either — drop it entirely.
   const isTechReport = report.template === "TR01";
+  const isGeneral = report.template === "GD01";
+  const reportTypeVal = tpl?.cadence ? `${tpl.cadence} (${report.template})` : report.template;
   const meta = [
     ["Client", report.clientName || "-", "Site", report.site || "-"],
     isTechReport
-      ? ["Vehicle no.", data.values?.vehicleNo || "-", "Report type", tpl?.cadence ? `${tpl.cadence} (${report.template})` : report.template]
-      : ["Weighbridge", report.weighbridgeId || "-", "Report type", tpl?.cadence ? `${tpl.cadence} (${report.template})` : report.template],
+      ? ["Vehicle no.", data.values?.vehicleNo || "-", "Report type", reportTypeVal]
+      : isGeneral
+      ? ["Report type", reportTypeVal, "", ""]
+      : ["Weighbridge", report.weighbridgeId || "-", "Report type", reportTypeVal],
     ["Completed by", report.authorName || "-", "Date", fmt(serviceDate)],
     [
       isTechReport ? "Technical Manager" : "Supervisor",
@@ -280,8 +285,14 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
             <View style={s.row} key={`m${i}`}>
               <Text style={s.key}>{r[0]}</Text>
               <Text style={s.val}>{r[1]}</Text>
-              <Text style={s.key}>{r[2]}</Text>
-              <Text style={s.val}>{r[3]}</Text>
+              {r[2] ? (
+                <React.Fragment>
+                  <Text style={s.key}>{r[2]}</Text>
+                  <Text style={s.val}>{r[3]}</Text>
+                </React.Fragment>
+              ) : (
+                <View style={s.fillCell} />
+              )}
             </View>
           ))}
           {detailRows.map((pair, ri) => (
