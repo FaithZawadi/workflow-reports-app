@@ -4,7 +4,14 @@ import { prisma } from "@/lib/db";
 import { canManageAttendance } from "@/lib/roles";
 import ClockStation from "@/components/ClockStation";
 
-export const metadata = { title: "Clocking station — Qalibrated" };
+export const metadata = {
+  title: "QSL Clocking",
+  // A dedicated manifest so "Add to Home Screen" from here installs a standalone
+  // clocking-only app (clock in/out + worker registration), scoped to /clock.
+  manifest: "/clock.webmanifest",
+  appleWebApp: { capable: true, title: "QSL Clocking", statusBarStyle: "black-translucent" },
+  robots: { index: false, follow: false },
+};
 export const dynamic = "force-dynamic";
 
 // The clocking kiosk lives OUTSIDE the app shell (full screen, no nav). Only a
