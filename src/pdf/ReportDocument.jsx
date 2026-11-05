@@ -67,7 +67,7 @@ const s = StyleSheet.create({
   // horizontal margin + space-between keeps them reliably side by side, with
   // marginBottom giving the gap between rows.
   photoCell: { width: "49%", marginBottom: 8 },
-  photoImg: { width: "100%", height: 150, objectFit: "contain", backgroundColor: "#f3eee2", borderWidth: 1, borderColor: "#999" },
+  photoImg: { width: "100%", height: 150, objectFit: "contain", backgroundColor: "#fff", borderWidth: 1, borderColor: "#c9c2b2" },
   photoCap: { fontSize: 7.5, marginTop: 2, color: INK, lineHeight: 1.25 },
   photoMeta: { fontSize: 6.2, color: MUTE, marginTop: 1, fontFamily: "Courier" },
   narrative: { marginTop: 4 },

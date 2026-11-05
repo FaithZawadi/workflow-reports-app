@@ -444,11 +444,13 @@ export function templateByCode(code) {
   return TEMPLATES.find((t) => t.code === code) || null;
 }
 
-// The daily / weekly / monthly technician forms use a single-stage approval:
-// one approver — labelled "Client" on these forms — signs off and the report is
-// fully Approved. There is no separate manager stage and no manager email.
-export const SINGLE_APPROVAL_TEMPLATES = ["WB01", "WB02", "WB03"];
-export const isSingleApproval = (code) => SINGLE_APPROVAL_TEMPLATES.includes(code);
+// Every internal report now uses a SINGLE review stage: one manager (Technical
+// Manager or Project Manager) reviews and approves. 2–3 managers may be routed
+// and any one of them approves — there is no separate equipment-user stage and
+// no second manager stage. (After approval the manager may optionally send the
+// report to the client for external approval + signature; see the client flow.)
+export const SINGLE_APPROVAL_TEMPLATES = ["WB01", "WB02", "WB03", "WB04", "WB05", "WB06", "TR01", "GD01"];
+export const isSingleApproval = (_code) => true;
 
 // Templates that can be picked when filing/scheduling a new report. Retired
 // forms (hidden) stay in TEMPLATES for rendering old records but never appear

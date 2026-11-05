@@ -14,8 +14,10 @@ export const STRIPE = {
 };
 
 export const STATUS = {
-  PENDING_SUPERVISOR: { label: "SUPERVISOR REVIEW", color: WAIT },
+  PENDING_SUPERVISOR: { label: "MANAGER REVIEW", color: WAIT },
   PENDING_MANAGER: { label: "MANAGER APPROVAL", color: WAIT },
+  PENDING_CLIENT: { label: "WITH CLIENT", color: WAIT },
+  CLIENT_RETURNED: { label: "CLIENT RETURNED", color: FAIL },
   APPROVED: { label: "APPROVED", color: PASS },
   REJECTED: { label: "REJECTED", color: FAIL },
 };

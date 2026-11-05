@@ -27,6 +27,9 @@ export async function GET() {
   return Response.json({
     supervisors: pick(["SUPERVISOR"]),
     managers: pick(["MANAGER"]),
+    // The managers who may REVIEW a report (single-stage approval). Any TM/PM
+    // (and standalone managers / admins) can be routed; any one approves.
+    reviewers: pick(["TECHNICAL_MANAGER", "PROJECT_MANAGER", "MANAGER", "ADMIN"]),
     assignees: pick(["TECHNICIAN", "ENGINEER"]),
     // Role-locked chains (e.g. the Technical Report) route to these.
     technicalManagers: pick(["TECHNICAL_MANAGER"]),

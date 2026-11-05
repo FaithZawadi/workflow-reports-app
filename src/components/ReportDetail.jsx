@@ -27,13 +27,16 @@ export default function ReportDetail({ serial, profile }) {
     try {
       const res = await fetch(`/api/reports/${serial}/sign-link`, { method: "POST" });
       const d = await res.json();
-      if (res.ok) setSignLink({ url: (typeof window !== "undefined" ? window.location.origin : "") + d.path, signed: d.signed });
-      else setNote(d.error || "Could not create the link.");
+      if (res.ok) {
+        setSignLink({ url: (typeof window !== "undefined" ? window.location.origin : "") + d.path, signed: d.signed });
+        setNote("Sent — share the link with the client.");
+        load();
+      } else setNote(d.error || "Could not create the link.");
     } catch { setNote("Network problem — try again."); }
     setSignBusy(false);
   };
-  const copyLink = async () => {
-    try { await navigator.clipboard.writeText(signLink.url); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch {}
+  const copyText = async (text) => {
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch {}
   };
 
   const load = async () => {
@@ -80,7 +83,14 @@ export default function ReportDetail({ serial, profile }) {
   const tpl = templateByCode(rep.template);
   const singleApproval = isSingleApproval(rep.template);
   const data = rep.data || {};
-  const pending = rep.status === "PENDING_SUPERVISOR" || rep.status === "PENDING_MANAGER";
+  // The report is awaiting a manager decision when newly filed or after the
+  // client returned it with a comment.
+  const pending = rep.status === "PENDING_SUPERVISOR" || rep.status === "PENDING_MANAGER" || rep.status === "CLIENT_RETURNED";
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const clientLink = rep.signToken ? `${origin}/sign/report/${rep.signToken}` : "";
+  // The most recent client return comment (shown to the manager to act on).
+  const lastReturn = [...(rep.trailEvents || [])].reverse().find((t) => (t.action || "").toUpperCase().includes("RETURNED"));
+  const shareUrl = signLink?.url || clientLink;
 
   const freeFields = Object.entries(data.values || {}).filter(([k, v]) => k !== "weighbridgeId" && v);
 
@@ -152,49 +162,40 @@ export default function ReportDetail({ serial, profile }) {
             ).map((s, i, arr) => (
               <ReviewerRow
                 key={s.email}
-                label={
-                  i === 0
-                    ? singleApproval
-                      ? arr.length > 1
-                        ? "Clients (any one approves)"
-                        : "Client (approves)"
-                      : arr.length > 1
-                      ? "Equipment Users (any one reviews)"
-                      : "Equipment User (reviews first)"
-                    : ""
-                }
+                label={i === 0 ? (arr.length > 1 ? "Reviewing managers (any one approves)" : "Reviewing manager") : ""}
                 name={s.name}
                 email={s.email}
-                state={rep.status === "PENDING_SUPERVISOR" ? "current" : "done"}
+                state="current"
               />
             ))}
-            {!singleApproval && (
-              <ReviewerRow
-                label="Client/Manager (final approval)"
-                name={reviewers?.managerName}
-                email={reviewers?.managerEmail || rep.managerEmail}
-                state={rep.status === "PENDING_MANAGER" ? "current" : rep.status === "PENDING_SUPERVISOR" ? "waiting" : "done"}
-              />
-            )}
           </div>
         )}
 
-        {/* action panel — only the routed reviewer for the current stage */}
+        {/* Client returned it — show the client's comment to the manager. */}
+        {rep.status === "CLIENT_RETURNED" && (
+          <div className="card" style={{ borderColor: FAIL, background: "#fdf1ef", padding: 14, marginTop: 10 }}>
+            <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 12, color: FAIL, letterSpacing: ".04em" }}>Client returned this report</div>
+            <div style={{ fontSize: 14, color: INK, marginTop: 6 }}>
+              {lastReturn?.comment ? <>“{lastReturn.comment}”</> : "No comment was left."}
+            </div>
+            {lastReturn?.byName && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>— {lastReturn.byName}{lastReturn.at ? ` · ${new Date(lastReturn.at).toLocaleString()}` : ""}</div>}
+          </div>
+        )}
+
+        {/* action panel — only the routed reviewing manager */}
         {pending && actAs && (
           <div className="card" style={{ borderColor: GOLD, background: "#fdf6e3", padding: 14, marginTop: 10 }}>
-            <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK }}>
-              {actAs === "SUPERVISOR" ? "Your review" : "Your approval"}
-            </div>
+            <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK }}>Your review</div>
             <div className="muted" style={{ margin: "4px 0 10px" }}>
-              Your decision is recorded with your name and the time.
+              Your decision is recorded with your name and the time. Approving lets you then send it to the client for sign-off.
             </div>
-            <input className="input" placeholder="Comment (required to reject)" value={comment} onChange={(e) => setComment(e.target.value)} style={{ marginBottom: 10 }} />
+            <input className="input" placeholder="Comment (required to return to author)" value={comment} onChange={(e) => setComment(e.target.value)} style={{ marginBottom: 10 }} />
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn" disabled={busy} onClick={() => decide("approve")} style={{ flex: 1, background: PASS, color: "#fff", borderColor: PASS, fontWeight: 900, textTransform: "uppercase" }}>
                 Approve
               </button>
               <button className="btn" disabled={busy || !comment.trim()} onClick={() => decide("reject")} style={{ flex: 1, background: comment.trim() ? FAIL : "#d8b4ac", color: "#fff", borderColor: comment.trim() ? FAIL : "#d8b4ac", fontWeight: 900, textTransform: "uppercase" }}>
-                Reject
+                Return to author
               </button>
             </div>
             {note && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, marginTop: 8 }}>{note}</div>}
@@ -202,7 +203,7 @@ export default function ReportDetail({ serial, profile }) {
         )}
         {pending && !actAs && (
           <div className="muted" style={{ fontSize: 12, marginTop: 8, fontStyle: "italic" }}>
-            Only the routed {rep.status === "PENDING_SUPERVISOR" ? (singleApproval ? "Client" : "Equipment User") : "Client/Manager"} above can approve or reject this report.
+            Only a routed reviewing manager above can approve or return this report.
           </div>
         )}
 
@@ -363,49 +364,69 @@ export default function ReportDetail({ serial, profile }) {
         })}
         {rep.status === "APPROVED" && (
           <div style={{ marginTop: 12, padding: 12, borderRadius: 2, fontWeight: 900, textTransform: "uppercase", color: "#fff", background: PASS, textAlign: "center" }}>
-            Fully approved — record closed
+            {rep.clientSignatureImage ? "Approved & signed by client — record closed" : "Approved — record closed"}
           </div>
         )}
 
-        {/* Client signature — a secure, no-login link the client uses to review
-            and sign; the signed copy is saved here and printed on the PDF. */}
-        {rep.status === "APPROVED" && (
+        {/* Client approval & signature — a secure, no-login link the client uses
+            to review the report and either APPROVE + sign it or RETURN it with a
+            comment. The signed copy is saved here and printed on the PDF. */}
+        {(rep.status === "APPROVED" || rep.status === "PENDING_CLIENT" || rep.status === "CLIENT_RETURNED") && (
           <div style={{ marginTop: 16 }}>
-            <SectionBar>Client signature</SectionBar>
+            <SectionBar>Client approval &amp; signature</SectionBar>
             {rep.clientSignatureImage ? (
               <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={rep.clientSignatureImage} alt="Client signature" style={{ height: 70, maxWidth: 260, objectFit: "contain", border: "1px solid #e6e0d2", borderRadius: 6, background: "#fff" }} />
                 <div className="muted" style={{ fontSize: 13 }}>
-                  Signed by <b style={{ color: INK }}>{rep.clientSignedByName || "—"}</b>
+                  Approved &amp; signed by <b style={{ color: INK }}>{rep.clientSignedByName || "—"}</b>
                   {rep.clientSignedAt ? ` · ${new Date(rep.clientSignedAt).toLocaleString()}` : ""}
                 </div>
+              </div>
+            ) : rep.status === "PENDING_CLIENT" ? (
+              <div style={{ marginTop: 8 }}>
+                <p className="muted" style={{ fontSize: 13, margin: "0 0 10px" }}>
+                  Sent to the client for approval. They can <b>approve &amp; sign</b> or <b>return</b> it with a comment — no login needed.
+                </p>
+                {shareUrl && <ShareRow url={shareUrl} serial={rep.serial} copied={copied} onCopy={() => copyText(shareUrl)} />}
+                <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>Awaiting the client’s decision — this page refreshes once they act.</p>
               </div>
             ) : (
               <div style={{ marginTop: 8 }}>
                 <p className="muted" style={{ fontSize: 13, margin: "0 0 10px" }}>
-                  Send the client a secure link to review and sign this report. No login needed — the signed copy is saved here and printed on the PDF.
+                  {rep.status === "CLIENT_RETURNED"
+                    ? "The client returned this report (see their comment above). Make any fixes, then send it back for approval — or approve it internally using the panel above."
+                    : "Optionally send the client a secure link to review, approve and sign this report. No login needed — the signed copy is saved here and printed on the PDF."}
                 </p>
                 {!signLink ? (
                   <button className="btn btn-primary" onClick={getSignLink} disabled={signBusy} style={{ fontSize: 13 }}>
-                    {signBusy ? "Creating…" : "Get client signing link"}
+                    {signBusy ? "Sending…" : rep.status === "CLIENT_RETURNED" ? "Send to client again" : "Send to client for approval"}
                   </button>
                 ) : (
-                  <div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                      <input readOnly value={signLink.url} onFocus={(e) => e.target.select()} className="input" style={{ flex: "1 1 260px", fontSize: 12.5 }} />
-                      <button className="btn" onClick={copyLink} style={{ fontSize: 12.5 }}>{copied ? "Copied ✓" : "Copy"}</button>
-                      <a className="btn" href={`https://wa.me/?text=${encodeURIComponent(`Please review and sign our report ${rep.serial}: ${signLink.url}`)}`} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, textDecoration: "none", background: "#25D366", color: "#fff", borderColor: "#25D366" }}>WhatsApp</a>
-                      <a className="btn" href={`mailto:?subject=${encodeURIComponent(`Report ${rep.serial} for your signature`)}&body=${encodeURIComponent(`Please review and sign our report ${rep.serial}:\n\n${signLink.url}`)}`} style={{ fontSize: 12.5, textDecoration: "none" }}>Email</a>
-                    </div>
-                    <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>Anyone with this link can sign once. The report refreshes here after they sign.</p>
-                  </div>
+                  <ShareRow url={signLink.url} serial={rep.serial} copied={copied} onCopy={() => copyText(signLink.url)} />
                 )}
+                {note && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, marginTop: 8 }}>{note}</div>}
               </div>
             )}
           </div>
         )}
       </PaperCard>
+    </div>
+  );
+}
+
+// Share controls for the client approval link — copy, WhatsApp, email.
+function ShareRow({ url, serial, copied, onCopy }) {
+  const msg = `Please review and approve our report ${serial}: ${url}`;
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <input readOnly value={url} onFocus={(e) => e.target.select()} className="input" style={{ flex: "1 1 260px", fontSize: 12.5 }} />
+        <button className="btn" onClick={onCopy} style={{ fontSize: 12.5 }}>{copied ? "Copied ✓" : "Copy"}</button>
+        <a className="btn" href={`https://wa.me/?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, textDecoration: "none", background: "#25D366", color: "#fff", borderColor: "#25D366" }}>WhatsApp</a>
+        <a className="btn" href={`mailto:?subject=${encodeURIComponent(`Report ${serial} for your approval`)}&body=${encodeURIComponent(`Please review and approve our report ${serial}:\n\n${url}`)}`} style={{ fontSize: 12.5, textDecoration: "none" }}>Email</a>
+      </div>
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>Anyone with this link can approve &amp; sign, or return it, once.</p>
     </div>
   );
 }

@@ -5,8 +5,7 @@ import { PaperCard, SectionBar, Field, Textarea } from "./ui";
 import CheckItem, { CheckHeader, CHECK_TABLE_MINWIDTH, defaultStates } from "./CheckItem";
 import Photos from "./Photos";
 import NewClientForm from "./NewClientForm";
-import { templatesForRoles, templateByCode, isSingleApproval } from "@/lib/templates";
-import { chainFor } from "@/lib/approvalChain";
+import { templatesForRoles, templateByCode } from "@/lib/templates";
 import { rolesOf, canRegisterClientsDirectly } from "@/lib/roles";
 import { enqueueReport } from "@/lib/outbox";
 import { loadDraft, saveDraft, clearDraft, draftHasContent } from "@/lib/reportDraft";
@@ -66,6 +65,9 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   const [managers, setManagers] = useState([]);
   const [technicalManagers, setTechnicalManagers] = useState([]);
   const [projectManagers, setProjectManagers] = useState([]);
+  // The managers who can review a report (TM / PM / manager / admin) — any one
+  // of the chosen 1–3 approves. This is now the only reviewer picker.
+  const [reviewerManagers, setReviewerManagers] = useState([]);
   const [clientName, setClientName] = useState(edit ? edit.clientName || "" : profile.clientName || prefill.client || "");
   const [site, setSite] = useState(edit ? edit.site || "" : profile.site || prefill.site || "");
   const [supervisorEmails, setSupervisorEmails] = useState(
@@ -96,12 +98,9 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
   // everything before it is sent.
   const review = () => {
     setMsg("");
-    const single = tpl ? isSingleApproval(tpl.code) : false;
-    const ch = tpl ? chainFor(tpl.code) : null;
-    if (!supervisorEmails.some((e) => /\S+@\S+\.\S+/.test(e)))
-      return setMsg(ch ? `Add the ${ch.SUPERVISOR.label}.` : single ? "Add at least one Client." : "Add at least one Equipment User.");
-    if (!single && !/\S+@\S+\.\S+/.test(managerEmail))
-      return setMsg(ch ? `Add the ${ch.MANAGER.label}.` : "Enter the Client/Manager's email.");
+    const valid = supervisorEmails.filter((e) => /\S+@\S+\.\S+/.test(e));
+    if (valid.length === 0) return setMsg("Add at least one reviewing manager.");
+    if (valid.length > 3) return setMsg("Choose at most 3 reviewing managers.");
     if (!clientName.trim()) return setMsg("Choose the client (plant).");
     setConfirming(true);
   };
@@ -118,6 +117,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
         setManagers(d.managers || []);
         setTechnicalManagers(d.technicalManagers || []);
         setProjectManagers(d.projectManagers || []);
+        setReviewerManagers(d.reviewers || []);
       })
       .catch(() => {});
     fetch("/api/weighbridges")
@@ -440,23 +440,15 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
     );
   }
 
-  const singleApproval = tpl ? isSingleApproval(tpl.code) : false;
-  // Role-locked chains (e.g. Technical Report → Technical Manager then Project
-  // Manager) relabel the two stages and route them to those role holders.
-  const chain = tpl ? chainFor(tpl.code) : null;
-  const stage1Label = chain ? `${chain.SUPERVISOR.label} — reviews first` : singleApproval ? "Client(s) — approves" : "Equipment User(s) — reviews first";
-  const stage2Label = chain ? `${chain.MANAGER.label} — approves` : "Client/Manager (approves after review)";
-  const stage1People = chain ? technicalManagers : supervisors;
-  const stage2People = chain ? projectManagers : managers;
+  const singleApproval = true; // every report now uses a single manager review
+  const chain = null;
+  const stage1Label = "Reviewing manager(s) — any one approves";
+  const stage1People = reviewerManagers;
   const approvalPanel = (
     <div className="card" style={{ borderColor: GOLD, padding: 16 }}>
       <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 13, color: INK }}>Approval route</div>
       <div className="muted" style={{ margin: "4px 0 12px" }}>
-        {chain
-          ? `You → ${chain.SUPERVISOR.label} reviews → ${chain.MANAGER.label} approves. Each is emailed automatically.`
-          : singleApproval
-          ? "You → Client approves. The Client is emailed automatically; their approval completes the report."
-          : "You → Equipment User reviews → Client/Manager approves. Each is emailed automatically."}
+        You → a manager reviews &amp; approves. Pick 1–3 managers (Technical / Project Manager); each is emailed automatically and <b>any one</b> can approve. After approval they can send it to the client for sign-off.
       </div>
       <div style={{ fontSize: 12, fontWeight: 700, background: "#efe8d6", color: INK, padding: "8px 10px", borderRadius: 2, marginBottom: 12 }}>
         Submitting as {profile.name}
@@ -468,19 +460,10 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
         people={stage1People}
         value={supervisorEmails}
         onChange={setSupervisorEmails}
-        placeholder={chain ? "technical.manager@qalibrated.com" : singleApproval ? "client@company.com" : "equipment.user@company.com"}
+        placeholder="manager@qalibrated.com"
       />
-      {chain && stage1People.length === 0 && (
-        <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No {chain.SUPERVISOR.label} is registered yet — an admin can assign the role in Users.</div>
-      )}
-      {!singleApproval && (
-        <ReviewerPicker
-          label={stage2Label}
-          people={stage2People}
-          value={managerEmail}
-          onChange={setManagerEmail}
-          placeholder={chain ? "project.manager@qalibrated.com" : "client.manager@company.com"}
-        />
+      {stage1People.length === 0 && (
+        <div className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>No manager is registered yet — an admin can assign the Technical/Project Manager role in Users.</div>
       )}
       {msg && <div style={{ color: WAIT, fontWeight: 700, fontSize: 13, margin: "8px 0" }}>{msg}</div>}
       <button className="btn btn-primary" style={{ width: "100%", padding: "13px" }} disabled={busy} onClick={review}>
@@ -533,17 +516,14 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
             <p className="muted" style={{ fontSize: 13, margin: "6px 0 12px" }}>
               {isEdit
                 ? "Your correction will be saved and stamped on the report's trail with your name and the time. Check the details below."
-                : singleApproval
-                ? "Once sent, this goes to your Client for approval. Check the details below are correct."
-                : "Once sent, this goes to your Equipment User for review. Check the details below are correct."}
+                : "Once sent, this goes to the selected manager(s) for review and approval. Check the details below are correct."}
             </p>
             <div style={{ fontSize: 13, color: INK, display: "grid", gap: 4 }}>
               <div><b>Form:</b> {tpl.code} — {tpl.name}</div>
               <div><b>Client:</b> {clientName || "—"}</div>
               <div><b>Site / location:</b> {site || "—"}</div>
               {tpl.code !== "TR01" && tpl.code !== "GD01" && <div><b>Weighbridge:</b> {values.weighbridgeId || "—"}</div>}
-              <div><b>{chain ? chain.SUPERVISOR.label : singleApproval ? "Client" : "Equipment User"}{supervisorEmails.length > 1 ? "s" : ""}:</b> {supervisorEmails.join(", ") || "—"}</div>
-              {!singleApproval && <div><b>{chain ? chain.MANAGER.label : "Client/Manager"}:</b> {managerEmail}</div>}
+              <div><b>Reviewing manager{supervisorEmails.length > 1 ? "s" : ""}:</b> {supervisorEmails.join(", ") || "—"}</div>
               <div><b>Entries filled:</b> {filledCount} · <b>Photos:</b> {photos.length}</div>
             </div>
             <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
@@ -988,28 +968,3 @@ function MultiReviewerPicker({ label, people, value, onChange, placeholder }) {
   );
 }
 
-function ReviewerPicker({ label, people, value, onChange, placeholder }) {
-  const known = people.some((p) => p.email.toLowerCase() === (value || "").toLowerCase());
-  return (
-    <label className="field">
-      <span className="label">{label}</span>
-      {people.length > 0 ? (
-        <>
-          <select className="input" value={known ? value : ""} onChange={(e) => onChange(e.target.value)}>
-            <option value="">— choose —</option>
-            {people.map((p) => (
-              <option key={p.id} value={p.email}>
-                {p.name} ({p.email})
-              </option>
-            ))}
-          </select>
-          {value && !known && (
-            <span className="muted" style={{ fontSize: 11, marginTop: 4 }}>Using a custom address: {value}</span>
-          )}
-        </>
-      ) : (
-        <input className="input" type="email" value={value || ""} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
-      )}
-    </label>
-  );
-}

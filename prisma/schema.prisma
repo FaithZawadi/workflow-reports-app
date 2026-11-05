@@ -49,8 +49,10 @@ enum QuotationStatus {
 }
 
 enum ReportStatus {
-  PENDING_SUPERVISOR
-  PENDING_MANAGER
+  PENDING_SUPERVISOR // legacy name; now used as the single "manager review" stage
+  PENDING_MANAGER // legacy second stage (kept for in-flight rows)
+  PENDING_CLIENT // manager approved and sent to the client for external approval
+  CLIENT_RETURNED // client returned the report with a comment — back to the manager
   APPROVED
   REJECTED
 }

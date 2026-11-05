@@ -22,7 +22,7 @@ export async function GET(_req, { params }) {
       trailEvents: { orderBy: { at: "asc" } },
     },
   });
-  if (!report || report.status !== "APPROVED") {
+  if (!report || !["PENDING_CLIENT", "APPROVED", "CLIENT_RETURNED"].includes(report.status)) {
     return Response.json({ error: "Not found." }, { status: 404 });
   }
 

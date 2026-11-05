@@ -90,7 +90,10 @@ export function canEdit(report, user) {
 export function canAct(report, user) {
   const pendingSup = report.status === "PENDING_SUPERVISOR";
   const pendingMgr = report.status === "PENDING_MANAGER";
-  if (!pendingSup && !pendingMgr) return null;
+  // A report the client returned with a comment comes back to the routed
+  // manager(s) to decide again — treated as the (single) review stage.
+  const clientReturned = report.status === "CLIENT_RETURNED";
+  if (!pendingSup && !pendingMgr && !clientReturned) return null;
 
   // ONLY the reviewer the report was routed to (by email) may approve/reject —
   // the assigned Equipment User at the review stage, or the Client/Manager at the
@@ -106,8 +109,9 @@ export function canAct(report, user) {
     if (!req) return true; // template not role-locked
     return rolesOf(user).includes(req);
   };
-  // Any of the assigned Equipment Users may act at the review stage.
-  if (pendingSup && supervisorSet(report).has(email) && holdsStageRole("SUPERVISOR")) return "SUPERVISOR";
+  // Any of the routed managers may act at the (single) review stage — whether
+  // the report is newly filed or has been returned by the client.
+  if ((pendingSup || clientReturned) && supervisorSet(report).has(email) && holdsStageRole("SUPERVISOR")) return "SUPERVISOR";
   if (pendingMgr && norm(report.managerEmail) === email && holdsStageRole("MANAGER")) return "MANAGER";
   return null;
 }

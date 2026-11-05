@@ -11,8 +11,9 @@ const bytesOf = (d) => { const b = d.slice(d.indexOf(",") + 1); return Math.floo
 // signed once; staff would re-issue a fresh link if needed.
 export async function POST(req, { params }) {
   const report = await prisma.report.findUnique({ where: { signToken: params.token } });
-  if (!report || report.status !== "APPROVED") {
-    return Response.json({ error: "This signing link is not valid." }, { status: 404 });
+  // The client approves & signs while the report is out for approval.
+  if (!report || !["PENDING_CLIENT", "APPROVED"].includes(report.status)) {
+    return Response.json({ error: "This link is not valid." }, { status: 404 });
   }
   if (report.clientSignatureImage) {
     return Response.json({ error: "This report has already been signed." }, { status: 409 });
@@ -26,13 +27,21 @@ export async function POST(req, { params }) {
   if (bytesOf(signature) > MAX) return Response.json({ error: "The signature image is too large." }, { status: 413 });
   const title = String(body.title || "").trim().slice(0, 80);
   const label = title ? `${name} (${title})` : name;
+  const approvalComment = String(body.comment || "").trim().slice(0, 1000);
 
+  // Approving & signing fully approves the report (the manager had already
+  // approved it internally; this records the client's external approval).
   await prisma.report.update({
     where: { id: report.id },
-    data: { clientSignatureImage: signature, clientSignedByName: label, clientSignedAt: new Date() },
+    data: {
+      clientSignatureImage: signature,
+      clientSignedByName: label,
+      clientSignedAt: new Date(),
+      status: "APPROVED",
+    },
   });
   await prisma.trailEvent.create({
-    data: { reportId: report.id, action: "CLIENT SIGNED", byName: label },
+    data: { reportId: report.id, action: "CLIENT APPROVED & SIGNED", byName: label, comment: approvalComment || null },
   }).catch(() => {});
 
   return Response.json({ ok: true, signedByName: label });

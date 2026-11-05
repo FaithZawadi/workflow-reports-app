@@ -12,7 +12,7 @@ import { isValidImageUpload, MAX_IMAGE_BYTES, isValidPdfUpload, MAX_PDF_BYTES, d
 import { evalGeofence } from "@/lib/geofence";
 import { getSettings } from "@/lib/settings";
 import { chainFor, stageRole, stageLabel } from "@/lib/approvalChain";
-import { FILER_ROLES, rolesOf } from "@/lib/roles";
+import { FILER_ROLES, MANAGER_ROLES, rolesOf } from "@/lib/roles";
 import { notifyEmails, notifyUsers, oversight } from "@/lib/notify";
 
 const isEmail = (v) => /\S+@\S+\.\S+/.test(v || "");
@@ -120,9 +120,9 @@ export async function POST(req) {
   if (!allowedTemplates.some((t) => t.code === tpl.code))
     return Response.json({ error: "This form is not available for your role." }, { status: 403 });
 
-  // One or more Equipment Users may be assigned. Accept `supervisorEmails` (an
-  // array) and/or the legacy single `supervisorEmail`; any ONE of them can
-  // review. Stored lower-cased so array membership checks are case-insensitive.
+  // The report is reviewed by a manager. One to three managers may be routed
+  // (via `supervisorEmails`, or the legacy single `supervisorEmail`); ANY ONE of
+  // them approves. Stored lower-cased so membership checks are case-insensitive.
   const rawSupers = [
     ...(Array.isArray(body.supervisorEmails) ? body.supervisorEmails : []),
     body.supervisorEmail,
@@ -131,7 +131,24 @@ export async function POST(req) {
     .filter(Boolean);
   const supervisorEmails = [...new Set(rawSupers.map((e) => e.toLowerCase()))].filter(isEmail);
   if (supervisorEmails.length === 0)
-    return Response.json({ error: "Add at least one Equipment User email." }, { status: 400 });
+    return Response.json({ error: "Add at least one reviewing manager." }, { status: 400 });
+  if (supervisorEmails.length > 3)
+    return Response.json({ error: "Choose at most 3 reviewing managers." }, { status: 400 });
+
+  // Every routed reviewer must be an active manager (Technical Manager, Project
+  // Manager, Manager or Admin) — reports are reviewed and approved by managers.
+  const reviewerRows = await prisma.user.findMany({
+    where: { email: { in: supervisorEmails, mode: "insensitive" }, active: true },
+    select: { email: true, role: true, roles: true },
+  });
+  const allowReviewer = [...MANAGER_ROLES, "ADMIN"];
+  const okReviewers = new Set(
+    reviewerRows
+      .filter((u) => (u.roles && u.roles.length ? u.roles : [u.role]).some((r) => allowReviewer.includes(r)))
+      .map((u) => u.email.toLowerCase())
+  );
+  if (!supervisorEmails.every((e) => okReviewers.has(e)))
+    return Response.json({ error: "Each reviewer must be a registered Technical Manager or Project Manager." }, { status: 400 });
   const supervisorEmail = supervisorEmails[0]; // primary (for display / routing snapshots)
 
   // Daily / weekly / monthly forms are single-stage: the one approver (labelled

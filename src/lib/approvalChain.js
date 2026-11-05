@@ -6,12 +6,11 @@
 // (second) internally; a chain simply pins each stage to a required role and
 // relabels it. Example: the Technical Report is reviewed by a Technical Manager,
 // then approved by a Project Manager.
-export const APPROVAL_CHAINS = {
-  TR01: {
-    SUPERVISOR: { role: "TECHNICAL_MANAGER", label: "Technical Manager", short: "TECHNICAL MANAGER REVIEW" },
-    MANAGER: { role: "PROJECT_MANAGER", label: "Project Manager", short: "PROJECT MANAGER APPROVAL" },
-  },
-};
+// Reports now use a single manager-review stage with no role-locked two-step
+// chain. Any routed manager (TM/PM) may approve, so no template pins specific
+// roles to stages. Kept as an (empty) map so the helpers below stay valid and a
+// chain can be reintroduced later if ever needed.
+export const APPROVAL_CHAINS = {};
 
 export function chainFor(template) {
   return APPROVAL_CHAINS[template] || null;
