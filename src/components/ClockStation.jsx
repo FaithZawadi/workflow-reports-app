@@ -48,7 +48,18 @@ export default function ClockStation({ manager }) {
   const [showReg, setShowReg] = useState(false);
   const [faceState, setFaceState] = useState("loading"); // loading | ready | off
   const [pending, setPending] = useState(0); // punches queued offline
+  const [site, setSite] = useState(""); // the site this device is clocking for
+  const [siteList, setSiteList] = useState([]); // best-effort datalist of sites
   const pendingRef = useRef(null); // { id, ts } — mismatch override within a short window
+
+  // Remember the site per device, and offer registered sites as suggestions.
+  useEffect(() => {
+    try { setSite(localStorage.getItem("qsl:clockSite") || ""); } catch {}
+    fetch("/api/sites").then((r) => (r.ok ? r.json() : { sites: [] })).then((d) => {
+      setSiteList((d.sites || []).map((s) => s.name).filter(Boolean));
+    }).catch(() => {});
+  }, []);
+  const saveSite = (v) => { setSite(v); try { localStorage.setItem("qsl:clockSite", v); } catch {} };
 
   // Preload the face models once (best-effort). Clocking still works if they fail.
   useEffect(() => {
@@ -143,7 +154,7 @@ export default function ClockStation({ manager }) {
     // Decide IN/OUT on the device so offline punches keep the right direction.
     const type = w.lastType === "IN" ? "OUT" : "IN";
     const at = new Date().toISOString();
-    const payload = { workerId: w.id, type, at, selfie: selfie || undefined, matched, matchScore, ...loc };
+    const payload = { workerId: w.id, type, at, selfie: selfie || undefined, matched, matchScore, site: site || undefined, ...loc };
     const tag = matched === true ? " · face ✓" : matched === false ? " · face ✗ (override)" : "";
     const hhmm = new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
@@ -194,6 +205,21 @@ export default function ClockStation({ manager }) {
           )}
           <a href="/attendance" style={{ color: GOLD, fontWeight: 700, fontSize: 12.5, textDecoration: "none" }}>Reports →</a>
         </div>
+      </div>
+
+      {/* Site this device is clocking for */}
+      <div style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, background: "#1b1813", borderBottom: "1px solid #2c2720" }}>
+        <span style={{ fontSize: 12, color: GOLD, fontWeight: 800, whiteSpace: "nowrap" }}>📍 Site</span>
+        <input
+          list="qsl-site-list"
+          value={site}
+          onChange={(e) => saveSite(e.target.value)}
+          placeholder="Set the site for this device…"
+          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${site ? "#3a342c" : "#8a5a00"}`, background: "#211d18", color: "#fff", fontSize: 14 }}
+        />
+        <datalist id="qsl-site-list">
+          {siteList.map((s) => <option key={s} value={s} />)}
+        </datalist>
       </div>
 
       {/* Live camera */}

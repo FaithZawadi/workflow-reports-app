@@ -549,6 +549,9 @@ model Report {
   clientStampImage     String?
   clientSignedByName   String?
   clientSignedAt       DateTime?
+  // Capability token for the public, no-login signing link given to a client so
+  // they can review and sign the report externally; the signed copy stays here.
+  signToken            String?   @unique
 
   // The date the work/inspection was actually performed — the date the report is
   // FOR. Defaults to the submission date, but a technician backfilling a report
@@ -868,6 +871,7 @@ model ClockEvent {
   byManagerId   String?
   byManagerName String? // the manager operating the clocking phone
   deviceLabel   String?
+  site          String? // the site the clocking station is set to for this punch
 
   @@index([workerId])
   @@index([at])

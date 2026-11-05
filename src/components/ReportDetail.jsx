@@ -17,6 +17,24 @@ export default function ReportDetail({ serial, profile }) {
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+  // Client signature link (external, no-login signing).
+  const [signLink, setSignLink] = useState(null);
+  const [signBusy, setSignBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const getSignLink = async () => {
+    setSignBusy(true);
+    try {
+      const res = await fetch(`/api/reports/${serial}/sign-link`, { method: "POST" });
+      const d = await res.json();
+      if (res.ok) setSignLink({ url: (typeof window !== "undefined" ? window.location.origin : "") + d.path, signed: d.signed });
+      else setNote(d.error || "Could not create the link.");
+    } catch { setNote("Network problem — try again."); }
+    setSignBusy(false);
+  };
+  const copyLink = async () => {
+    try { await navigator.clipboard.writeText(signLink.url); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch {}
+  };
 
   const load = async () => {
     setErr("");
@@ -346,6 +364,45 @@ export default function ReportDetail({ serial, profile }) {
         {rep.status === "APPROVED" && (
           <div style={{ marginTop: 12, padding: 12, borderRadius: 2, fontWeight: 900, textTransform: "uppercase", color: "#fff", background: PASS, textAlign: "center" }}>
             Fully approved — record closed
+          </div>
+        )}
+
+        {/* Client signature — a secure, no-login link the client uses to review
+            and sign; the signed copy is saved here and printed on the PDF. */}
+        {rep.status === "APPROVED" && (
+          <div style={{ marginTop: 16 }}>
+            <SectionBar>Client signature</SectionBar>
+            {rep.clientSignatureImage ? (
+              <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", marginTop: 8 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={rep.clientSignatureImage} alt="Client signature" style={{ height: 70, maxWidth: 260, objectFit: "contain", border: "1px solid #e6e0d2", borderRadius: 6, background: "#fff" }} />
+                <div className="muted" style={{ fontSize: 13 }}>
+                  Signed by <b style={{ color: INK }}>{rep.clientSignedByName || "—"}</b>
+                  {rep.clientSignedAt ? ` · ${new Date(rep.clientSignedAt).toLocaleString()}` : ""}
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginTop: 8 }}>
+                <p className="muted" style={{ fontSize: 13, margin: "0 0 10px" }}>
+                  Send the client a secure link to review and sign this report. No login needed — the signed copy is saved here and printed on the PDF.
+                </p>
+                {!signLink ? (
+                  <button className="btn btn-primary" onClick={getSignLink} disabled={signBusy} style={{ fontSize: 13 }}>
+                    {signBusy ? "Creating…" : "Get client signing link"}
+                  </button>
+                ) : (
+                  <div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                      <input readOnly value={signLink.url} onFocus={(e) => e.target.select()} className="input" style={{ flex: "1 1 260px", fontSize: 12.5 }} />
+                      <button className="btn" onClick={copyLink} style={{ fontSize: 12.5 }}>{copied ? "Copied ✓" : "Copy"}</button>
+                      <a className="btn" href={`https://wa.me/?text=${encodeURIComponent(`Please review and sign our report ${rep.serial}: ${signLink.url}`)}`} target="_blank" rel="noreferrer" style={{ fontSize: 12.5, textDecoration: "none", background: "#25D366", color: "#fff", borderColor: "#25D366" }}>WhatsApp</a>
+                      <a className="btn" href={`mailto:?subject=${encodeURIComponent(`Report ${rep.serial} for your signature`)}&body=${encodeURIComponent(`Please review and sign our report ${rep.serial}:\n\n${signLink.url}`)}`} style={{ fontSize: 12.5, textDecoration: "none" }}>Email</a>
+                    </div>
+                    <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>Anyone with this link can sign once. The report refreshes here after they sign.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </PaperCard>

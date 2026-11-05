@@ -17,6 +17,7 @@ const csp = [
   "script-src 'self' 'unsafe-inline'",
   "connect-src 'self'",
   "worker-src 'self' blob:",
+  "frame-src 'self' blob:",
   "manifest-src 'self'",
   "upgrade-insecure-requests",
 ].join("; ");

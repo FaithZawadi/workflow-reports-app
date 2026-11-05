@@ -61,6 +61,7 @@ export async function POST(req) {
       byManagerId: user.sub || null,
       byManagerName: user.name || null,
       deviceLabel: String(body.deviceLabel || "").trim().slice(0, 80) || null,
+      site: String(body.site || "").trim().slice(0, 120) || null,
     },
   });
 

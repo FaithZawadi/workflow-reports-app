@@ -22,6 +22,8 @@ export async function GET(req) {
   const csv = sp.get("format") === "csv";
   const where = {};
   if (workerId) where.workerId = workerId;
+  const site = sp.get("site");
+  if (site) where.site = site;
   const from = sp.get("from");
   const to = sp.get("to");
   if (from || to) {
@@ -39,11 +41,12 @@ export async function GET(req) {
 
   if (csv) {
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const rows = [["Worker", "Job title", "Type", "When (EAT)", "Matched", "Latitude", "Longitude", "By (manager)"]];
+    const rows = [["Worker", "Job title", "Site", "Type", "When (EAT)", "Matched", "Latitude", "Longitude", "By (manager)"]];
     for (const e of events) {
       rows.push([
         e.worker?.name || "",
         e.worker?.jobTitle || "",
+        e.site || "",
         e.type,
         new Date(e.at).toLocaleString("en-GB", { timeZone: "Africa/Nairobi" }),
         e.matched == null ? "" : e.matched ? "Yes" : "No",
@@ -67,6 +70,7 @@ export async function GET(req) {
     id: e.id,
     workerName: e.worker?.name || "—",
     jobTitle: e.worker?.jobTitle || null,
+    site: e.site || null,
     type: e.type,
     at: e.at,
     matched: e.matched,

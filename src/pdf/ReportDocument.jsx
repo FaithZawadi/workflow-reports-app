@@ -109,6 +109,12 @@ const s = StyleSheet.create({
   sysNoteText: { fontSize: 8, color: INK, fontFamily: "Helvetica-Bold" },
   sysNoteSub: { fontSize: 7.5, color: MUTE, marginTop: 2 },
   footNote: { marginTop: 8, padding: 6, borderWidth: 1, borderColor: GOLD, backgroundColor: "#FCF7EA", flexDirection: "row", alignItems: "center" },
+  cliWrap: { marginTop: 10 },
+  cliRow: { flexDirection: "row", alignItems: "center", borderWidth: 0.5, borderColor: "#C9C1B0", borderRadius: 3, padding: 8, backgroundColor: "#FBF8F1" },
+  cliSig: { height: 50, width: "52%", objectFit: "contain" },
+  cliMeta: { flex: 1, paddingLeft: 10, marginLeft: 8, borderLeftWidth: 0.5, borderLeftColor: "#E4DCCB" },
+  cliName: { fontSize: 9, fontFamily: "Helvetica-Bold", color: COAL },
+  cliDate: { fontSize: 7.5, color: MUTE, marginTop: 2 },
   footQr: { width: 52, height: 52, marginLeft: 6 },
   // QR pinned bottom-right on page 1 only — a long report's overflow flows onto
   // later pages without dragging the QR onto its own page.
@@ -575,6 +581,22 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
             </View>
           </View>
         )}
+
+        {/* Client acknowledgement — the external signature captured via the
+            signing link, saved back into the app. */}
+        {report.clientSignatureImage ? (
+          <View style={s.cliWrap} wrap={false}>
+            <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>Client acknowledgement</Text></View>
+            <View style={s.cliRow}>
+              {/* eslint-disable-next-line jsx-a11y/alt-text */}
+              <Image src={report.clientSignatureImage} style={s.cliSig} />
+              <View style={s.cliMeta}>
+                <Text style={s.cliName}>{report.clientSignedByName || "—"}</Text>
+                <Text style={s.cliDate}>Signed {report.clientSignedAt ? fmt(report.clientSignedAt) : ""}</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         {/* Verify QR — pinned bottom-right on page 1 only. */}
         {qrSrc ? (

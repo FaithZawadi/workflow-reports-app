@@ -36,6 +36,7 @@ export default function AttendanceAdmin() {
 function ClockLog() {
   const [from, setFrom] = useState(todayStr());
   const [to, setTo] = useState(todayStr());
+  const [site, setSite] = useState("");
   const [events, setEvents] = useState([]);
   const [withPhotos, setWithPhotos] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -44,16 +45,16 @@ function ClockLog() {
   const load = useCallback(async () => {
     setBusy(true);
     try {
-      const qs = new URLSearchParams({ from, to, ...(withPhotos ? { photos: "1" } : {}) });
+      const qs = new URLSearchParams({ from, to, ...(site.trim() ? { site: site.trim() } : {}), ...(withPhotos ? { photos: "1" } : {}) });
       const r = await fetch(`/api/attendance/events?${qs}`);
       const d = await r.json();
       if (r.ok) setEvents(d.events || []);
     } catch {}
     setBusy(false);
-  }, [from, to, withPhotos]);
+  }, [from, to, site, withPhotos]);
   useEffect(() => { load(); }, [load]);
 
-  const csvHref = `/api/attendance/events?${new URLSearchParams({ from, to, format: "csv" })}`;
+  const csvHref = `/api/attendance/events?${new URLSearchParams({ from, to, ...(site.trim() ? { site: site.trim() } : {}), format: "csv" })}`;
   const th = { textAlign: "left", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3, color: MUTE, padding: "6px 8px", borderBottom: "1px solid #e6e0d2", whiteSpace: "nowrap" };
   const td = { fontSize: 13, padding: "7px 8px", borderBottom: "1px solid #f0ebe0", verticalAlign: "middle" };
 
@@ -65,6 +66,7 @@ function ClockLog() {
         <button className="btn" onClick={() => { setFrom(todayStr()); setTo(todayStr()); }} style={{ fontSize: 12 }}>Today</button>
         <button className="btn" onClick={() => { setFrom(daysAgoStr(6)); setTo(todayStr()); }} style={{ fontSize: 12 }}>7 days</button>
         <button className="btn" onClick={() => { setFrom(daysAgoStr(29)); setTo(todayStr()); }} style={{ fontSize: 12 }}>30 days</button>
+        <input value={site} onChange={(e) => setSite(e.target.value)} placeholder="Filter by site…" className="input" style={{ padding: 7, fontSize: 12, maxWidth: 160 }} />
         <label style={{ fontSize: 12, color: MUTE, display: "flex", alignItems: "center", gap: 5 }}>
           <input type="checkbox" checked={withPhotos} onChange={(e) => setWithPhotos(e.target.checked)} /> Show photos
         </label>
@@ -73,14 +75,15 @@ function ClockLog() {
 
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 560 }}>
-          <thead><tr><th style={th}>Worker</th><th style={th}>In/Out</th><th style={th}>When</th>{withPhotos && <th style={th}>Photo</th>}<th style={th}>Location</th><th style={th}>By</th></tr></thead>
+          <thead><tr><th style={th}>Worker</th><th style={th}>Site</th><th style={th}>In/Out</th><th style={th}>When</th>{withPhotos && <th style={th}>Photo</th>}<th style={th}>Location</th><th style={th}>By</th></tr></thead>
           <tbody>
             {events.length === 0 && !busy && (
-              <tr><td style={{ ...td, textAlign: "center", color: MUTE }} colSpan={withPhotos ? 6 : 5}>No clock-ins for this range.</td></tr>
+              <tr><td style={{ ...td, textAlign: "center", color: MUTE }} colSpan={withPhotos ? 7 : 6}>No clock-ins for this range.</td></tr>
             )}
             {events.map((e) => (
               <tr key={e.id}>
                 <td style={td}><b>{e.workerName}</b>{e.jobTitle ? <span style={{ color: MUTE }}> · {e.jobTitle}</span> : ""}</td>
+                <td style={{ ...td, color: e.site ? INK : MUTE }}>{e.site || "—"}</td>
                 <td style={td}><span style={{ fontWeight: 800, fontSize: 11, textTransform: "uppercase", color: "#fff", background: e.type === "IN" ? PASS : WAIT, padding: "2px 7px", borderRadius: 4 }}>{e.type}</span></td>
                 <td style={{ ...td, whiteSpace: "nowrap" }}>{new Date(e.at).toLocaleString("en-GB", { timeZone: "Africa/Nairobi", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
                 {withPhotos && <td style={td}>{e.selfie ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={e.selfie} alt="" onClick={() => setLightbox(e.selfie)} style={{ width: 38, height: 38, borderRadius: 6, objectFit: "cover", cursor: "pointer", border: "1px solid #e6e0d2" }} />) : <span style={{ color: MUTE, fontSize: 12 }}>—</span>}</td>}
