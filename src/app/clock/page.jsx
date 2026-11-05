@@ -3,14 +3,24 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canManageAttendance } from "@/lib/roles";
 import ClockStation from "@/components/ClockStation";
+import ClockSplash from "@/components/ClockSplash";
 
 export const metadata = {
   title: "QSL Clocking",
   // A dedicated manifest so "Add to Home Screen" from here installs a standalone
-  // clocking-only app (clock in/out + worker registration), scoped to /clock.
+  // clocking app (clock in/out + worker registration). Scope is the whole app so
+  // the shared login opens inside the installed app, not a browser tab.
   manifest: "/clock.webmanifest",
   appleWebApp: { capable: true, title: "QSL Clocking", statusBarStyle: "black-translucent" },
   robots: { index: false, follow: false },
+};
+// App-like full-bleed viewport (handles notches) + brand status bar colour.
+export const viewport = {
+  themeColor: "#161310",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
 };
 export const dynamic = "force-dynamic";
 
@@ -34,5 +44,10 @@ export default async function ClockPage() {
       </div>
     );
   }
-  return <ClockStation manager={{ name: user.name }} />;
+  return (
+    <>
+      <ClockSplash />
+      <ClockStation manager={{ name: user.name }} />
+    </>
+  );
 }

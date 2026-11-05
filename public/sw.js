@@ -1,9 +1,9 @@
 // Service worker: install-to-home-screen + offline-capable shell + read-through
 // caching of report/schedule data so past records are viewable offline. Report
 // submissions are queued in IndexedDB by the page and forwarded when back online.
-const CACHE = "qsl-v5";
+const CACHE = "qsl-v6";
 const API_CACHE = "qsl-api-v1";
-const SHELL = ["/dashboard", "/reports/new", "/login", "/manifest.webmanifest", "/vendor/face-api.js"];
+const SHELL = ["/dashboard", "/reports/new", "/login", "/clock", "/manifest.webmanifest", "/clock.webmanifest", "/vendor/face-api.js", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png"];
 // Face-recognition model weights — precached so the clocking station's face
 // check works with no connection (best-effort; large files are added one by one
 // so a single failure never aborts the install).
