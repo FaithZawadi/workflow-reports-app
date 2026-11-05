@@ -294,22 +294,24 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
   const capture = () => { const d = grabFrame(videoRef.current); if (d) { setPhoto(d); setErr(""); } else setErr("Camera not ready — allow camera access."); };
   const save = async () => {
     if (!name.trim()) return setErr("Enter the worker's name.");
+    if (!photo) return setErr("Take the worker's photo first — a face is required to register.");
     setBusy(true); setErr("");
-    // Compute the face descriptor from the reference photo (best-effort) so the
-    // worker can be auto-verified when they clock in later.
-    let faceDescriptor = [];
-    if (photo) {
-      const d = await descriptorFromDataUrl(photo).catch(() => null);
-      if (d) faceDescriptor = d;
+    // A face descriptor is required so the worker can be verified at clock-in AND
+    // so the server can reject registering the same person twice.
+    const d = await descriptorFromDataUrl(photo).catch(() => null);
+    const faceDescriptor = Array.isArray(d) ? d : [];
+    if (faceDescriptor.length === 0) {
+      setBusy(false);
+      return setErr("No face detected in the photo — face the camera in good light and retake. A clear face is required so the same person isn't registered twice.");
     }
     try {
       const r = await fetch("/api/attendance/workers", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, phone, jobTitle, photo: photo || undefined, faceDescriptor }),
+        body: JSON.stringify({ name, phone, jobTitle, photo, faceDescriptor }),
       });
-      const d = await r.json();
-      if (!r.ok) { setErr(d.error || "Could not save."); setBusy(false); return; }
-      onSaved(photo && faceDescriptor.length === 0 ? "Worker saved — but no face was detected in the photo; retake for face check." : "");
+      const d2 = await r.json();
+      if (!r.ok) { setErr(d2.error || "Could not save."); setBusy(false); return; }
+      onSaved("");
     } catch { setErr("Network problem — try again."); setBusy(false); }
   };
 

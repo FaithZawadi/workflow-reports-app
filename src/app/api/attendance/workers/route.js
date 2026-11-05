@@ -62,6 +62,36 @@ export async function POST(req) {
     ? body.faceDescriptor.map(Number).filter((n) => Number.isFinite(n)).slice(0, 128)
     : [];
 
+  // Prevent the SAME person being registered twice (under a different name or
+  // role). When a face descriptor is supplied, compare it to every active
+  // worker's registered face; if one is close enough, block the registration and
+  // name the existing record. Threshold matches the clock-in face match (0.5).
+  if (descriptor.length === 128) {
+    const DUP_THRESHOLD = 0.5;
+    const existing = await prisma.worker.findMany({
+      where: { active: true },
+      select: { id: true, name: true, jobTitle: true, faceDescriptor: true },
+    });
+    let best = null;
+    for (const w of existing) {
+      const d = w.faceDescriptor;
+      if (!Array.isArray(d) || d.length !== 128) continue;
+      let sum = 0;
+      for (let i = 0; i < 128; i++) { const diff = descriptor[i] - d[i]; sum += diff * diff; }
+      const dist = Math.sqrt(sum);
+      if (best === null || dist < best.dist) best = { dist, id: w.id, name: w.name, jobTitle: w.jobTitle };
+    }
+    if (best && best.dist < DUP_THRESHOLD) {
+      return Response.json(
+        {
+          error: `This face is already registered as “${best.name}”${best.jobTitle ? ` (${best.jobTitle})` : ""}. Each person can only be registered once — edit that worker instead of adding a new one.`,
+          duplicate: { id: best.id, name: best.name, jobTitle: best.jobTitle, distance: Math.round(best.dist * 1000) / 1000 },
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   const worker = await prisma.worker.create({
     data: {
       name,
