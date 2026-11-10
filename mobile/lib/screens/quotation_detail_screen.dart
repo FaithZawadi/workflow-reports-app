@@ -53,7 +53,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
 
   @override
   void dispose() {
-    for (final it in _items) it.dispose();
+    for (final it in _items) { it.dispose(); }
     _vat.dispose(); _email.dispose(); _phone.dispose(); _subject.dispose();
     super.dispose();
   }
@@ -62,7 +62,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
     try {
       final d = await context.read<Session>().api.getQuotation(widget.id);
       final q = d.quotation;
-      for (final it in _items) it.dispose();
+      for (final it in _items) { it.dispose(); }
       _items
         ..clear()
         ..addAll(((q['items'] as List?) ?? []).map((e) => _Item(
@@ -167,8 +167,12 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async { Navigator.pop(context, _changed); return false; },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        Navigator.pop(context, _changed);
+      },
       child: Scaffold(
         appBar: AppBar(
           title: Text('${_data?.quotation['number'] ?? 'Quotation'}'),
@@ -318,7 +322,7 @@ class _QuotationDetailScreenState extends State<QuotationDetailScreen> {
 
       Row(children: [
         Expanded(child: _labeled('Currency', DropdownButtonFormField<String>(
-          value: _currency,
+          initialValue: _currency,
           items: const [DropdownMenuItem(value: 'KES', child: Text('KES')), DropdownMenuItem(value: 'USD', child: Text('USD')), DropdownMenuItem(value: 'EUR', child: Text('EUR')), DropdownMenuItem(value: 'GBP', child: Text('GBP'))],
           onChanged: (v) => setState(() => _currency = v ?? 'KES'),
         ))),

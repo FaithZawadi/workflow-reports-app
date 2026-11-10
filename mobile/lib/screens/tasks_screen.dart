@@ -128,7 +128,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 40),
                     child: Column(children: [
-                      Icon(Icons.inbox_outlined, size: 46, color: kMute.withOpacity(0.5)),
+                      Icon(Icons.inbox_outlined, size: 46, color: kMute.withValues(alpha: 0.5)),
                       const SizedBox(height: 10),
                       Center(child: Text(tasks.isEmpty ? 'No tasks assigned to you.' : 'Nothing matches this filter.', style: const TextStyle(color: kMute))),
                     ]),
@@ -151,13 +151,13 @@ class _TasksScreenState extends State<TasksScreen> {
           color: tile.color,
           borderRadius: BorderRadius.circular(14),
           boxShadow: active
-              ? [BoxShadow(color: tile.color.withOpacity(0.5), blurRadius: 0, spreadRadius: 3)]
+              ? [BoxShadow(color: tile.color.withValues(alpha: 0.5), blurRadius: 0, spreadRadius: 3)]
               : const [BoxShadow(color: Color(0x24161310), blurRadius: 12, offset: Offset(0, 5))],
           border: active ? Border.all(color: Colors.white, width: 3) : null,
         ),
         padding: const EdgeInsets.all(13),
         child: Stack(children: [
-          Positioned(top: 0, left: 0, child: Icon(tile.icon, color: Colors.white.withOpacity(0.9), size: 22)),
+          Positioned(top: 0, left: 0, child: Icon(tile.icon, color: Colors.white.withValues(alpha: 0.9), size: 22)),
           Positioned(
             top: 0,
             right: 0,
@@ -166,7 +166,7 @@ class _TasksScreenState extends State<TasksScreen> {
               height: 26,
               padding: const EdgeInsets.symmetric(horizontal: 7),
               alignment: Alignment.center,
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.92), borderRadius: BorderRadius.circular(999)),
+              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.92), borderRadius: BorderRadius.circular(999)),
               child: Text('$count', style: TextStyle(color: tile.color, fontWeight: FontWeight.w900, fontSize: 13)),
             ),
           ),

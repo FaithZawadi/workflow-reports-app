@@ -174,7 +174,7 @@ class _RegistryScreenState extends State<RegistryScreen> {
         Padding(
           padding: const EdgeInsets.only(top: 90),
           child: Column(children: [
-            Icon(Icons.inbox_outlined, size: 46, color: kMute.withOpacity(0.5)),
+            Icon(Icons.inbox_outlined, size: 46, color: kMute.withValues(alpha: 0.5)),
             const SizedBox(height: 10),
             Center(child: Text(t, style: const TextStyle(color: kMute))),
           ]),

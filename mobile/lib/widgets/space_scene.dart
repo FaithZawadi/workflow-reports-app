@@ -23,14 +23,14 @@ class _StarPainter extends CustomPainter {
     final rnd = math.Random(7); // fixed seed → stable sky
     final paint = Paint();
     for (var i = 0; i < count; i++) {
-      paint.color = Colors.white.withOpacity(rnd.nextDouble() * 0.65 + 0.12);
+      paint.color = Colors.white.withValues(alpha: rnd.nextDouble() * 0.65 + 0.12);
       canvas.drawCircle(
         Offset(rnd.nextDouble() * size.width, rnd.nextDouble() * size.height),
         rnd.nextDouble() * 1.5 + 0.4,
         paint,
       );
     }
-    final gold = Paint()..color = kGold.withOpacity(0.8);
+    final gold = Paint()..color = kGold.withValues(alpha: 0.8);
     for (var i = 0; i < 6; i++) {
       canvas.drawCircle(
         Offset(rnd.nextDouble() * size.width, rnd.nextDouble() * size.height),
@@ -80,7 +80,7 @@ class _FloatingBadgeState extends State<FloatingBadge> with SingleTickerProvider
               decoration: BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: kGold.withOpacity(0.35), blurRadius: 46, spreadRadius: 4)],
+                boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.35), blurRadius: 46, spreadRadius: 4)],
               ),
               child: LogoMark(size: widget.size),
             ),

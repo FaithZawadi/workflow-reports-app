@@ -57,6 +57,7 @@ class _NewQuotationScreenState extends State<NewQuotationScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
+      if (!mounted) return;
       showError(context, e.toString());
       setState(() => _busy = false);
     }

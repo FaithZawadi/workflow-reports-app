@@ -116,7 +116,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
       _changed = true;
       await _load();
     } catch (e) {
-      showError(context, e.toString());
+      if (mounted) showError(context, e.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -126,7 +126,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
+      onPopInvokedWithResult: (didPop, result) {
         if (!didPop) Navigator.pop(context, _changed);
       },
       child: Scaffold(
@@ -342,8 +342,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
           children: [
             for (final p in photos)
               GestureDetector(
-                onTap: () => _viewPhoto('${(p as Map)['dataUrl']}'),
-                child: _thumb('${(p as Map)['dataUrl']}'),
+                onTap: () => _viewPhoto('${p['dataUrl']}'),
+                child: _thumb('${p['dataUrl']}'),
               ),
           ],
         ),

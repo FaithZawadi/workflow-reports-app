@@ -84,8 +84,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         colors: [Color(0xFF4A3418), Color(0xFF2A2013), Color(0xFF1D1710)],
                       ),
                       boxShadow: [
-                        BoxShadow(color: const Color(0xFFE2571F).withOpacity(0.5 * planetT), blurRadius: 110, spreadRadius: 6),
-                        BoxShadow(color: kGold.withOpacity(0.35 * planetT), blurRadius: 60, spreadRadius: 2),
+                        BoxShadow(color: const Color(0xFFE2571F).withValues(alpha: 0.5 * planetT), blurRadius: 110, spreadRadius: 6),
+                        BoxShadow(color: kGold.withValues(alpha: 0.35 * planetT), blurRadius: 60, spreadRadius: 2),
                       ],
                     ),
                   ),
@@ -109,7 +109,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 shape: BoxShape.circle,
-                                boxShadow: [BoxShadow(color: kGold.withOpacity(0.30 + 0.30 * thrust), blurRadius: 48, spreadRadius: 5)],
+                                boxShadow: [BoxShadow(color: kGold.withValues(alpha: 0.30 + 0.30 * thrust), blurRadius: 48, spreadRadius: 5)],
                               ),
                               child: const LogoMark(size: 84),
                             ),
@@ -197,7 +197,7 @@ class _TwinklePainter extends CustomPainter {
       final appear = ((t * 3) - rnd.nextDouble()).clamp(0.0, 1.0);
       final twinkle = 0.55 + 0.45 * math.sin(t * math.pi * 6 + phase);
       final gold = i % 11 == 0;
-      paint.color = (gold ? kGold : Colors.white).withOpacity((rnd.nextDouble() * 0.55 + 0.2) * twinkle * appear);
+      paint.color = (gold ? kGold : Colors.white).withValues(alpha: (rnd.nextDouble() * 0.55 + 0.2) * twinkle * appear);
       canvas.drawCircle(Offset(dx, dy), r, paint);
     }
   }

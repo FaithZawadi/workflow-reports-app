@@ -118,7 +118,7 @@ class _DonutPainter extends CustomPainter {
   _DonutPainter(this.segments, this.total);
   @override
   void paint(Canvas canvas, Size size) {
-    final stroke = 20.0;
+    const stroke = 20.0;
     final rect = Rect.fromCircle(center: size.center(Offset.zero), radius: (size.width - stroke) / 2);
     final bg = Paint()..style = PaintingStyle.stroke..strokeWidth = stroke..color = kLine;
     canvas.drawArc(rect, 0, 2 * math.pi, false, bg);
@@ -210,7 +210,7 @@ class _TrendPainter extends CustomPainter {
     }
     area.lineTo(x(n - 1), size.height);
     area.close();
-    canvas.drawPath(area, Paint()..style = PaintingStyle.fill..color = color.withOpacity(0.20));
+    canvas.drawPath(area, Paint()..style = PaintingStyle.fill..color = color.withValues(alpha: 0.20));
     canvas.drawPath(path, Paint()..style = PaintingStyle.stroke..strokeWidth = 2.5..strokeJoin = StrokeJoin.round..color = color);
   }
 
@@ -288,7 +288,7 @@ class MonthBars extends StatelessWidget {
                       Container(
                         height: 3 + (b.value / maxV) * 118,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [color, color.withOpacity(0.8)]),
+                          gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [color, color.withValues(alpha: 0.8)]),
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
                         ),
                       ),

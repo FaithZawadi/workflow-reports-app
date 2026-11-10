@@ -54,7 +54,8 @@ class _NewReportScreenState extends State<NewReportScreen> {
   }
 
   Future<void> _boot() async {
-    final api = context.read<Session>().api;
+    final session = context.read<Session>();
+    final api = session.api;
     try {
       final t = await api.getTemplates();
       final allowed = ((t['allowed'] as List?) ?? []).map((e) => e.toString()).toSet();
@@ -67,7 +68,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
       _projectManagers = dir['projectManagers'] ?? [];
       try { _clients = await api.getClients(); } catch (_) {}
       try { _weighbridges = await api.getWeighbridges(); } catch (_) {}
-      final u = context.read<Session>().user!;
+      final u = session.user!;
       // Prefill the client for a single assignment; with several, leave it blank
       // so the technician chooses from the dropdown.
       if (u.assignedClients.length == 1) {
@@ -93,10 +94,11 @@ class _NewReportScreenState extends State<NewReportScreen> {
     if (!_single && !RegExp(r'\S+@\S+\.\S+').hasMatch(_managerEmail)) return showError(context, _isTR ? "Add the Project Manager." : "Choose the Client/Manager's email.");
     if (_client.text.trim().isEmpty) return showError(context, 'Choose the client (plant).');
     setState(() => _busy = true);
+    final api = context.read<Session>().api;
     try {
       // Best-effort location capture for geofencing (proof of on-site attendance).
       final loc = await _currentLocation();
-      final serial = await context.read<Session>().api.submitReport({
+      final serial = await api.submitReport({
         'template': _tpl!['code'],
         'weighbridgeId': _weighbridge.text.trim(),
         'clientName': _client.text.trim(),
@@ -117,6 +119,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
+      if (!mounted) return;
       showError(context, e.toString());
       setState(() => _busy = false);
     }
@@ -250,7 +253,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
         const Text('Client (company)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMute)),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           isExpanded: true,
           decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12)),
           hint: const Text('Select a client'),
@@ -286,7 +289,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
               _client.text = cn;
               _site.text = '${d['site'] ?? siteC.text.trim()}';
             });
-            if (mounted) Navigator.pop(ctx);
+            if (ctx.mounted) Navigator.pop(ctx);
           } catch (e) {
             setLocal(() { busy = false; err = '$e'; });
           }
@@ -329,21 +332,6 @@ class _NewReportScreenState extends State<NewReportScreen> {
         ]),
       );
 
-  // A read-only field — value shown but not editable (assigned client / site).
-  Widget _readonlyField(String label, String value) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kMute)),
-          const SizedBox(height: 4),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            decoration: BoxDecoration(color: const Color(0xFFF5F1E8), border: Border.all(color: kLine), borderRadius: BorderRadius.circular(12)),
-            child: Text(value.isEmpty ? '—' : value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: kInk)),
-          ),
-        ]),
-      );
-
   // Adopt a registered weighbridge onto the form — set the weighbridge and fill
   // client / site / equipment details FROM the registry, only where still empty.
   // Callers wrap this in setState.
@@ -376,7 +364,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
         const SizedBox(height: 4),
         if (labels.isNotEmpty)
           DropdownButtonFormField<String>(
-            value: inList ? current : null,
+            initialValue: inList ? current : null,
             isExpanded: true,
             hint: const Text('Select a weighbridge'),
             items: [
@@ -467,7 +455,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SectionBar('${sec['title'] ?? ''}'),
         DropdownButtonFormField<String>(
-          value: options.contains(current) ? current as String : null,
+          initialValue: options.contains(current) ? current as String : null,
           isExpanded: true,
           decoration: const InputDecoration(isDense: true, hintText: 'Select…'),
           items: [for (final o in options) DropdownMenuItem<String>(value: '$o', child: Text('$o'))],
@@ -603,7 +591,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
       const SizedBox(height: 4),
       if (people.isNotEmpty)
         DropdownButtonFormField<String>(
-          value: value.isEmpty ? null : value,
+          initialValue: value.isEmpty ? null : value,
           isExpanded: true,
           items: [for (final p in people) DropdownMenuItem(value: p.email, child: Text('${p.name} (${p.email})', overflow: TextOverflow.ellipsis))],
           onChanged: (v) => onChange(v ?? ''),
@@ -642,7 +630,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
         ]),
       if (available.isNotEmpty)
         DropdownButtonFormField<String>(
-          value: null,
+          initialValue: null,
           isExpanded: true,
           hint: const Text('— add an Equipment User —'),
           items: [for (final p in available) DropdownMenuItem(value: p.email, child: Text('${p.name} (${p.email})', overflow: TextOverflow.ellipsis))],
@@ -711,7 +699,7 @@ class _NewReportScreenState extends State<NewReportScreen> {
       } catch (_) {}
       setState(() => _photos.add({'src': src, 'caption': '', 'takenAt': DateTime.now().toIso8601String(), if (gps != null) 'gps': gps}));
     } catch (e) {
-      showError(context, 'Could not add photo: $e');
+      if (mounted) showError(context, 'Could not add photo: $e');
     }
   }
 
