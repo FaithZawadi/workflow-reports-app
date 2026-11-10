@@ -122,6 +122,10 @@ export const canApproveQuotes = (input) => intersects(input, QUOTE_APPROVER_ROLE
 export const ATTENDANCE_MANAGER_ROLES = ["ADMIN", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
 export const canManageAttendance = (input) => intersects(input, ATTENDANCE_MANAGER_ROLES);
 
+// Invoicing is run by managers / admins (raise, issue, mark paid).
+export const INVOICE_ROLES = ["ADMIN", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
+export const canSeeInvoices = (input) => intersects(input, INVOICE_ROLES);
+
 // PM/TM/admin see & prepare all quotations; supervisors get a scoped read view;
 // Technicians & Sales see only their own; clients raise requests.
 export const canSeeQuotations = (input) =>

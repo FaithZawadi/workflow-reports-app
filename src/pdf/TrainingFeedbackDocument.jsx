@@ -1,7 +1,6 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
-import { COMPANY } from "@/lib/company";
-import { PdfHeader } from "./shared";
+import { PdfHeader, PdfFooter, TitlePill } from "./shared";
 import { TRAINING_CRITERIA, TRAINING_SCALE, RECOMMEND_LABEL, TRAINING_MODE_LABEL } from "@/lib/training";
 
 const GOLD = "#F5A800";
@@ -10,7 +9,7 @@ const INK = "#26221C";
 const MUTE = "#6B6355";
 
 const s = StyleSheet.create({
-  page: { paddingTop: 26, paddingBottom: 40, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
+  page: { paddingTop: 26, paddingBottom: 82, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brand: { fontSize: 13, fontFamily: "Helvetica-Bold", color: COAL },
   brandGold: { color: GOLD },
@@ -22,9 +21,9 @@ const s = StyleSheet.create({
   rule: { borderBottomWidth: 2, borderBottomColor: COAL, marginTop: 5, marginBottom: 6 },
   title: { fontSize: 13, fontFamily: "Helvetica-Bold", textTransform: "uppercase", marginBottom: 2 },
   lab: { fontSize: 8, color: MUTE, marginBottom: 4 },
-  sectionBar: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 3 },
-  swatch: { width: 8, height: 8, backgroundColor: GOLD, marginRight: 4 },
-  sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
+  sectionBar: { flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#8A6A00", paddingBottom: 3, marginTop: 10, marginBottom: 6 },
+  swatch: { width: 6, height: 6, backgroundColor: GOLD, marginRight: 6 },
+  sectionTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: MUTE, letterSpacing: 1, textTransform: "uppercase" },
   row: { flexDirection: "row" },
   key: { backgroundColor: "#F5EEDD", fontFamily: "Helvetica-Bold", padding: 3, width: "28%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
   val: { padding: 3, width: "72%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
@@ -66,11 +65,11 @@ export function TrainingFeedbackSheet({ feedback, logoSrc, qrSrc }) {
     <Page size="A4" style={s.page} wrap>
       <PdfHeader
         logoSrc={logoSrc}
-        sys="QSL/HR/TFB"
-        meta={[{ k: "RECORDED", v: `${fmt(f.createdAt, true)} EAT` }]}
+        kind="training"
+        meta={[{ k: "Recorded", v: `${fmt(f.createdAt, true)} EAT` }]}
       />
 
-      <Text style={s.title}>Training Feedback Form</Text>
+      <TitlePill title="Training Feedback" />
       <Text style={s.lab}>Training on the Qalibrated Systems Maintenance Management System (MMS)</Text>
 
       {/* Participant details */}
@@ -135,9 +134,7 @@ export function TrainingFeedbackSheet({ feedback, logoSrc, qrSrc }) {
         </View>
       ) : null}
 
-      <View style={s.footer} fixed>
-        <Text style={s.footText}>{COMPANY.name} · Training Feedback · {COMPANY.website}</Text>
-      </View>
+      <PdfFooter serial="Training Feedback" />
     </Page>
   );
 }

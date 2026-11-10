@@ -1,7 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { COMPANY } from "@/lib/company";
-import { PdfHeader } from "./shared";
+import { PdfHeader, PdfFooter } from "./shared";
 import { ReportDetailBlocks } from "./ReportDetailBlocks";
 
 const GOLD = "#F5A800";
@@ -57,20 +57,16 @@ export function ClientStatementDocument({ data, logoSrc, clientName, periodLabel
   const Header = () => (
     <PdfHeader
       logoSrc={logoSrc}
-      compact
+      kind="statement"
       fixed
       meta={[
-        { k: "REF", v: statementRef, mono: true },
-        { k: "WEB", v: COMPANY.website },
+        { k: "Ref", v: statementRef, mono: true },
+        { k: "Period", v: periodLabel },
       ]}
     />
   );
 
-  const Footer = () => (
-    <View style={s.footer} fixed>
-      <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · Monthly Service Statement · ${statementRef} · Page ${pageNumber} of ${totalPages}`} />
-    </View>
-  );
+  const Footer = () => <PdfFooter serial={statementRef} note="Monthly Service Statement" />;
 
   const Section = ({ title, note }) => (
     <View style={s.sectionBar} wrap={false}>
@@ -85,7 +81,6 @@ export function ClientStatementDocument({ data, logoSrc, clientName, periodLabel
       {/* ---------------- Cover ---------------- */}
       <Page size="A4" style={s.page} wrap>
         <Header />
-        <View style={s.rule} />
 
         <View style={s.coverBand}>
           <Text style={s.coverKicker}>Monthly Service Statement</Text>
@@ -361,7 +356,7 @@ function Rate({ num, label, color, last }) {
 }
 
 const s = StyleSheet.create({
-  page: { paddingTop: 30, paddingBottom: 42, paddingHorizontal: 34, fontSize: 9, fontFamily: "Helvetica", color: INK },
+  page: { paddingTop: 26, paddingBottom: 84, paddingHorizontal: 34, fontSize: 9, fontFamily: "Helvetica", color: INK },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brand: { fontSize: 13, fontFamily: "Helvetica-Bold", color: COAL, letterSpacing: 0.5 },
   accred: { fontSize: 6.5, color: MUTE, marginTop: 1 },
@@ -385,9 +380,9 @@ const s = StyleSheet.create({
   heroNum: { fontSize: 24, fontFamily: "Helvetica-Bold", color: INK },
   heroLab: { fontSize: 6.8, color: MUTE, textTransform: "uppercase", letterSpacing: 0.3, marginTop: 3, textAlign: "center" },
 
-  sectionBar: { flexDirection: "row", alignItems: "center", marginTop: 20, marginBottom: 6 },
-  swatch: { width: 9, height: 9, backgroundColor: GOLD, marginRight: 7, borderRadius: 2 },
-  sectionTitle: { fontSize: 10.5, fontFamily: "Helvetica-Bold", textTransform: "uppercase", letterSpacing: 0.3 },
+  sectionBar: { flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#8A6A00", paddingBottom: 3, marginTop: 16, marginBottom: 6 },
+  swatch: { width: 6, height: 6, backgroundColor: GOLD, marginRight: 6 },
+  sectionTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: MUTE, letterSpacing: 1, textTransform: "uppercase" },
   sectionNote: { fontSize: 7.5, color: MUTE, marginLeft: 7 },
 
   row: { flexDirection: "row", borderBottomWidth: 0.5, borderBottomColor: "#EDE6D6" },

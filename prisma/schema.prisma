@@ -208,6 +208,7 @@ model Client {
   contracts    Contract[]
   calibrationRequests CalibrationRequest[]
   quotations   Quotation[]
+  invoices     Invoice[]
   createdAt    DateTime      @default(now())
 
   @@index([accountManagerId])
@@ -770,11 +771,79 @@ model Quotation {
   // API path. Minted lazily the first time the quote is opened by staff.
   shareToken String? @unique
 
+  // Invoices raised from this quotation (usually one, once accepted).
+  invoices Invoice[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([clientId])
   @@index([siteId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum InvoiceStatus {
+  DRAFT // raised, not yet issued to the client
+  UNPAID // issued, awaiting payment
+  PAID // settled
+  CANCELLED // voided
+}
+
+// A client invoice. Mirrors the quotation shape (line items, VAT) and adds
+// retention + a due date. Can be raised standalone or from an accepted quote.
+model Invoice {
+  id         String        @id @default(cuid())
+  number     String        @unique // QSL-INV-2026-00001
+  clientId   String?
+  client     Client?       @relation(fields: [clientId], references: [id])
+  clientName String
+  siteName   String?
+  contactPerson String?
+  contactEmail  String?
+  contactPhone  String?
+
+  status InvoiceStatus @default(UNPAID)
+
+  // Subject line printed above the items, an external reference (e.g. the
+  // commercial proposal / contract this bills against) and a staff invoice no.
+  subject String?
+  ref     String?
+  fileNo  String?
+
+  // Optional link to the quotation this invoice was raised from.
+  quotationId String?
+  quotation   Quotation? @relation(fields: [quotationId], references: [id], onDelete: SetNull)
+
+  // Line items: [{ description, qty, unit, unitPrice }]
+  items    Json?
+  currency String @default("KES")
+  vatRate  Float  @default(16)
+  // Retention withheld (a percentage of the subtotal), common in civil works.
+  retentionRate   Float @default(0)
+  subtotal        Float @default(0)
+  retentionAmount Float @default(0)
+  netAmount       Float @default(0)
+  vatAmount       Float @default(0)
+  grandTotal      Float @default(0) // amount due
+  amountInWords   String?
+  notes           String?
+  paymentDetails  String?
+  terms           String?
+  dueDate         DateTime?
+
+  issuedByName String?
+  issuedById   String?
+  issuedAt     DateTime?
+  paidAt       DateTime?
+
+  // Opaque slug for sharing the invoice PDF with a client (/d/inv/<token>).
+  shareToken String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
   @@index([status])
   @@index([createdAt])
 }

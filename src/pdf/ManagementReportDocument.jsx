@@ -1,7 +1,7 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import { COMPANY } from "@/lib/company";
-import { PdfHeader } from "./shared";
+import { PdfHeader, PdfFooter, TitlePill } from "./shared";
 import { ReportDetailBlocks } from "./ReportDetailBlocks";
 
 const GOLD = "#F5A800";
@@ -22,7 +22,7 @@ const STATUS_LABEL = {
 const STATUS_COLOR = { PENDING_SUPERVISOR: WAIT, PENDING_MANAGER: WAIT, APPROVED: PASS, REJECTED: FAIL };
 
 const s = StyleSheet.create({
-  page: { paddingTop: 26, paddingBottom: 40, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
+  page: { paddingTop: 26, paddingBottom: 82, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brand: { fontSize: 13, fontFamily: "Helvetica-Bold", color: COAL },
   brandGold: { color: GOLD },
@@ -33,9 +33,9 @@ const s = StyleSheet.create({
   rule: { borderBottomWidth: 2, borderBottomColor: COAL, marginTop: 5, marginBottom: 8 },
   title: { fontSize: 16, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
   sub: { fontSize: 8.5, color: MUTE, marginTop: 2 },
-  sectionBar: { flexDirection: "row", alignItems: "center", marginTop: 14, marginBottom: 5 },
-  swatch: { width: 8, height: 8, backgroundColor: GOLD, marginRight: 4 },
-  sectionTitle: { fontSize: 9.5, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
+  sectionBar: { flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#8A6A00", paddingBottom: 3, marginTop: 12, marginBottom: 6 },
+  swatch: { width: 6, height: 6, backgroundColor: GOLD, marginRight: 6 },
+  sectionTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: MUTE, letterSpacing: 1, textTransform: "uppercase" },
   sectionNote: { fontSize: 7, color: MUTE, marginLeft: 6 },
   kpiRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 10, alignItems: "stretch" },
   kpi: { width: "16.66%", padding: 4 },
@@ -395,15 +395,15 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
       <Page size="A4" style={s.page} wrap>
         <PdfHeader
           logoSrc={logoSrc}
-          sys="QSL Maintenance Management System v2.4"
+          kind="management"
           meta={[
-            { k: "GENERATED", v: fmtDate(d.generatedAt) },
-            { k: "BY", v: (generatedByName || "-").toUpperCase() },
-            ...(generatedByRole ? [{ v: generatedByRole.toUpperCase() }] : []),
+            { k: "Generated", v: fmtDate(d.generatedAt) },
+            { k: "By", v: generatedByName || "-" },
+            ...(generatedByRole ? [{ k: "Role", v: generatedByRole }] : []),
           ]}
         />
 
-        <Text style={s.title}>Maintenance Management Report</Text>
+        <TitlePill title="Management Report" />
         <Text style={s.sub}>Period: {rangeLabel} · {d.total || 0} report{d.total === 1 ? "" : "s"} in scope{d.clientLabel ? ` · ${d.clientLabel}${d.siteLabel ? ` — ${d.siteLabel} branch` : " (all branches)"}` : ""}</Text>
 
         {d.compareRange ? (
@@ -535,9 +535,7 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
           </View>
         )}
 
-        <View style={s.footer} fixed>
-          <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · Management Report · Page ${pageNumber} of ${totalPages}`} />
-        </View>
+        <PdfFooter serial="Management Report" />
       </Page>
 
       {/* Appendix — the itemised detail of each report: every field, checklist
@@ -567,9 +565,7 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
               <ReportDetailBlocks blocks={r.details} photoCount={r.photos} />
             </View>
           ))}
-          <View style={s.footer} fixed>
-            <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · Management Report · Page ${pageNumber} of ${totalPages}`} />
-          </View>
+          <PdfFooter serial="Management Report" />
         </Page>
       ) : null}
 
@@ -606,9 +602,7 @@ export function ManagementReportDocument({ data, logoSrc, generatedByName, gener
             </View>
           </View>
         </View>
-        <View style={s.footer} fixed>
-          <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · Management Report · Page ${pageNumber} of ${totalPages}`} />
-        </View>
+        <PdfFooter serial="Management Report" />
       </Page>
     </Document>
   );

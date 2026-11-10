@@ -1,7 +1,6 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
-import { COMPANY } from "@/lib/company";
-import { PdfHeader } from "./shared";
+import { PdfHeader, PdfFooter, TitlePill, R } from "./shared";
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -23,7 +22,7 @@ function fmt(d) {
 }
 
 const s = StyleSheet.create({
-  page: { paddingTop: 28, paddingBottom: 40, paddingHorizontal: 30, fontFamily: "Helvetica", fontSize: 8.5, color: INK },
+  page: { paddingTop: 26, paddingBottom: 80, paddingHorizontal: 32, fontFamily: "Helvetica", fontSize: 8.5, color: INK },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brand: { fontSize: 13, fontFamily: "Helvetica-Bold", color: INK },
   brandGold: { color: GOLD },
@@ -48,15 +47,15 @@ export function AuditLogDocument({ logs = [], filterLabel, generatedByName, logo
       <Page size="A4" style={s.page} wrap>
         <PdfHeader
           logoSrc={logoSrc}
-          sys="QSL Maintenance Management System v2.4"
+          kind="audit"
           meta={[
-            { k: "GENERATED", v: fmt(new Date()) },
-            ...(generatedByName ? [{ k: "BY", v: generatedByName }] : []),
+            { k: "Generated", v: fmt(new Date()) },
+            ...(generatedByName ? [{ k: "By", v: generatedByName }] : []),
           ]}
         />
 
-        <Text style={s.title}>Audit log</Text>
-        <Text style={s.sub}>{logs.length} record{logs.length === 1 ? "" : "s"}{filterLabel ? ` · ${filterLabel}` : ""} · newest first</Text>
+        <TitlePill title="Audit log" status={{ label: `${logs.length} record${logs.length === 1 ? "" : "s"}`, bg: R.COAL, color: R.GOLD }} />
+        <Text style={s.sub}>{filterLabel ? `${filterLabel} · ` : ""}newest first</Text>
 
         <View style={[s.row, { marginTop: 10 }]} fixed>
           <Text style={[s.th, { width: "16%" }]}>Date &amp; time</Text>
@@ -79,9 +78,7 @@ export function AuditLogDocument({ logs = [], filterLabel, generatedByName, logo
           ))
         )}
 
-        <View style={s.footer} fixed>
-          <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · Audit log · Page ${pageNumber} of ${totalPages}`} />
-        </View>
+        <PdfFooter serial="Audit log" />
       </Page>
     </Document>
   );

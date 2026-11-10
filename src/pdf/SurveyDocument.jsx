@@ -1,7 +1,6 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
-import { COMPANY } from "@/lib/company";
-import { PdfHeader } from "./shared";
+import { PdfHeader, PdfFooter, TitlePill } from "./shared";
 import {
   SURVEY_SERVICE_LABEL,
   SURVEY_CRITERIA,
@@ -19,7 +18,7 @@ const FAIL = "#B03A2E";
 const YN = { YES: "Yes", NO: "No", NOT_SURE: "Not sure" };
 
 const s = StyleSheet.create({
-  page: { paddingTop: 26, paddingBottom: 40, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
+  page: { paddingTop: 26, paddingBottom: 82, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brand: { fontSize: 13, fontFamily: "Helvetica-Bold", color: COAL },
   brandGold: { color: GOLD },
@@ -31,9 +30,9 @@ const s = StyleSheet.create({
   rule: { borderBottomWidth: 2, borderBottomColor: COAL, marginTop: 5, marginBottom: 6 },
   title: { fontSize: 13, fontFamily: "Helvetica-Bold", textTransform: "uppercase", marginBottom: 2 },
   lab: { fontSize: 8, color: MUTE, marginBottom: 4 },
-  sectionBar: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 3 },
-  swatch: { width: 8, height: 8, backgroundColor: GOLD, marginRight: 4 },
-  sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
+  sectionBar: { flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#8A6A00", paddingBottom: 3, marginTop: 10, marginBottom: 6 },
+  swatch: { width: 6, height: 6, backgroundColor: GOLD, marginRight: 6 },
+  sectionTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: MUTE, letterSpacing: 1, textTransform: "uppercase" },
   row: { flexDirection: "row" },
   key: { backgroundColor: "#F5EEDD", fontFamily: "Helvetica-Bold", padding: 3, width: "28%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
   val: { padding: 3, width: "72%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
@@ -76,12 +75,12 @@ export function SurveyDocument({ feedback, logoSrc, qrSrc }) {
       <Page size="A4" style={s.page} wrap>
         <PdfHeader
           logoSrc={logoSrc}
-          sys="QSL/QP/004/CSSF"
-          meta={[{ k: "SUBMITTED", v: `${fmt(f.createdAt, true)} EAT` }]}
+          kind="survey"
+          meta={[{ k: "Submitted", v: `${fmt(f.createdAt, true)} EAT` }]}
         />
 
-        <Text style={s.title}>Customer Satisfaction Survey</Text>
-        <Text style={s.lab}>Laboratory: Qalibrated Systems Limited Calibration Laboratory · NAWI &amp; Mass Standards</Text>
+        <TitlePill title="Satisfaction Survey" />
+        <Text style={s.lab}>Customer Satisfaction Survey · Qalibrated Systems Limited Calibration Laboratory · NAWI &amp; Mass Standards</Text>
 
         {/* §1 */}
         <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>1. Customer information</Text></View>
@@ -150,9 +149,7 @@ export function SurveyDocument({ feedback, logoSrc, qrSrc }) {
           </View>
         ) : null}
 
-        <View style={s.footer} fixed>
-          <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · Customer Satisfaction Survey · Page ${pageNumber} of ${totalPages}`} />
-        </View>
+        <PdfFooter serial="Customer Satisfaction Survey" />
       </Page>
     </Document>
   );

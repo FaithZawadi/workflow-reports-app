@@ -9,7 +9,7 @@ import NotificationBell from "./NotificationBell";
 import OfflineBadge from "./OfflineBadge";
 import PasswordPrompt from "./PasswordPrompt";
 import { ROLE_LABEL } from "@/lib/theme";
-import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, canGenerateReports, canApproveClients, canManageAttendance, isClientOnly, rolesOf } from "@/lib/roles";
+import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, canSeeInvoices, canGenerateReports, canApproveClients, canManageAttendance, isClientOnly, rolesOf } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
@@ -28,6 +28,7 @@ export default function AppShell({ user, children }) {
   // PM / TM / admin manage quotations + calibration; clients and Equipment Users
   // get a scoped read-only view. Everyone else sees neither.
   const showQuotes = canSeeQuotations(user) || isAdmin;
+  const showInvoices = canSeeInvoices(user);
   // The dashboard (charts) is the landing page for everyone.
   const homeHref = "/overview";
 
@@ -76,6 +77,7 @@ export default function AppShell({ user, children }) {
         { href: "/tasks", label: "Tasks", icon: "tasks" },
         canManageAttendance(user) && { href: "/attendance", label: "Attendance", icon: "schedule" },
         showQuotes && { href: "/quotations", label: "Quotations", icon: "quote" },
+        showInvoices && { href: "/invoices", label: "Invoices", icon: "quote" },
         showQuotes && { href: "/calibration-requests", label: "Calibration requests", icon: "gauge" },
         showProjects && { href: "/projects", label: "Projects", icon: "projects" },
         showProjects && { href: "/contracts", label: "Contracts", icon: "contract" },

@@ -1,7 +1,6 @@
 import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image } from "@react-pdf/renderer";
-import { COMPANY } from "@/lib/company";
-import { PdfHeader } from "./shared";
+import { PdfHeader, PdfFooter, TitlePill } from "./shared";
 
 const GOLD = "#F5A800";
 const COAL = "#161310";
@@ -17,7 +16,7 @@ const STATUS = {
 };
 
 const s = StyleSheet.create({
-  page: { paddingTop: 26, paddingBottom: 40, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
+  page: { paddingTop: 26, paddingBottom: 82, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brand: { fontSize: 13, fontFamily: "Helvetica-Bold", color: COAL },
   brandGold: { color: GOLD },
@@ -31,9 +30,9 @@ const s = StyleSheet.create({
   title: { fontSize: 12.5, fontFamily: "Helvetica-Bold", textTransform: "uppercase", flex: 1, marginRight: 10 },
   statusBadge: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#fff", paddingVertical: 2.5, paddingHorizontal: 6, borderRadius: 2 },
   lab: { fontSize: 8, color: MUTE, marginBottom: 6 },
-  sectionBar: { flexDirection: "row", alignItems: "center", marginTop: 8, marginBottom: 3 },
-  swatch: { width: 8, height: 8, backgroundColor: GOLD, marginRight: 4 },
-  sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
+  sectionBar: { flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#8A6A00", paddingBottom: 3, marginTop: 10, marginBottom: 6 },
+  swatch: { width: 6, height: 6, backgroundColor: GOLD, marginRight: 6 },
+  sectionTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", color: MUTE, letterSpacing: 1, textTransform: "uppercase" },
   row: { flexDirection: "row" },
   key: { backgroundColor: "#F5EEDD", fontFamily: "Helvetica-Bold", padding: 3, width: "22%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
   val: { padding: 3, width: "78%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
@@ -95,18 +94,15 @@ export function CalibrationRequestDocument({ request, logoSrc, qrSrc }) {
       <Page size="A4" style={s.page} wrap>
         <PdfHeader
           logoSrc={logoSrc}
-          sys="QSL/QP/013/CRF-NAWI"
+          kind="calibration"
           meta={[
-            { k: "REQUEST NO", v: request.serial, mono: true },
-            { k: "RAISED", v: `${fmt(request.createdAt, true)} EAT` },
+            { k: "Request no.", v: request.serial, mono: true },
+            { k: "Raised", v: `${fmt(request.createdAt, true)} EAT` },
           ]}
         />
 
-        <View style={s.titleRow}>
-          <Text style={s.title}>Calibration Request Form — Non-Automatic Weighing Instrument</Text>
-          <Text style={[s.statusBadge, { backgroundColor: st.color }]}>{st.label}</Text>
-        </View>
-        <Text style={s.lab}>Laboratory: Qalibrated Systems Limited Calibration Laboratory</Text>
+        <TitlePill title="Calibration Request" status={{ label: st.label, bg: st.color, color: "#fff" }} />
+        <Text style={s.lab}>Non-Automatic Weighing Instrument · Qalibrated Systems Limited Calibration Laboratory</Text>
 
         {/* 1. Client information */}
         <View style={s.sectionBar}><View style={s.swatch} /><Text style={s.sectionTitle}>1. Client information</Text></View>
@@ -220,9 +216,7 @@ export function CalibrationRequestDocument({ request, logoSrc, qrSrc }) {
           </View>
         ) : null}
 
-        <View style={s.footer} fixed>
-          <Text style={s.footText} render={({ pageNumber, totalPages }) => `${COMPANY.name} · ${request.serial} · Page ${pageNumber} of ${totalPages}`} />
-        </View>
+        <PdfFooter serial={request.serial} note="System-generated document — no physical signature required." />
       </Page>
     </Document>
   );
