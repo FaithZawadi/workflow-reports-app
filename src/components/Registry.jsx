@@ -1,48 +1,32 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Pill } from "./ui";
-import { COAL, GOLD, INK, MUTE, WAIT } from "@/lib/theme";
+import { COAL, GOLD, INK, MUTE, FAIL, WAIT } from "@/lib/theme";
 
 const FILTERS = [
   ["all", "All"],
-  ["PENDING_SUPERVISOR", "Supervisor"],
-  ["PENDING_MANAGER", "Manager"],
+  ["PENDING_SUPERVISOR", "In review"],
+  ["PENDING_CLIENT", "With client"],
+  ["CLIENT_RETURNED", "Returned"],
   ["APPROVED", "Approved"],
   ["REJECTED", "Rejected"],
 ];
 
-// Registry filters persist across visits until cleared or 2 minutes of inactivity.
 const FILTERS_KEY = "qsl_registry_filters";
 const INACTIVITY_MS = 2 * 60 * 1000;
-
-// A report is "recent" if filed within the last 24 hours. Shown to every role,
-// scoped to the reports they can see.
 const RECENT_MS = 24 * 60 * 60 * 1000;
 const isRecent = (r) => {
   const t = new Date(r.createdAt).getTime();
   return !isNaN(t) && Date.now() - t < RECENT_MS;
 };
-
-// Compact relative time so the newest work reads at a glance.
-function relTime(d) {
-  const dt = new Date(d);
-  const diff = Date.now() - dt.getTime();
-  if (isNaN(diff)) return "";
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  const days = Math.floor(hrs / 24);
-  if (days === 1) return "yesterday";
-  if (days < 7) return `${days}d ago`;
-  return dt.toLocaleDateString();
-}
+const shortDate = (d) => {
+  try { return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }); } catch { return ""; }
+};
 
 export default function Registry({ profile }) {
-  // Only admins see the "backdated" flag — it's an internal audit signal, not
-  // something to surface to every viewer.
+  const router = useRouter();
   const isAdmin = profile.role === "ADMIN" || (Array.isArray(profile.roles) && profile.roles.includes("ADMIN"));
   const [reports, setReports] = useState(null);
   const [filter, setFilter] = useState("all");
@@ -51,13 +35,10 @@ export default function Registry({ profile }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [template, setTemplate] = useState("");
-
+  const [showMore, setShowMore] = useState(false);
   const [due, setDue] = useState(null);
   const [queuedNotice, setQueuedNotice] = useState(false);
 
-  // Land pre-filtered when arriving from a dashboard chart (e.g. /dashboard?status=APPROVED
-  // or ?template=WB01 or ?q=...). Otherwise restore the last-used filters — they
-  // persist until manually cleared or 2 minutes of inactivity elapse. Read once.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const p = new URLSearchParams(window.location.search);
@@ -96,279 +77,198 @@ export default function Registry({ profile }) {
     setReports(data.reports || []);
   }, [filter, q, name, from, to, template]);
 
-  const clearFilters = () => {
-    setFilter("all");
-    setQ("");
-    setName("");
-    setFrom("");
-    setTo("");
-    setTemplate("");
-  };
+  const clearFilters = () => { setFilter("all"); setQ(""); setName(""); setFrom(""); setTo(""); setTemplate(""); };
   const anyFilter = filter !== "all" || q || name || from || to || template;
 
-  // Persist the active filters and auto-clear them after 2 minutes of inactivity
-  // (the timer restarts on every filter change). Cleared immediately when the
-  // user clears filters manually.
   useEffect(() => {
     try {
       if (anyFilter) localStorage.setItem(FILTERS_KEY, JSON.stringify({ filter, q, name, from, to, template, savedAt: Date.now() }));
       else localStorage.removeItem(FILTERS_KEY);
     } catch { /* ignore */ }
     if (!anyFilter) return;
-    const id = setTimeout(() => {
-      clearFilters();
-      try { localStorage.removeItem(FILTERS_KEY); } catch { /* ignore */ }
-    }, INACTIVITY_MS);
+    const id = setTimeout(() => { clearFilters(); try { localStorage.removeItem(FILTERS_KEY); } catch { /* ignore */ } }, INACTIVITY_MS);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, q, name, from, to, template]);
 
-  useEffect(() => {
-    const t = setTimeout(load, 200);
-    return () => clearTimeout(t);
-  }, [load]);
+  useEffect(() => { const t = setTimeout(load, 200); return () => clearTimeout(t); }, [load]);
 
-  // Keep the registry current without a manual Refresh: poll periodically and
-  // reload whenever the tab regains focus or becomes visible again. New reports
-  // then auto-populate at the top (the API already returns newest-first).
   useEffect(() => {
     const iv = setInterval(load, 40000);
     const onFocus = () => load();
     const onVisible = () => { if (document.visibilityState === "visible") load(); };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      clearInterval(iv);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
+    return () => { clearInterval(iv); window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisible); };
   }, [load]);
 
-  useEffect(() => {
-    fetch("/api/schedules")
-      .then((r) => r.json())
-      .then((d) => setDue(d.summary || null))
-      .catch(() => {});
-  }, []);
+  useEffect(() => { fetch("/api/schedules").then((r) => r.json()).then((d) => setDue(d.summary || null)).catch(() => {}); }, []);
 
-  // A report filed while offline lands here with ?queued=1. Show a reassurance
-  // note, and reload the registry once the outbox has synced to the server.
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("queued") === "1") {
       setQueuedNotice(true);
       window.history.replaceState(null, "", window.location.pathname);
     }
-    const onSynced = () => {
-      setQueuedNotice(false);
-      load();
-    };
+    const onSynced = () => { setQueuedNotice(false); load(); };
     window.addEventListener("qsl:outbox-synced", onSynced);
     return () => window.removeEventListener("qsl:outbox-synced", onSynced);
   }, [load]);
 
   const exportCsv = () => {
-    const rows = [["serial", "template", "author", "client", "site", "weighbridge", "status", "report_date", "filed_at"]].concat(
-      (reports || []).map((r) => [r.serial, r.templateName, r.authorName, r.clientName, r.site, r.weighbridgeId, r.status, r.reportDate || r.createdAt, r.createdAt])
+    const rows = [["serial", "template", "author", "client", "site", "weighbridge", "photos", "findings", "status", "report_date", "filed_at"]].concat(
+      (reports || []).map((r) => [r.serial, r.templateName, r.authorName, r.clientName, r.site, r.weighbridgeId, r.photoCount, r.findingsCount, r.status, r.reportDate || r.createdAt, r.createdAt])
     );
-    const csv = rows.map((r) => r.map((c) => `"${String(c || "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     a.download = "qsl_report_register.csv";
     a.click();
   };
 
-  // Split the (already newest-first) list into a "Recent" group and the rest,
-  // so every role sees the latest work tagged and grouped at the top.
-  const recentReports = (reports || []).filter(isRecent);
-  const earlierReports = (reports || []).filter((r) => !isRecent(r));
-  const recentCount = recentReports.length;
+  const recentCount = (reports || []).filter(isRecent).length;
 
   return (
     <div>
+      <style>{`.reg-row{transition:background .1s}.reg-row:hover{background:#f1ead9 !important}`}</style>
+
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 12 }}>
         <div>
           <p className="eyebrow">{profile.role.replace("_", " ")}</p>
-          <h1 className="h1">Report registry</h1>
+          <h1 className="h1" style={{ margin: 0 }}>Report registry</h1>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button className="btn" onClick={load} style={{ fontSize: 12 }}>Refresh</button>
           <button className="btn btn-dark" onClick={exportCsv} style={{ fontSize: 12 }}>Export CSV</button>
-          {profile.role === "ADMIN" && (
-            <a className="btn btn-primary" href="/api/reports/export" style={{ fontSize: 12 }}>
-              Export Excel
-            </a>
-          )}
+          {isAdmin && <a className="btn btn-primary" href="/api/reports/export" style={{ fontSize: 12 }}>Export Excel</a>}
         </div>
       </div>
 
       {queuedNotice && (
-        <div
-          className="card"
-          style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", marginTop: 12, borderColor: WAIT, borderLeftWidth: 5 }}
-          role="status"
-        >
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", marginTop: 12, borderColor: WAIT, borderLeftWidth: 5 }} role="status">
           <span style={{ fontSize: 18 }}>📩</span>
-          <span style={{ fontSize: 13, color: INK, fontWeight: 700 }}>
-            Report saved on this device.
-            <span style={{ color: MUTE, fontWeight: 400 }}> It will be sent automatically as soon as you have a network connection.</span>
-          </span>
+          <span style={{ fontSize: 13, color: INK, fontWeight: 700 }}>Report saved on this device.<span style={{ color: MUTE, fontWeight: 400 }}> It will be sent automatically as soon as you have a network connection.</span></span>
         </div>
       )}
 
       {due && (due.overdue > 0 || due.dueSoon > 0) && (
-        <Link
-          href="/schedule"
-          className="card"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "10px 14px",
-            marginTop: 12,
-            textDecoration: "none",
-            borderColor: due.overdue > 0 ? "#B03A2E" : "#946B00",
-            borderLeftWidth: 5,
-          }}
-        >
+        <Link href="/schedule" className="card" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", marginTop: 12, textDecoration: "none", borderColor: due.overdue > 0 ? FAIL : WAIT, borderLeftWidth: 5 }}>
           <span style={{ fontSize: 20 }}>🛠️</span>
           <span style={{ fontSize: 13, color: INK, fontWeight: 700 }}>
-            {due.overdue > 0 && (
-              <span style={{ color: "#B03A2E" }}>{due.overdue} overdue</span>
-            )}
+            {due.overdue > 0 && <span style={{ color: FAIL }}>{due.overdue} overdue</span>}
             {due.overdue > 0 && due.dueSoon > 0 && " · "}
-            {due.dueSoon > 0 && (
-              <span style={{ color: "#946B00" }}>{due.dueSoon} due soon</span>
-            )}
+            {due.dueSoon > 0 && <span style={{ color: WAIT }}>{due.dueSoon} due soon</span>}
             <span style={{ color: MUTE, fontWeight: 400 }}> — open maintenance schedule →</span>
           </span>
         </Link>
       )}
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "12px 0" }}>
+      {/* Filters — status chips + search on one line; extra filters tuck away. */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", margin: "12px 0 8px" }}>
         {FILTERS.map(([k, l]) => (
-          <button
-            key={k}
-            onClick={() => setFilter(k)}
-            className="btn"
-            style={filter === k ? { background: COAL, color: GOLD, borderColor: COAL, fontSize: 12 } : { fontSize: 12 }}
-          >
-            {l}
-          </button>
+          <button key={k} onClick={() => setFilter(k)} className="btn" style={filter === k ? { background: COAL, color: GOLD, borderColor: COAL, fontSize: 12 } : { fontSize: 12 }}>{l}</button>
         ))}
+        <input className="input" placeholder="Search serial, author, site, weighbridge…" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: "1 1 220px", minWidth: 180, fontSize: 13 }} />
+        <button className="btn" onClick={() => setShowMore((v) => !v)} style={{ fontSize: 12 }}>{showMore ? "Fewer filters" : "More filters"}</button>
+        {anyFilter && <button className="btn" onClick={clearFilters} style={{ fontSize: 12, color: FAIL }}>Clear</button>}
       </div>
 
-      {template && (
-        <div style={{ margin: "0 0 8px" }}>
-          <button onClick={() => setTemplate("")} className="btn" style={{ fontSize: 12, background: COAL, color: GOLD, borderColor: COAL }}>
-            Form: {template} ✕
-          </button>
-        </div>
-      )}
-
-      <input className="input" placeholder="Search serial, author, site or weighbridge…" value={q} onChange={(e) => setQ(e.target.value)} style={{ marginBottom: 8 }} />
-
-      <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 8, marginBottom: 12, alignItems: "end" }}>
-        <label className="field" style={{ margin: 0 }}>
-          <span className="label">Filed by (name / plant)</span>
-          <input className="input" placeholder="e.g. John or TATA" value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <label className="field" style={{ margin: 0 }}>
-          <span className="label">From date</span>
-          <input className="input" type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
-        </label>
-        <label className="field" style={{ margin: 0 }}>
-          <span className="label">To date</span>
-          <input className="input" type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
-        </label>
-        {anyFilter && (
-          <button className="btn" onClick={clearFilters} style={{ fontSize: 12, height: 42 }}>
-            Clear filters
-          </button>
-        )}
-      </div>
-
-      {reports === null && <div className="muted">Loading registry…</div>}
-      {reports && (
-        <div className="muted" style={{ fontSize: 12, marginBottom: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span>{reports.length} report{reports.length === 1 ? "" : "s"}{anyFilter ? " match your filters" : ""}</span>
-          {recentCount > 0 && (
-            <span style={{ background: GOLD, color: COAL, fontWeight: 800, fontSize: 11, padding: "2px 8px", borderRadius: 999 }}>
-              {recentCount} new · last 24h
-            </span>
+      {(showMore || template) && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "end", marginBottom: 10 }}>
+          <label className="field" style={{ margin: 0, flex: "1 1 180px" }}>
+            <span className="label">Filed by (name / plant)</span>
+            <input className="input" placeholder="e.g. John or TATA" value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="field" style={{ margin: 0 }}>
+            <span className="label">From date</span>
+            <input className="input" type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
+          </label>
+          <label className="field" style={{ margin: 0 }}>
+            <span className="label">To date</span>
+            <input className="input" type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
+          </label>
+          {template && (
+            <button onClick={() => setTemplate("")} className="btn" style={{ fontSize: 12, background: COAL, color: GOLD, borderColor: COAL, height: 42 }}>Form: {template} ✕</button>
           )}
         </div>
       )}
+
+      {/* Count line */}
+      {reports && (
+        <div className="muted" style={{ fontSize: 12.5, marginBottom: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span><b style={{ color: INK }}>{reports.length}</b> record{reports.length === 1 ? "" : "s"}{anyFilter ? " match your filters" : ""} · click a row for full detail</span>
+          {recentCount > 0 && <span style={{ background: GOLD, color: COAL, fontWeight: 800, fontSize: 11, padding: "2px 8px", borderRadius: 999 }}>{recentCount} new · last 24h</span>}
+        </div>
+      )}
+
+      {reports === null && <div className="muted">Loading registry…</div>}
       {reports && reports.length === 0 && (
         <div className="card" style={{ borderStyle: "dashed", padding: 24, textAlign: "center", color: MUTE }}>
-          {anyFilter
-            ? "No reports match these filters. Try widening the dates or clearing filters."
-            : `Nothing here yet. ${profile.role === "TECHNICIAN" || profile.role === "ENGINEER" ? "Tap New report to start." : ""}`}
+          {anyFilter ? "No reports match these filters. Try widening the dates or clearing filters." : `Nothing here yet. ${profile.role === "TECHNICIAN" || profile.role === "ENGINEER" ? "Tap New report to start." : ""}`}
         </div>
       )}
 
-      {recentReports.length > 0 && (
-        <>
-          <SectionHeading label="Recent" note="last 24 hours" count={recentReports.length} />
-          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", marginBottom: 18 }}>
-            {recentReports.map((r, i) => (
-              <ReportCard key={r.serial} r={r} num={i + 1} recent isAdmin={isAdmin} />
-            ))}
+      {reports && reports.length > 0 && (
+        <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
+              <thead>
+                <tr style={{ background: COAL, color: "#fff", fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".05em" }}>
+                  <Th>Date</Th>
+                  <Th>Serial</Th>
+                  <Th>Service</Th>
+                  <Th>Weighbridge</Th>
+                  <Th>Client / Branch</Th>
+                  <Th>Filed by</Th>
+                  <Th center>Photos</Th>
+                  <Th center>Findings</Th>
+                  <Th>Status</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map((r, i) => {
+                  const recent = isRecent(r);
+                  const backdated = isAdmin && r.reportDate && new Date(r.reportDate).toDateString() !== new Date(r.createdAt).toDateString();
+                  return (
+                    <tr
+                      key={r.serial}
+                      className="reg-row"
+                      onClick={() => router.push(`/reports/${r.serial}`)}
+                      style={{ cursor: "pointer", borderTop: "1px solid #eee4d0", background: recent ? "#fffdf4" : i % 2 ? "#faf7f0" : "#fff", boxShadow: recent ? `inset 3px 0 0 ${GOLD}` : "none" }}
+                    >
+                      <td style={td} title={new Date(r.reportDate || r.createdAt).toLocaleString()}>
+                        <span style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{shortDate(r.reportDate || r.createdAt)}</span>
+                        {backdated && <span className="muted" style={{ fontSize: 9.5, display: "block" }}>backdated</span>}
+                      </td>
+                      <td style={td}>
+                        <span style={{ fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700, color: "#7a5c00" }}>{r.serial}</span>
+                        {recent && <span style={{ marginLeft: 6, background: GOLD, color: COAL, fontSize: 9, fontWeight: 900, letterSpacing: ".04em", padding: "1px 5px", borderRadius: 3 }}>NEW</span>}
+                      </td>
+                      <td style={{ ...td, fontWeight: 600 }}>{r.templateName}</td>
+                      <td style={{ ...td, color: r.weighbridgeId ? INK : "#b8af9e", fontFamily: r.weighbridgeId ? "var(--mono)" : "inherit", fontSize: 12 }}>{r.weighbridgeId || "—"}</td>
+                      <td style={td}>
+                        <div style={{ fontWeight: 700, color: INK }}>{r.clientName || "—"}</div>
+                        {r.site ? <div className="muted" style={{ fontSize: 11 }}>{r.site}</div> : null}
+                      </td>
+                      <td style={td}>{r.authorName || "—"}</td>
+                      <td style={{ ...td, textAlign: "center", color: MUTE }}>{r.photoCount || "—"}</td>
+                      <td style={{ ...td, textAlign: "center" }}>
+                        {r.findingsCount > 0 ? <span style={{ color: "#fff", background: FAIL, fontWeight: 800, fontSize: 11, padding: "1px 7px", borderRadius: 999 }}>{r.findingsCount}</span> : <span style={{ color: "#b8af9e" }}>—</span>}
+                      </td>
+                      <td style={{ ...td, whiteSpace: "nowrap" }}><Pill status={r.status} /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        </>
-      )}
-
-      {earlierReports.length > 0 && (
-        <>
-          {recentReports.length > 0 && <SectionHeading label="Earlier" count={earlierReports.length} />}
-          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))" }}>
-            {earlierReports.map((r, i) => (
-              <ReportCard key={r.serial} r={r} num={recentReports.length + i + 1} isAdmin={isAdmin} />
-            ))}
-          </div>
-        </>
+        </div>
       )}
     </div>
   );
 }
 
-// A small, orderly section divider.
-function SectionHeading({ label, note, count }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 10px" }}>
-      <span style={{ width: 10, height: 10, background: GOLD, borderRadius: 2 }} />
-      <span style={{ fontWeight: 800, fontSize: 13, textTransform: "uppercase", letterSpacing: ".04em", color: INK }}>{label}</span>
-      {note && <span className="muted" style={{ fontSize: 11 }}>· {note}</span>}
-      <span className="muted" style={{ fontSize: 11 }}>({count})</span>
-      <span style={{ flex: 1, height: 1, background: "#e9e2d2" }} />
-    </div>
-  );
-}
+const td = { padding: "8px 12px", fontSize: 13, color: INK, verticalAlign: "middle" };
 
-function ReportCard({ r, recent, num, isAdmin }) {
-  return (
-    <Link href={`/reports/${r.serial}`} className="card" style={{ textDecoration: "none", display: "block", padding: 0, overflow: "hidden", borderColor: recent ? GOLD : undefined }}>
-      <div className="stripe" style={{ height: 4 }} />
-      <div style={{ padding: 14 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {num != null && (
-              <span title="Registry number (1 = latest)" style={{ fontSize: 11, fontWeight: 900, color: MUTE, minWidth: 22, textAlign: "right" }}>#{num}</span>
-            )}
-            <span className="mono" style={{ fontSize: 12, fontWeight: 700, background: COAL, color: GOLD, padding: "2px 6px" }}>{r.serial}</span>
-            {recent && <span style={{ background: GOLD, color: COAL, fontSize: 10, fontWeight: 900, letterSpacing: ".04em", padding: "2px 6px", borderRadius: 3 }}>NEW</span>}
-          </span>
-          <Pill status={r.status} />
-        </div>
-        <div style={{ fontWeight: 900, textTransform: "uppercase", fontSize: 14, marginTop: 8, color: INK }}>{r.templateName}</div>
-        <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>
-          {r.clientName}
-          {r.site ? " - " + r.site : ""} · {r.weighbridgeId || "weighbridge not stated"}
-        </div>
-        <div className="muted" style={{ marginTop: 2, fontSize: 12 }}>
-          by {r.authorName} · <span title={r.reportDate ? `Report date · filed ${new Date(r.createdAt).toLocaleString()}` : new Date(r.createdAt).toLocaleString()}>{relTime(r.reportDate || r.createdAt)}</span>
-          {isAdmin && r.reportDate && new Date(r.reportDate).toDateString() !== new Date(r.createdAt).toDateString() ? <span> · backdated</span> : null}
-        </div>
-      </div>
-    </Link>
-  );
+function Th({ children, center }) {
+  return <th style={{ padding: "9px 12px", textAlign: center ? "center" : "left", fontWeight: 800, whiteSpace: "nowrap" }}>{children}</th>;
 }

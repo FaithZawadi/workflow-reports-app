@@ -71,7 +71,7 @@ export async function GET(req) {
   if (toDate && !isNaN(toDate)) reportDate.lte = toDate;
   if (reportDate.gte || reportDate.lte) where.AND.push({ reportDate });
 
-  const reports = await prisma.report.findMany({
+  const rows = await prisma.report.findMany({
     where,
     orderBy: [{ reportDate: "desc" }, { createdAt: "desc" }],
     take: 500,
@@ -88,7 +88,21 @@ export async function GET(req) {
       managerEmail: true,
       reportDate: true,
       createdAt: true,
+      // Checklist payload is used only to count findings; it is stripped before
+      // the response so the list stays light.
+      data: true,
+      _count: { select: { photos: true } },
     },
+  });
+
+  // Add a photo count and a findings count (checklist items flagged for
+  // attention) for the registry table, then drop the heavy `data`/`_count`.
+  const reports = rows.map(({ data, _count, ...r }) => {
+    const checks = (data && data.checks) || {};
+    const findingsCount = Object.values(checks).filter(
+      (v) => v && v.state && !["ok", "pass", "na"].includes(v.state)
+    ).length;
+    return { ...r, photoCount: _count?.photos || 0, findingsCount };
   });
 
   return Response.json({ reports });
