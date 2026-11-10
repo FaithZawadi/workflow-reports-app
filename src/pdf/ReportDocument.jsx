@@ -2,9 +2,8 @@ import React from "react";
 import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from "@react-pdf/renderer";
 import { templateByCode } from "@/lib/templates";
 import { chainFor } from "@/lib/approvalChain";
-import { COMPANY } from "@/lib/company";
 import { geofenceSummary } from "@/lib/geofence";
-import { PdfHeader } from "./shared";
+import { TopBar, RefinedHeader, TitlePill, RefinedFooter, VerifyQr } from "./refined";
 
 const GOLD = "#F5A800";
 // Deep gold for gold TEXT on a light background — bright gold is too light to
@@ -18,10 +17,12 @@ const FAIL = "#B03A2E";
 const LINEC = "#BBBBBB";
 
 const STATUS = {
-  PENDING_SUPERVISOR: { label: "SUPERVISOR REVIEW", color: "#946B00" },
-  PENDING_MANAGER: { label: "MANAGER APPROVAL", color: "#946B00" },
-  APPROVED: { label: "APPROVED", color: PASS },
-  REJECTED: { label: "REJECTED", color: FAIL },
+  PENDING_SUPERVISOR: { label: "MANAGER REVIEW", bg: GOLD, color: COAL },
+  PENDING_MANAGER: { label: "MANAGER APPROVAL", bg: GOLD, color: COAL },
+  PENDING_CLIENT: { label: "WITH CLIENT", bg: "#946B00", color: "#fff" },
+  CLIENT_RETURNED: { label: "CLIENT RETURNED", bg: FAIL, color: "#fff" },
+  APPROVED: { label: "APPROVED", bg: PASS, color: "#fff" },
+  REJECTED: { label: "REJECTED", bg: FAIL, color: "#fff" },
 };
 
 // Layout is tuned to keep a routine report (e.g. the Daily Site Check with its
@@ -29,7 +30,7 @@ const STATUS = {
 // tighter section spacing/table padding, and compact 3-up photos. Larger
 // calibration sheets still flow onto extra pages naturally.
 const s = StyleSheet.create({
-  page: { paddingTop: 24, paddingBottom: 74, paddingHorizontal: 30, fontSize: 9, color: INK, fontFamily: "Helvetica" },
+  page: { paddingTop: 26, paddingBottom: 84, paddingHorizontal: 32, fontSize: 9, color: INK, fontFamily: "Helvetica" },
   topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brand: { fontSize: 15, fontFamily: "Helvetica-Bold", color: COAL, letterSpacing: 0.3 },
   brandGold: { color: GOLD_DK },
@@ -47,14 +48,15 @@ const s = StyleSheet.create({
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 5 },
   title: { fontSize: 13, fontFamily: "Helvetica-Bold", textTransform: "uppercase", flex: 1, marginRight: 10 },
   statusBadge: { fontSize: 8, fontFamily: "Helvetica-Bold", color: "#fff", paddingVertical: 2.5, paddingHorizontal: 6, borderRadius: 2 },
-  table: { marginBottom: 4 },
+  table: { marginBottom: 6, borderTopWidth: 0.5, borderTopColor: "#E4DCCB" },
   row: { flexDirection: "row" },
-  key: { backgroundColor: "#F5EEDD", fontFamily: "Helvetica-Bold", padding: 2.5, width: "17%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
-  val: { padding: 2.5, width: "33%", borderWidth: 0.5, borderColor: "#E4DCCB", fontSize: 8 },
-  fillCell: { width: "50%", borderWidth: 0.5, borderColor: "#E4DCCB" },
-  sectionBar: { flexDirection: "row", alignItems: "center", marginTop: 6, marginBottom: 3 },
-  swatch: { width: 8, height: 8, backgroundColor: GOLD, marginRight: 4 },
-  sectionTitle: { fontSize: 9, fontFamily: "Helvetica-Bold", textTransform: "uppercase" },
+  key: { backgroundColor: "#F7F4EC", fontFamily: "Helvetica-Bold", paddingVertical: 4, paddingHorizontal: 7, width: "17%", borderBottomWidth: 0.5, borderBottomColor: "#E4DCCB", fontSize: 7, color: MUTE, letterSpacing: 0.3, textTransform: "uppercase" },
+  val: { paddingVertical: 4, paddingHorizontal: 8, width: "33%", borderBottomWidth: 0.5, borderBottomColor: "#E4DCCB", fontSize: 8.4, color: INK },
+  fillCell: { width: "50%", borderBottomWidth: 0.5, borderBottomColor: "#E4DCCB" },
+  // Gold-square section head with a gold underline (shared design language).
+  sectionBar: { flexDirection: "row", alignItems: "center", marginTop: 10, marginBottom: 6, borderBottomWidth: 1, borderBottomColor: GOLD_DK, paddingBottom: 3 },
+  swatch: { width: 6, height: 6, backgroundColor: GOLD, marginRight: 6 },
+  sectionTitle: { fontSize: 8, fontFamily: "Helvetica-Bold", textTransform: "uppercase", color: MUTE, letterSpacing: 1 },
   th: { backgroundColor: COAL, color: "#fff", fontSize: 7.5, padding: 2.5, fontFamily: "Helvetica-Bold" },
   td: { fontSize: 8, padding: 2.5, borderBottomWidth: 0.5, borderBottomColor: "#DDD" },
   tdCell: { fontSize: 8, padding: 2.5, borderWidth: 0.5, borderColor: "#DDD" },
@@ -267,23 +269,18 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
   return (
     <Document>
       <Page size="A4" style={s.page} wrap>
-        {/* Shared letterhead — common to every system PDF. */}
-        <PdfHeader
+        {/* Refined letterhead — accent top bar + boxed logo + meta rows. */}
+        <TopBar kind="report" />
+        <RefinedHeader
           logoSrc={logoSrc}
-          sys="QSL Maintenance Management System v2.4"
           meta={[
-            { k: "SERIAL NO", v: report.serial, mono: true },
-            // The day the report was filed in the system (a backdated report's
-            // service date, shown below, can differ).
-            { k: "GENERATED", v: fmt(report.createdAt) },
+            { k: "Date", v: fmt(serviceDate) },
+            { k: "No.", v: report.serial, mono: true },
           ]}
         />
 
-        {/* title left · status on the extreme right, same line */}
-        <View style={s.titleRow}>
-          <Text style={s.title}>{report.templateName}</Text>
-          <Text style={[s.statusBadge, { backgroundColor: st.color }]}>{stLabel}</Text>
-        </View>
+        {/* Coal title pill with gold text + status badge. */}
+        <TitlePill title={report.templateName} status={{ label: stLabel, bg: st.bg, color: st.color }} />
 
         {/* Info panel — meta + key details in one continuous key/value table. */}
         <View style={s.table}>
@@ -569,18 +566,7 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
               ))}
             </View>
           </View>
-        ) : (
-          /* Electronic-signature note (the QR is pinned separately, below). */
-          <View style={s.footNote} wrap={false}>
-            <View style={{ flex: 1 }}>
-              <Text style={s.sysNoteText}>System-generated document — no physical signature required.</Text>
-              <Text style={s.sysNoteSub}>
-                All approvals are captured electronically by the named approvers and recorded in the approval trail above.
-                {qrSrc ? " Scan the code on the first page to verify this report online." : ""}
-              </Text>
-            </View>
-          </View>
-        )}
+        ) : null}
 
         {/* Client acknowledgement — the external signature captured via the
             signing link, saved back into the app. */}
@@ -598,25 +584,12 @@ export function ReportDocument({ report, logoSrc, qrSrc }) {
           </View>
         ) : null}
 
-        {/* Verify QR — pinned bottom-right on page 1 only. */}
-        {qrSrc ? (
-          <View
-            fixed
-            style={s.qrFixed}
-            render={({ pageNumber }) => (pageNumber === 1 ? (
-              // eslint-disable-next-line jsx-a11y/alt-text
-              <Image src={qrSrc} style={s.qrFixedImg} />
-            ) : null)}
-          />
-        ) : null}
-
-        {/* Footer carries only the document identity + page number — the company
-            contact block lives in the header and is not repeated here. */}
-        <View style={s.footer} fixed>
-          <Text style={s.footText} render={({ pageNumber, totalPages }) => (
-            `${COMPANY.name} · ${report.serial} · Page ${pageNumber} of ${totalPages}`
-          )} />
-        </View>
+        {/* Refined ISO footer + "SCAN TO VERIFY" QR pinned bottom-right (page 1). */}
+        <VerifyQr qrSrc={qrSrc} />
+        <RefinedFooter
+          serial={report.serial}
+          note="System-generated document — no physical signature required. Approvals are captured electronically and recorded in the approval trail."
+        />
       </Page>
     </Document>
   );
