@@ -35,11 +35,13 @@ export default function AppShell({ user, children }) {
   const [navOpen, setNavOpen] = useState(false); // mobile drawer
   const [menuOpen, setMenuOpen] = useState(false); // profile dropdown
   const [collapsed, setCollapsed] = useState(false); // desktop icon-rail
+  const [openGroups, setOpenGroups] = useState({}); // which nav sections are expanded
   const menuRef = useRef(null);
 
   // Restore the collapsed preference (desktop icon rail) after mount.
   useEffect(() => {
     try { setCollapsed(localStorage.getItem("qsl:navCollapsed") === "1"); } catch {}
+    try { setOpenGroups(JSON.parse(localStorage.getItem("qsl:navGroups") || "{}")); } catch {}
   }, []);
   const toggleCollapsed = () => {
     setCollapsed((v) => {
@@ -62,37 +64,64 @@ export default function AppShell({ user, children }) {
   // Close the mobile nav drawer whenever the route changes.
   useEffect(() => { setNavOpen(false); }, [pathname]);
 
-  // Primary sidebar destinations (Account lives in the profile menu now).
-  const nav = clientOnly
+  // Sidebar destinations, grouped into collapsible sections so the nav stays
+  // uncluttered. A client-only login keeps its short, flat list (one untitled
+  // group). Account lives in the profile menu.
+  const navGroups = (clientOnly
     ? [
-        { href: "/overview", label: "Dashboard", icon: "dashboard" },
-        { href: "/calibration-requests", label: "Calibration requests", icon: "gauge" },
-        { href: "/quotations", label: "Quotations", icon: "quote" },
+        {
+          title: null,
+          items: [
+            { href: "/overview", label: "Dashboard", icon: "dashboard" },
+            { href: "/calibration-requests", label: "Calibration requests", icon: "gauge" },
+            { href: "/quotations", label: "Quotations", icon: "quote" },
+          ],
+        },
       ]
     : [
-        { href: "/overview", label: "Dashboard", icon: "dashboard" },
-        { href: "/dashboard", label: "Report registry", icon: "reports" },
-        canGenerateReports(user) && { href: "/reports-summary", label: "Management report", icon: "chart" },
-        { href: "/schedule", label: "Schedule", icon: "schedule" },
-        { href: "/tasks", label: "Tasks", icon: "tasks" },
-        canManageAttendance(user) && { href: "/attendance", label: "Attendance", icon: "schedule" },
-        showQuotes && { href: "/quotations", label: "Quotations", icon: "quote" },
-        showInvoices && { href: "/invoices", label: "Invoices", icon: "quote" },
-        showQuotes && { href: "/calibration-requests", label: "Calibration requests", icon: "gauge" },
-        showProjects && { href: "/projects", label: "Projects", icon: "projects" },
-        showProjects && { href: "/contracts", label: "Contracts", icon: "contract" },
-        showProjects && { href: "/customer-feedback", label: "Customer feedback", icon: "chat" },
-        showTraining && { href: "/training-feedback", label: "Training feedback", icon: "training" },
-        showUsers && { href: "/users", label: "Users", icon: "users" },
-        showWeighbridges && { href: "/weighbridges", label: "Weighbridges", icon: "scale" },
-        canApproveClients(user) && { href: "/clients/pending", label: "Client approvals", icon: "building" },
-        isAdmin && { href: "/clients", label: "Clients", icon: "building" },
-        isAdmin && { href: "/sites", label: "Sites", icon: "pin" },
-        isAdmin && { href: "/feedback", label: "Feedback", icon: "star" },
-        isAdmin && { href: "/analytics", label: "Usage analytics", icon: "chart" },
-        isAdmin && { href: "/audit", label: "Audit log", icon: "audit" },
-        isAdmin && { href: "/settings", label: "System settings", icon: "gear" },
-      ].filter(Boolean);
+        {
+          title: "Work",
+          items: [
+            { href: "/overview", label: "Dashboard", icon: "dashboard" },
+            { href: "/dashboard", label: "Report registry", icon: "reports" },
+            canGenerateReports(user) && { href: "/reports-summary", label: "Management report", icon: "chart" },
+            { href: "/schedule", label: "Schedule", icon: "schedule" },
+            { href: "/tasks", label: "Tasks", icon: "tasks" },
+            canManageAttendance(user) && { href: "/attendance", label: "Attendance", icon: "schedule" },
+          ],
+        },
+        {
+          title: "Commercial",
+          items: [
+            showQuotes && { href: "/quotations", label: "Quotations", icon: "quote" },
+            showInvoices && { href: "/invoices", label: "Invoices", icon: "quote" },
+            showQuotes && { href: "/calibration-requests", label: "Calibration requests", icon: "gauge" },
+            showProjects && { href: "/projects", label: "Projects", icon: "projects" },
+            showProjects && { href: "/contracts", label: "Contracts", icon: "contract" },
+            showProjects && { href: "/customer-feedback", label: "Customer feedback", icon: "chat" },
+          ],
+        },
+        {
+          title: "Admin & setup",
+          items: [
+            showUsers && { href: "/users", label: "Users", icon: "users" },
+            showWeighbridges && { href: "/weighbridges", label: "Weighbridges", icon: "scale" },
+            canApproveClients(user) && { href: "/clients/pending", label: "Client approvals", icon: "building" },
+            isAdmin && { href: "/clients", label: "Clients", icon: "building" },
+            isAdmin && { href: "/sites", label: "Sites", icon: "pin" },
+            showTraining && { href: "/training-feedback", label: "Training feedback", icon: "training" },
+            isAdmin && { href: "/feedback", label: "Feedback", icon: "star" },
+            isAdmin && { href: "/analytics", label: "Usage analytics", icon: "chart" },
+            isAdmin && { href: "/audit", label: "Audit log", icon: "audit" },
+            isAdmin && { href: "/settings", label: "System settings", icon: "gear" },
+          ],
+        },
+      ]
+  )
+    .map((g) => ({ ...g, items: g.items.filter(Boolean) }))
+    .filter((g) => g.items.length > 0);
+  // Flat list for the collapsed icon-rail (group headers have no room there).
+  const flatNav = navGroups.flatMap((g) => g.items);
 
   // Bottom tab bar (mobile) — the primary destinations as a native-style bar.
   const tabs = clientOnly
@@ -111,6 +140,19 @@ export default function AppShell({ user, children }) {
 
   const isActive = (href) => pathname === href || pathname.startsWith(href + "/");
   const isTabActive = (t) => (t.match ? t.match(pathname) : pathname === t.href || pathname.startsWith(t.href + "/"));
+
+  // A section shows open when the user has expanded it, or (by default, before
+  // any choice) when it contains the current page. Untitled groups always show.
+  const groupHasActive = (g) => g.items.some((it) => isActive(it.href));
+  const isGroupOpen = (g) => (!g.title ? true : g.title in openGroups ? openGroups[g.title] : groupHasActive(g));
+  const toggleGroup = (g) => {
+    const open = isGroupOpen(g);
+    setOpenGroups((prev) => {
+      const nv = { ...prev, [g.title]: !open };
+      try { localStorage.setItem("qsl:navGroups", JSON.stringify(nv)); } catch {}
+      return nv;
+    });
+  };
 
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -140,18 +182,28 @@ export default function AppShell({ user, children }) {
         </div>
 
         <nav className="sidebar-nav">
-          {nav.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`side-link${isActive(item.href) ? " active" : ""}`}
-              aria-current={isActive(item.href) ? "page" : undefined}
-              title={item.label}
-            >
-              <span className="side-ic" aria-hidden><NavIcon name={item.icon} /></span>
-              <span className="side-label">{item.label}</span>
-            </Link>
-          ))}
+          {collapsed || navGroups.length <= 1
+            ? flatNav.map((item) => <SideLink key={item.href} item={item} active={isActive(item.href)} />)
+            : navGroups.map((g) => {
+                const open = isGroupOpen(g);
+                return (
+                  <div key={g.title} className="side-group">
+                    <button
+                      type="button"
+                      className="side-group-head"
+                      onClick={() => toggleGroup(g)}
+                      aria-expanded={open}
+                      style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "none", border: 0, cursor: "pointer", padding: "10px 10px 4px", margin: 0 }}
+                    >
+                      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: ".09em", textTransform: "uppercase", color: "rgba(255,255,255,.42)" }}>{g.title}</span>
+                      <span aria-hidden style={{ color: "rgba(255,255,255,.42)", transform: open ? "rotate(90deg)" : "none", transition: "transform .15s ease", display: "flex" }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+                      </span>
+                    </button>
+                    {open && g.items.map((item) => <SideLink key={item.href} item={item} active={isActive(item.href)} />)}
+                  </div>
+                );
+              })}
         </nav>
 
         {canFile && (
@@ -269,6 +321,20 @@ function initials(name = "") {
 }
 
 // Amber/line icons for the sidebar + tab bar. Colour comes from `currentColor`.
+function SideLink({ item, active }) {
+  return (
+    <Link
+      href={item.href}
+      className={`side-link${active ? " active" : ""}`}
+      aria-current={active ? "page" : undefined}
+      title={item.label}
+    >
+      <span className="side-ic" aria-hidden><NavIcon name={item.icon} /></span>
+      <span className="side-label">{item.label}</span>
+    </Link>
+  );
+}
+
 function NavIcon({ name }) {
   const p = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
   switch (name) {
