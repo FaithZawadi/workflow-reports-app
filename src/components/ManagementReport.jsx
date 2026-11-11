@@ -695,11 +695,11 @@ function ClientReport({ data, qs }) {
       {/* Month-end statement call-to-action */}
       <div style={S.stmtBar}>
         <div>
-          <div style={{ fontWeight: 900, fontSize: 14, color: INK }}>Monthly service statement</div>
+          <div style={{ fontWeight: 900, fontSize: 14, color: INK }}>Account statement</div>
           <div style={{ fontSize: 12.5, color: MUTE, marginTop: 2 }}>
             {data.clientLabel
-              ? <>A client-facing statement of everything delivered for <b style={{ color: "#8a6d00" }}>{data.clientLabel}{data.siteLabel ? ` — ${data.siteLabel}` : ""}</b> this period — for month-end usage invoicing.{data.siteLabel ? "" : " Choose a branch above for a per-branch statement."}</>
-              : "Pick a client above (and a month range), then generate their branded statement to hand over at month-end."}
+              ? <>A client-facing financial statement of account for <b style={{ color: "#8a6d00" }}>{data.clientLabel}{data.siteLabel ? ` — ${data.siteLabel}` : ""}</b> — invoices, payments, running balance and an aging summary.{data.siteLabel ? "" : " Choose a branch above for a per-branch statement."}</>
+              : "Pick a client above (and a date range), then generate their branded account statement — invoices, payments and balance due."}
           </div>
         </div>
         <a
@@ -709,7 +709,7 @@ function ClientReport({ data, qs }) {
           rel="noreferrer"
           style={{ ...S.btn, ...S.btnDark, whiteSpace: "nowrap", pointerEvents: data.clientLabel ? "auto" : "none", opacity: data.clientLabel ? 1 : 0.5 }}
         >
-          ⬇ Download statement (PDF)
+          ⬇ Download account statement (PDF)
         </a>
       </div>
 

@@ -116,6 +116,251 @@ export function quotationToDoc(q) {
   };
 }
 
+// ── Technical Report (TR01) ──────────────────────────────────────────────
+// Maps a Report record onto the technical-report.html template contract.
+
+const REPORT_STATE = {
+  PENDING_SUPERVISOR: "review",
+  PENDING_MANAGER: "review",
+  PENDING_CLIENT: "approved", // QSL has approved it; awaiting client signature
+  CLIENT_RETURNED: "review",
+  APPROVED: "approved",
+  REJECTED: "rejected",
+};
+
+// Photos usable in a PDF (data-URL images), kept in display order. Both this
+// mapper and the asset builder (reportPdf.js) iterate this identically, so each
+// photo's `src` key (p1, p2, …) lines up with the injected base64 asset.
+export function usablePhotos(report) {
+  return (report?.photos || []).filter((p) => String(p?.dataUrl || "").startsWith("data:image"));
+}
+
+const splitLines = (text) =>
+  String(text || "")
+    .split(/\r?\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const gpsOf = (p) =>
+  p && p.gpsLat != null && p.gpsLng != null
+    ? `${Number(p.gpsLat).toFixed(5)}, ${Number(p.gpsLng).toFixed(5)}`
+    : "";
+
+// Build the approval trail from the report's real history. Unknown / non-stage
+// events (Edited, CREATE, UPDATE) are skipped; a pending stage is appended when
+// the report has not reached a terminal state, so the trail never reads empty.
+function techTrail(report) {
+  const rows = [];
+  for (const e of report.trailEvents || []) {
+    const a = String(e.action || "");
+    if (/^edited$/i.test(a) || /^(CREATE|UPDATE)$/.test(a)) continue;
+    if (/^submitted$/i.test(a)) {
+      rows.push({ role: "Service engineer", by: e.byName, state: "Submitted", st: "done" });
+    } else if (/returned|rejected/i.test(a)) {
+      const client = /client/i.test(a);
+      rows.push({ role: client ? "Client" : "Approving manager", by: e.byName, state: client ? "Returned with comment" : "Returned for correction", st: "now" });
+    } else if (/client approved/i.test(a)) {
+      rows.push({ role: "Client", by: e.byName, state: "Approved & signed", st: "done" });
+    } else if (/sent to client/i.test(a)) {
+      rows.push({ role: "Issued to client", by: e.byName, state: "Sent for signature", st: "done" });
+    } else if (/approved/i.test(a)) {
+      rows.push({ role: "Approving manager", by: e.byName, state: "Approved", st: "done" });
+    } else {
+      rows.push({ role: "—", by: e.byName, state: a, st: "done" });
+    }
+  }
+  if (!rows.length) rows.push({ role: "Service engineer", by: report.authorName || "—", state: "Submitted", st: "done" });
+  // Append the one stage the report is currently waiting on, named for the real
+  // status — but only if the history hasn't already recorded an open stage.
+  const pending =
+    report.status === "PENDING_SUPERVISOR" || report.status === "PENDING_MANAGER"
+      ? { role: "Approving manager", by: "— pending —", state: "Pending review", st: "now" }
+      : report.status === "PENDING_CLIENT"
+      ? { role: "Client", by: "— awaiting —", state: "Awaiting signature", st: "now" }
+      : report.status === "CLIENT_RETURNED"
+      ? { role: "Approving manager", by: "— pending —", state: "Re-review after client return", st: "now" }
+      : null;
+  if (pending && !rows.some((r) => r.st === "now")) rows.push(pending);
+  return rows;
+}
+
+// Third kvTable element: "" = normal, "soft" = grey "— not captured —", true =
+// red (a compliance gap). Optional fields go soft when blank; the instrument
+// serial is a Cap. 513 identity, so a missing one is flagged red.
+export function reportToTechDoc(report) {
+  const v = (report.data && report.data.values) || {};
+  const g = (report.data && report.data.grids) || {};
+  const serviceDate = report.reportDate || report.createdAt;
+  const nature = String(v.natureOfVisit || "").trim();
+  const timeIn = g["jobTime:0:0"];
+  const timeOut = g["jobTime:0:1"];
+  const mileage = g["jobTime:0:2"];
+
+  const clientRows = [
+    ["Client / Site", [report.clientName, report.site].filter(Boolean).join(" — ") || "—"],
+    ["Contact person", v.contactPerson || "", v.contactPerson ? "" : "soft"],
+    ["Contact", v.telNo || "", v.telNo ? "" : "soft"],
+    ["Machine model", v.machineModel || "", v.machineModel ? "" : "soft"],
+    ["Serial no.", v.machineSerial || "Not recorded", v.machineSerial ? "" : true],
+    ["Capacity", v.machineCapacity || "", v.machineCapacity ? "" : "soft"],
+  ];
+
+  const qslRows = [
+    ["Report type", "Field service / calibration visit (TR01)"],
+    ["Nature of visit", nature, nature ? "" : "soft"],
+    ["Vehicle no.", v.vehicleNo || "", v.vehicleNo ? "" : "soft"],
+    ["Completed by", report.authorName || ""],
+    ["Time in", timeIn || "", timeIn ? "" : "soft"],
+    ["Time out", timeOut || "", timeOut ? "" : "soft"],
+    ["Mileage", mileage || "", mileage ? "" : "soft"],
+  ];
+
+  const details = [
+    ["Fault reported", splitLines(v.faultReported)],
+    ["Findings", splitLines(v.findings)],
+    ["Correction", splitLines(v.correction)],
+    ["Final result", splitLines(v.finalResult)],
+  ];
+  const followUp = [["Parts to order", splitLines(v.partsToOrder)]];
+
+  const cc = String(v.customerComments || "").trim();
+  const customerComment = cc
+    ? { text: cc, by: v.contactPerson || report.clientName || "", title: v.contactPerson ? "Contact person" : "", at: fmtDate(serviceDate, true) }
+    : null;
+
+  const photos = usablePhotos(report).map((p, i) => ({
+    src: `p${i + 1}`,
+    desc: p.caption || "",
+    at: fmtDate(p.takenAt || serviceDate, true),
+    gps: gpsOf(p),
+  }));
+
+  return {
+    kind: "Technical Report",
+    state: REPORT_STATE[report.status] || "review",
+    ref: report.serial,
+    meta: [
+      ["Date", fmtDate(serviceDate, true)],
+      ["Report no.", report.serial],
+    ],
+    generated: fmtDate(report.createdAt, true),
+    clientRows,
+    qslRows,
+    details,
+    followUp,
+    customerComment,
+    photos,
+    trail: techTrail(report),
+  };
+}
+
+// ── Statement of Account (financial, from invoices) ──────────────────────
+// Maps a client's invoice history onto the statement.html ledger contract.
+// We have no separate receipts ledger, so each issued invoice is a debit on its
+// issue date and a PAID invoice is a credit on its real paidAt timestamp — the
+// running balance therefore reconciles to the true amount outstanding, and the
+// aging buckets are computed from the same "outstanding as at asOf" set.
+export function invoiceStatement({ clientName, client, invoices = [], from, to, ref, qrKey = "qr1" }) {
+  const cur = invoices.find((i) => i.currency)?.currency || "KES";
+  const fromD = from ? new Date(`${from}T00:00:00`) : null;
+  const toD = to ? new Date(`${to}T23:59:59`) : null;
+  const asOfD = toD || new Date();
+
+  // One signed event per ledger movement (debit +, credit −).
+  const events = [];
+  for (const inv of invoices) {
+    if (inv.status === "CANCELLED" || inv.status === "DRAFT" || !inv.issuedAt) continue;
+    events.push({ at: new Date(inv.issuedAt), type: "inv", ref: inv.number, amt: Number(inv.grandTotal) || 0, due: inv.dueDate ? new Date(inv.dueDate) : null });
+    if (inv.status === "PAID" && inv.paidAt) {
+      events.push({ at: new Date(inv.paidAt), type: "pay", ref: `Payment — ${inv.number}`, amt: -(Number(inv.grandTotal) || 0) });
+    }
+  }
+  // Chronological; an invoice precedes a payment that lands the same day, and
+  // two movements of the same kind keep their original (issue) order.
+  const rank = (t) => (t === "inv" ? 0 : 1);
+  events.sort((a, b) => a.at - b.at || rank(a.type) - rank(b.type));
+
+  // Everything before the window collapses into the opening balance.
+  let opening = 0;
+  const inWindow = [];
+  for (const e of events) {
+    if (toD && e.at > toD) continue; // beyond the statement date
+    if (fromD && e.at < fromD) opening += e.amt;
+    else inWindow.push(e);
+  }
+
+  const tx = [{ date: fmtDate(fromD || inWindow[0]?.at || asOfD), type: "opn", ref: "Opening balance", bal: money(opening), neg: opening < 0 }];
+  let running = opening;
+  let invoicedSum = 0;
+  let paidSum = 0;
+  for (const e of inWindow) {
+    running += e.amt;
+    if (e.type === "inv") invoicedSum += e.amt;
+    else paidSum += -e.amt;
+    tx.push({
+      date: fmtDate(e.at),
+      type: e.type,
+      ref: e.ref,
+      ...(e.type === "inv" ? { dr: money(e.amt) } : { cr: money(-e.amt) }),
+      bal: money(running),
+      neg: running < 0,
+      ...(e.due ? { due: fmtDate(e.due) } : {}),
+    });
+  }
+
+  // Aging: invoices still outstanding as at asOf, bucketed by days past due
+  // (due date, or the issue date when no due date was set).
+  const b = { current: 0, d30: 0, d60: 0, d90: 0, over: 0 };
+  for (const inv of invoices) {
+    if (inv.status === "CANCELLED" || inv.status === "DRAFT" || !inv.issuedAt) continue;
+    if (new Date(inv.issuedAt) > asOfD) continue;
+    const paidByAsOf = inv.paidAt && new Date(inv.paidAt) <= asOfD;
+    if (paidByAsOf) continue;
+    const due = inv.dueDate ? new Date(inv.dueDate) : new Date(inv.issuedAt);
+    const days = Math.floor((asOfD - due) / 86400000);
+    const amt = Number(inv.grandTotal) || 0;
+    if (days <= 0) b.current += amt;
+    else if (days <= 30) b.d30 += amt;
+    else if (days <= 60) b.d60 += amt;
+    else if (days <= 90) b.d90 += amt;
+    else b.over += amt;
+  }
+
+  const addrLines = [client?.address, [client?.city, client?.country].filter(Boolean).join(", ")]
+    .map((l) => String(l || "").trim())
+    .filter(Boolean);
+
+  return {
+    ref,
+    qr: qrKey,
+    from: fromD ? fmtDate(fromD) : fmtDate(inWindow[0]?.at || asOfD),
+    to: fmtDate(asOfD),
+    asOf: fmtDate(asOfD),
+    currency: cur,
+    client: { name: clientName || "—", lines: addrLines, pin: client?.taxPin || "" },
+    summary: [
+      ["Opening balance", money(opening)],
+      ["Invoiced", money(invoicedSum)],
+      ["Paid", money(paidSum)],
+    ],
+    balanceDue: money(running),
+    tx,
+    aging: [
+      ["Current", money(b.current)],
+      ["1 – 30", money(b.d30)],
+      ["31 – 60", money(b.d60)],
+      ["61 – 90", money(b.d90)],
+      ["Over 90", money(b.over), "aged"],
+    ],
+    // QR summary text (the template also derives this, but we pre-render the image).
+    qrText: [
+      "QSL Statement of Account",
+      `${ref} · ${clientName || "—"}`,
+      `Balance due ${cur} ${money(running)} as at ${fmtDate(asOfD)}`,
+    ].join("\n"),
+  };
+}
+
 const INV_STATUS = {
   DRAFT: { label: "Draft", cls: "quoted" },
   UNPAID: { label: "Unpaid", cls: "unpaid" },
