@@ -126,6 +126,11 @@ export const canManageAttendance = (input) => intersects(input, ATTENDANCE_MANAG
 export const INVOICE_ROLES = ["ADMIN", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
 export const canSeeInvoices = (input) => intersects(input, INVOICE_ROLES);
 
+// Local Purchase Orders (procurement) are raised/approved by the same
+// managers / admins who run invoicing.
+export const LPO_ROLES = INVOICE_ROLES;
+export const canSeeLpos = (input) => intersects(input, LPO_ROLES);
+
 // PM/TM/admin see & prepare all quotations; supervisors get a scoped read view;
 // Technicians & Sales see only their own; clients raise requests.
 export const canSeeQuotations = (input) =>

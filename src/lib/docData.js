@@ -34,6 +34,11 @@ export function orgData() {
     ],
     legalName: COMPANY.name,
     system: "QaliMetric v2.4",
+    pin: COMPANY.pin || "",
+    // Footer control note. Templates read either `systemNote` (report,
+    // statement) or `sysNote` (purchase order); supply both so neither is blank.
+    systemNote: "System-generated — No physical signature required. Records are captured electronically in the QSL system.",
+    sysNote: "System-generated document — No physical signature required. Issued subject to the Conditions of Purchase overleaf.",
     verifyBase: "https://reports.qalibrated.com/reports/",
     payRow: [
       ["Account name", b.accountName || COMPANY.name],
@@ -417,5 +422,84 @@ export function invoiceToDoc(inv) {
       "Retention is released on certification of practical completion.",
     ]),
     legal: inv.notes || `Raised by ${COMPANY.name}. Settlement is recorded electronically in the QSL system.`,
+  };
+}
+
+// ── Local Purchase Order (LPO) ───────────────────────────────────────────
+// Maps an Lpo record onto the local-purchase-order.html contract. The static
+// Conditions of Purchase live in the template; we supply the order + auth only.
+
+const LPO_STATE = {
+  DRAFT: "pending",
+  PENDING: "pending",
+  APPROVED: "approved",
+  CANCELLED: "cancelled",
+};
+
+function lpoAuth(lpo) {
+  const rows = [
+    { role: "Raised by", by: lpo.raisedByName || "Procurement", state: "Submitted", st: "done" },
+  ];
+  if (lpo.status === "APPROVED") {
+    rows.push({ role: "Approved by", by: lpo.approvedByName || "—", state: "Approved", st: "done" });
+  } else if (lpo.status === "CANCELLED") {
+    rows.push({ role: "Approved by", by: lpo.approvedByName || "—", state: "Cancelled", st: "now" });
+  } else {
+    rows.push({ role: "Approved by", by: lpo.approvedByName || "— pending —", state: "Pending approval", st: "now" });
+  }
+  if (lpo.notedByName) rows.push({ role: "Noted by", by: lpo.notedByName, state: "For oversight", st: "now" });
+  return rows;
+}
+
+export function lpoToDoc(lpo) {
+  const cur = lpo.currency || "KES";
+  const items = Array.isArray(lpo.items) ? lpo.items : [];
+  return {
+    ref: lpo.number,
+    rev: lpo.conditionsRev || "GTB v1.0",
+    state: LPO_STATE[lpo.status] || "pending",
+    currency: cur,
+    meta: [
+      ["LPO no.", lpo.number],
+      ["Date", fmtDate(lpo.issuedAt || lpo.createdAt)],
+      ["Required by", lpo.requiredBy ? fmtDate(lpo.requiredBy) : "—"],
+    ],
+    supplier: [
+      ["Supplier", lpo.supplierName || "—"],
+      ["Contact", lpo.supplierContact || "—"],
+      ["Tel.", lpo.supplierTel || "—"],
+      // eTIMS invoicing needs the supplier's PIN — flag a missing one in red.
+      ["PIN no.", lpo.supplierPin || "Not supplied", lpo.supplierPin ? false : true],
+    ],
+    order: [
+      ["Deliver to", lpo.deliverTo || "QSL Centre, Birdi Singh Complex, Nairobi"],
+      ["Delivery date", lpo.deliveryDate ? fmtDate(lpo.deliveryDate) : "—"],
+      ["Payment terms", lpo.paymentTerms || "30 days from valid eTIMS invoice"],
+      ["Your quotation", lpo.supplierQuoteRef || "—"],
+      ["Buyer", lpo.buyerName || "Procurement — QSL"],
+    ],
+    items: items.map((it) => [
+      it.description || "",
+      String(Number(it.qty || 0)),
+      it.unit || "EA",
+      money(it.unitPrice),
+      money((Number(it.qty) || 0) * (Number(it.unitPrice) || 0)),
+    ]),
+    sums: [
+      ["Subtotal", money(lpo.subtotal)],
+      [`VAT (${Number(lpo.vatRate || 0)}%)`, money(lpo.vatAmount)],
+    ],
+    grand: [`Order total · ${cur}`, money(lpo.grandTotal)],
+    notes:
+      lpo.notes ||
+      "Deliver within QSL receiving hours (08:00–16:00, Mon–Fri). Quote the LPO number on the delivery note and the invoice.",
+    auth: lpoAuth(lpo),
+    // QR summary (the template derives the same; we pre-render the image).
+    qrText: [
+      "QSL Purchase Order",
+      `${lpo.number} · ${lpo.supplierName || "—"}`,
+      `Order total ${cur} ${money(lpo.grandTotal)}`,
+      `Required by ${lpo.requiredBy ? fmtDate(lpo.requiredBy) : "—"}`,
+    ].join("\n"),
   };
 }

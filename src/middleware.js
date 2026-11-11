@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/jwt";
 
 // Protect the authenticated app area and redirect signed-in users away from login.
-const PROTECTED = ["/overview", "/dashboard", "/reports", "/schedule", "/users", "/weighbridges", "/audit", "/account", "/quotations", "/invoices", "/calibration-requests", "/training-feedback"];
+const PROTECTED = ["/overview", "/dashboard", "/reports", "/schedule", "/users", "/weighbridges", "/audit", "/account", "/quotations", "/invoices", "/lpos", "/calibration-requests", "/training-feedback"];
 
 // Areas a client-only login must NOT reach (staff tools). They are bounced to
 // their own portal home.
-const STAFF_ONLY = ["/dashboard", "/reports", "/schedule", "/users", "/weighbridges", "/audit", "/sites", "/feedback", "/projects", "/contracts", "/tasks", "/customer-feedback", "/training-feedback", "/invoices"];
+const STAFF_ONLY = ["/dashboard", "/reports", "/schedule", "/users", "/weighbridges", "/audit", "/sites", "/feedback", "/projects", "/contracts", "/tasks", "/customer-feedback", "/training-feedback", "/invoices", "/lpos"];
 const CLIENT_HOME = "/calibration-requests";
 
 const rolesOf = (claims) => (claims?.roles && claims.roles.length ? claims.roles : claims?.role ? [claims.role] : []);
@@ -66,6 +66,7 @@ export const config = {
     "/account/:path*",
     "/quotations/:path*",
     "/invoices/:path*",
+    "/lpos/:path*",
     "/calibration-requests/:path*",
     "/sites/:path*",
     "/feedback/:path*",

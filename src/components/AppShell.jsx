@@ -9,7 +9,7 @@ import NotificationBell from "./NotificationBell";
 import OfflineBadge from "./OfflineBadge";
 import PasswordPrompt from "./PasswordPrompt";
 import { ROLE_LABEL } from "@/lib/theme";
-import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, canSeeInvoices, canGenerateReports, canApproveClients, canManageAttendance, isClientOnly, rolesOf } from "@/lib/roles";
+import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, canSeeInvoices, canSeeLpos, canGenerateReports, canApproveClients, canManageAttendance, isClientOnly, rolesOf } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
@@ -29,6 +29,7 @@ export default function AppShell({ user, children }) {
   // get a scoped read-only view. Everyone else sees neither.
   const showQuotes = canSeeQuotations(user) || isAdmin;
   const showInvoices = canSeeInvoices(user);
+  const showLpos = canSeeLpos(user);
   // The dashboard (charts) is the landing page for everyone.
   const homeHref = "/overview";
 
@@ -95,6 +96,7 @@ export default function AppShell({ user, children }) {
           items: [
             showQuotes && { href: "/quotations", label: "Quotations", icon: "quote" },
             showInvoices && { href: "/invoices", label: "Invoices", icon: "quote" },
+            showLpos && { href: "/lpos", label: "Purchase orders", icon: "contract" },
             showQuotes && { href: "/calibration-requests", label: "Calibration requests", icon: "gauge" },
             showProjects && { href: "/projects", label: "Projects", icon: "projects" },
             showProjects && { href: "/contracts", label: "Contracts", icon: "contract" },

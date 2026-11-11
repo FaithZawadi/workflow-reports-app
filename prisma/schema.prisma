@@ -790,6 +790,66 @@ enum InvoiceStatus {
   CANCELLED // voided
 }
 
+// A Local Purchase Order QSL issues to a supplier. Suppliers are free-text
+// snapshots (not modelled as their own entity), mirroring how invoices snapshot
+// a client. The Conditions of Purchase live in the HTML document template.
+model Lpo {
+  id       String    @id @default(cuid())
+  number   String    @unique // QSL-LPO-2026-00001
+  status   LpoStatus @default(DRAFT)
+  currency String    @default("KES")
+
+  // Supplier (the party the order is placed with) — snapshot fields.
+  supplierName    String
+  supplierContact String?
+  supplierTel     String?
+  supplierEmail   String?
+  supplierPin     String?
+
+  // Order logistics.
+  deliverTo        String?
+  deliveryDate     DateTime?
+  requiredBy       DateTime?
+  paymentTerms     String?
+  supplierQuoteRef String? // the supplier's quotation this order accepts
+  buyerName        String?
+
+  subject       String?
+  items         Json? // [{ description, qty, unit, unitPrice }]
+  vatRate       Float   @default(16)
+  subtotal      Float   @default(0)
+  vatAmount     Float   @default(0)
+  grandTotal    Float   @default(0)
+  amountInWords String?
+  notes         String?
+  // The Conditions of Purchase revision printed on the document footer.
+  conditionsRev String  @default("GTB v1.0")
+
+  // Authorisation trail (raised → approved → optional oversight note).
+  raisedByName  String?
+  raisedById    String?
+  approvedByName String?
+  approvedById  String?
+  approvedAt    DateTime?
+  notedByName   String?
+
+  issuedAt   DateTime? // moved out of draft (issued to the supplier)
+  shareToken String?   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum LpoStatus {
+  DRAFT // being prepared
+  PENDING // issued / awaiting approval
+  APPROVED // authorised
+  CANCELLED // voided
+}
+
 // A client invoice. Mirrors the quotation shape (line items, VAT) and adds
 // retention + a due date. Can be raised standalone or from an accepted quote.
 model Invoice {
