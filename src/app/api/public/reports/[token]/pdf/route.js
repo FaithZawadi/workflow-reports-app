@@ -39,7 +39,7 @@ export async function GET(_req, { params }) {
     React.createElement(ReportDocument, { report, logoSrc: logoDataUrl(), qrSrc })
   );
   if (report.attachments && report.attachments.length) {
-    buffer = await appendPdfPages(buffer, report.attachments);
+    buffer = await appendPdfPages(buffer, report.attachments, { serial: report.serial });
   }
 
   return new Response(buffer, {

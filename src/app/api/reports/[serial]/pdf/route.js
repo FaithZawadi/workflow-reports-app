@@ -49,7 +49,7 @@ export async function GET(req, { params }) {
   // A supporting PDF (e.g. on a Site Instruction) becomes part of the document —
   // its pages are appended to the end of the generated report.
   if (report.attachments && report.attachments.length) {
-    buffer = await appendPdfPages(buffer, report.attachments);
+    buffer = await appendPdfPages(buffer, report.attachments, { serial: report.serial });
   }
 
   return new Response(buffer, {
