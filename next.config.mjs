@@ -43,7 +43,7 @@ const nextConfig = {
   poweredByHeader: false, // don't advertise "X-Powered-By: Next.js"
   // @react-pdf/renderer must run in the Node.js runtime, not bundled for the browser
   experimental: {
-    serverComponentsExternalPackages: ["@react-pdf/renderer", "bcryptjs", "nodemailer", "playwright-core"],
+    serverComponentsExternalPackages: ["@react-pdf/renderer", "bcryptjs", "nodemailer", "playwright-core", "playwright"],
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

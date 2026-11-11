@@ -15,10 +15,14 @@ async function getChromium() {
   if (_chromium) return _chromium;
   // Prefer the lightweight playwright-core (production); fall back to full
   // playwright where that's what's installed (local/dev container).
+  // webpackIgnore keeps Next's bundler from trying to resolve these at build
+  // time — `playwright` isn't a dependency (only `playwright-core` is), so a
+  // static import of it fails the production build. Both are resolved by Node
+  // at runtime instead.
   try {
-    _chromium = (await import("playwright-core")).chromium;
+    _chromium = (await import(/* webpackIgnore: true */ "playwright-core")).chromium;
   } catch {
-    _chromium = (await import("playwright")).chromium;
+    _chromium = (await import(/* webpackIgnore: true */ "playwright")).chromium;
   }
   return _chromium;
 }
