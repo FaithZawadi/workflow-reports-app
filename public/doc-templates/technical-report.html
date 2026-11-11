@@ -1,0 +1,732 @@
+<!--
+  QSL Technical Report template (TR01)
+  ===================================
+  Scope: diagnosis and repair / field service. This is NOT a calibration
+  sheet and NOT a calibration certificate - it carries no measurement data,
+  no reference-standard traceability and no statement of conformity, and it
+  must not be used in place of either.
+  Same design system as the quotation / invoice template, so the three
+  documents read as one family: Inter with tabular figures, hairline rules,
+  gold-on-black title badge, one accreditation footer.
+
+  Structural changes vs. the react-pdf original:
+
+   1. Two pages -> one. Nothing was cut except repetition; the saving comes
+      from the photo grid (2-up -> 3-up), the metadata block and the removal
+      of empty furniture.
+   2. Accreditation moved out of the masthead into the footer. It is standing
+      credential text, not data about this job, and in the original it was set
+      larger and bolder than the client's own name.
+   3. "QSL MAINTENANCE MANAGEMENT SYSTEM V2.4" removed from the client-facing
+      page. An internal build number on an external document dates the
+      document and tells the reader nothing. It belongs in the control line.
+   4. The 8-row x 4-column metadata table (32 boxed cells) is regrouped by
+      meaning: WHO (client block), WHAT WE DID (facts), WHICH MACHINE
+      (equipment strip). Same fields, a third of the ink.
+   5. Empty sections collapse. The original printed a JOB TIME table that was
+      a solid black header bar over one empty row.
+   6. "(no description)" is no longer printed. A missing caption prints
+      nothing; the photo number and timestamp carry the identification.
+   7. Approval trail shows the whole chain, pending steps included. A trail
+      containing only "Submitted" reads as complete when it is not.
+   8. One status vocabulary. The original said three different things for one
+      state: the pill said TECHNICAL MANAGER REVIEW, the trail said Submitted,
+      and the QR payload said "pending supervisor". STATES below is the single
+      source; the QR text is generated from it.
+   9. hyphens:none - the original broke "neg-ative" and "toler-ance".
+
+  Assets are injected as data URIs by the build so the file is self-contained.
+  In production swap IMG.* for asset paths and generate the QR per report.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Qalibrated Systems — technical report template</title>
+<style>
+  :root{
+    --ink:#1D1D1F;
+    --muted:#6E6A63;
+    --faint:#9A958C;
+    --rule:#E4E1DA;
+    --rule-mid:#CFCABD;
+    --rule-strong:#1D1D1F;
+    --gold:#F2AA00;
+    --gold-ink:#9C7214;
+    --accred:#8A6410;   /* deeper than brand gold: 5.1:1 on the page tints, AA at 6pt bold */
+    --paper:#FFFFFF;
+    --wash:#E8F2F0;
+    --band:#1E6B63;
+    --tint:#F5FAF9;
+    --flag:#B3261E;        /* missing / unverified data */
+  }
+
+  @page{ size:A4; margin:0; }
+  *{ box-sizing:border-box; hyphens:none; -webkit-hyphens:none; }
+  /* Chrome's UA stylesheet resets font-size to medium (16px) inside tables,
+     so table cells that set no size of their own were printing at roughly
+     12pt against a 7.3pt page. Every table here inherits instead. */
+  table{ font-size:inherit; line-height:inherit; font-family:inherit; }
+  html,body{ margin:0; padding:0; background:#D8D5CE; }
+
+  body{
+    font-family:"Inter","Helvetica Neue",Arial,sans-serif;
+    font-size:7.3pt; line-height:1.38; color:var(--ink);
+    font-feature-settings:"tnum" 1, "cv05" 1;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .sheet{
+    width:210mm; min-height:297mm;
+    padding:3mm 13mm 7mm;
+    margin:0 auto 8mm;
+    background:var(--paper);
+    display:flex; flex-direction:column;
+  }
+  @media print{
+    html,body{ background:#fff; }
+    .sheet{ margin:0; page-break-after:always; }
+    .sheet:last-child{ page-break-after:auto; }
+  }
+
+
+  /* ---------- document colour coding ----------
+     Each document type carries its own hue so a printed set can be told apart
+     in a folder. Three parts, strongest first:
+
+       --band  a solid bar across the head of every sheet. This is the part
+               that actually identifies the document in a stack or a file,
+               because the top edge is what you see.
+       --tint  a very light page wash (about 2% saturation). Enough to read as
+               "a different document" on a desk; light enough that body text
+               keeps its contrast and a photocopy does not come back grey.
+       --wash  the label-gutter and row shade, derived from the tint so the
+               cream gutters do not clash with a cool page.
+
+     Set --tint to #FFFFFF to switch the page flood off and keep the band —
+     see the README on toner cost and banding on office printers. */
+  .sheet{ background:var(--tint, #FFFFFF); }
+  .sheet::before{
+    content:""; display:block; height:4mm; background:var(--band, var(--gold));
+    margin:-3mm -13mm 3mm;
+  }
+  /* backgrounds must survive the browser's own print dialog, not just the
+     headless renderer, which is passed printBackground explicitly */
+  body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+  .mono{ font-family:"Liberation Mono","DejaVu Sans Mono",monospace; font-size:6.8pt; letter-spacing:-.01em; }
+  .micro{ font-size:5.6pt; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); font-weight:600; line-height:1.3; }
+
+  /* Section markers. The original used a gold square before each section
+     heading; it is the one piece of brand colour that earns its place in the
+     body of the page, so it comes back - but as a 1.6mm square on a darker,
+     non-faint heading, not the 2.5mm block of the original. */
+  .sec{
+    display:flex; align-items:center; gap:1.9mm;
+    font-size:5.8pt; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink); font-weight:700; line-height:1.3;
+  }
+  .sec::before{ content:""; flex:0 0 auto; width:1.6mm; height:1.6mm; background:var(--gold); border-radius:.2mm; }
+  .sec .n{ color:var(--faint); font-weight:600; letter-spacing:.08em; }
+
+  /* ---------- header ---------- */
+  .head{ display:flex; align-items:flex-start; gap:6mm; }
+  .head-id{ flex:1 1 auto; min-width:0; display:flex; gap:4.5mm; align-items:flex-start; }
+  .head-id img{ height:12.5mm; width:auto; display:block; flex:0 0 auto; }
+  .org{ padding-top:.8mm; min-width:0; }
+  .org .addr{ font-size:6.4pt; line-height:1.5; color:var(--muted); }
+  .org .addr .net{ color:var(--gold-ink); }
+  .head-meta{ flex:0 0 56mm; }
+  .head-meta dl{ margin:0; display:grid; grid-template-columns:17mm 1fr; row-gap:1.15mm; }
+  .head-meta dt{ margin:0; font-size:5.6pt; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-weight:600; align-self:center; }
+  .head-meta dd{ margin:0; font-size:7.1pt; font-weight:600; text-align:left; line-height:1.3; }
+
+  .rule-gold{ height:1.4pt; background:var(--gold); margin:1.2mm 0 0; }
+
+  /* ---------- title ---------- */
+  .title-row{ display:flex; align-items:center; justify-content:space-between; padding:2mm 0 2.1mm; }
+  h1{
+    margin:0; display:inline-block; background:var(--ink); color:var(--gold);
+    font-size:12.5pt; font-weight:800; letter-spacing:.17em; text-transform:uppercase;
+    line-height:1; padding:2.1mm 4.1mm 2.1mm 4.8mm; border-radius:1.2mm;
+  }
+  .status{
+    font-size:6pt; font-weight:700; letter-spacing:.13em; text-transform:uppercase;
+    border-radius:1.2mm; padding:1.6mm 2.8mm 1.6mm 3.2mm;
+  }
+  .status.draft   { background:#6E6A63; color:#FFFFFF; }
+  .status.review  { background:var(--gold); color:var(--ink); }   /* black on gold */
+  .status.approved{ background:#15713F; color:#FFFFFF; }
+  .status.rejected{ background:#C62828; color:#FFFFFF; }
+
+  /* ---------- the two record tables ----------
+     Same fields as the original's single 8-row x 4-column grid, split down
+     the middle by whose information it is: the client and their machine on
+     the left, QSL's own record of the visit on the right. The original
+     interleaved the two (client / site, then vehicle / report type, then
+     completed by / date), so neither column could be read on its own. */
+  .cols{ display:flex; gap:5mm; align-items:flex-start; margin-top:2mm; }
+  .cols > div{ flex:1 1 0; min-width:0; }
+  table.kv{ width:100%; border-collapse:collapse; margin-top:1mm; border-top:1.2pt solid var(--gold); }
+  table.kv td{ border-bottom:.5pt solid var(--rule); padding:.8mm 2.4mm; vertical-align:top; line-height:1.3; }
+  table.kv tr:last-child td{ border-bottom:.5pt solid var(--rule-mid); }
+  table.kv td.k{
+    width:28mm; background:var(--wash); border-right:.5pt solid var(--rule);
+    font-size:5.6pt; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--muted); font-weight:600;
+  }
+  table.kv td.v{ }   /* normal weight, matching the statement */
+  table.kv td.v.missing{ color:var(--flag); font-weight:700; }
+  /* Two grades of absence: red for a compliance gap (a missing instrument
+     serial), grey italic for operational data the field app did not capture.
+     One colour for both would make the serial look routine. */
+  table.kv td.v.soft{ color:var(--faint); font-weight:400; font-style:italic; }
+
+  /* ---------- inline strip (equipment, job time) ---------- */
+  .strip{ display:flex; border:.5pt solid var(--rule-mid); margin-top:1mm; }
+  .strip .it{
+    padding:1.1mm 2.4mm; border-right:.5pt solid var(--rule);
+    display:flex; align-items:baseline; gap:2.2mm; white-space:nowrap;
+    flex:1 1 auto; min-width:0;
+  }
+  .strip .it:last-child{ border-right:none; }
+  .strip .k{ font-size:5.5pt; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-weight:600; }
+  .strip .v{ font-weight:600; overflow:hidden; text-overflow:ellipsis; }
+  .strip .v.missing{ color:var(--flag); font-weight:700; }
+  .block{ margin-top:2mm; }
+
+  /* ---------- job details ----------
+     Label/body rows on hairline rules rather than a boxed grid. The label
+     column is fixed so the bodies form one reading column. */
+  /* Job details carries the theme: a gold rule across the top of the block
+     and a label gutter in the brand wash, so the section reads as QSL's
+     without filling it in. The label column sits on the wash rather than the
+     body text, because the body is the part that has to stay readable. */
+  .rows{ margin-top:1mm; border-top:1.2pt solid var(--gold); }
+  .rows .r{ display:flex; gap:0; border-bottom:.5pt solid var(--rule); }
+  .rows .r:last-child{ border-bottom:.5pt solid var(--rule-mid); }
+  .rows .r .k{
+    flex:0 0 34mm; font-size:5.6pt; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted); font-weight:600; padding:1.25mm 3mm .95mm 2.2mm;
+    background:var(--wash); border-right:.5pt solid var(--rule);
+  }
+  .rows .r .b{ flex:1 1 auto; min-width:0; line-height:1.4; padding:.85mm 0 .85mm 3mm; }
+  .rows .r .b .ln{ display:block; }
+  /* Follow-up and client-acceptance rows: gold label on a gold-tinted gutter,
+     so an action still reads differently from a finding inside one block. */
+  .rows .r.act .k{ color:var(--gold-ink); background:#FDF4E0; }
+  .rows .r.act .b{ font-weight:600; }
+
+  /* ---------- photographs ----------
+     Natural aspect ratio kept (never cropped - these are evidence). The grid
+     adapts to the count: 1-2 photos print 2-up, 3 or more print 3-up, which
+     is what took the report from two pages to one. */
+  .photos{ margin-top:1mm; display:grid; gap:1.4mm 2.3mm; align-items:start; }
+  .photos.g2{ grid-template-columns:repeat(2,1fr); }
+  .photos.g3{ grid-template-columns:repeat(3,1fr); }
+  .photos.g4{ grid-template-columns:repeat(4,1fr); }
+  .photos figure{ margin:0; }
+  .photos img{ width:100%; height:auto; display:block; border:.5pt solid var(--rule-mid); }
+  .photos figcaption{ margin-top:.6mm; line-height:1.2; font-size:5.7pt; }
+  .photos .n{ font-weight:700; }
+  .photos .d{ color:var(--muted); }
+  .photos .t{ font-size:5.8pt; color:var(--faint); }
+  .photos .gps{ font-size:5.6pt; letter-spacing:.04em; }
+  .photos .gps.no{ color:var(--flag); }
+
+  /* ---------- client acceptance + approval trail ---------- */
+  .close{ display:flex; gap:6mm; align-items:flex-start; margin-top:2.2mm; }
+  /* The comment is the point of this row, so it takes the larger share; the
+     trail sits right and is sized to what its longest cell actually needs. */
+  .accept{ flex:0 0 104mm; min-width:0; }
+  .trail{ flex:1 1 auto; min-width:0; }
+
+  .accept .box{
+    margin-top:1mm; border-top:1.2pt solid var(--gold);
+    border-bottom:.5pt solid var(--rule-mid); background:var(--wash);
+    padding:1.8mm 2.6mm 1.6mm;
+  }
+  /* the client's own words, set as a statement rather than a field value */
+  .accept .quote{ font-size:8.2pt; font-weight:600; line-height:1.4; min-height:11mm; }
+  .accept .sig{ margin-top:1.8mm; display:flex; align-items:baseline; gap:0 2.6mm;
+    padding-top:1.4mm; border-top:.5pt solid var(--rule); }
+  .accept .sig .who{ font-weight:700; white-space:nowrap; }
+  .accept .sig .role{ color:var(--muted); white-space:nowrap; }
+  /* date and time sit right on the same line as the name, so the whole
+     attribution is one row and the space goes to the comment above it */
+  .accept .sig .when{ color:var(--faint); margin-left:auto; white-space:nowrap; }
+  .accept .box.empty{ color:var(--flag); font-style:italic; font-weight:600; }
+  table.tr{ width:100%; border-collapse:collapse; margin-top:1mm; }
+  table.tr th{
+    font-size:5.6pt; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    font-weight:600; text-align:left; padding:0 2mm 1.3mm 0; border-bottom:.9pt solid var(--rule-strong);
+  }
+  table.tr th:last-child, table.tr td:last-child{ text-align:right; padding-right:0; white-space:nowrap; }
+  /* trail timestamps run narrower than body mono so the three columns fit
+     the space left after the customer's comment takes its share */
+  table.tr td.mono{ font-size:6.2pt; letter-spacing:-.02em; }
+  table.tr td:first-child{ white-space:nowrap; }
+  table.tr td{ padding:1.3mm 2mm 1.3mm 0; border-bottom:.5pt solid var(--rule); vertical-align:top; }
+  table.tr td.who{ font-weight:600; white-space:nowrap; }
+  table.tr tr.pending td{ color:var(--faint); }
+  table.tr tr.pending td.who{ font-weight:400; font-style:italic; }
+  .dot{ display:inline-block; width:1.5mm; height:1.5mm; border-radius:50%; margin-right:1.8mm; vertical-align:middle; }
+  .dot.done{ background:#15713F; }
+  .dot.now { background:var(--gold); }
+  .dot.wait{ background:var(--rule-mid); }
+
+
+  /* ---------- footer ---------- */
+  .foot{ margin-top:auto; padding-top:1.5mm; }
+  .foot .legal{ font-size:6.2pt; color:var(--muted); line-height:1.4; padding-bottom:1mm; }
+  .foot .legal b{ color:var(--ink); }
+  .foot .ctrl{ border-top:.8pt solid var(--gold); padding-top:1.2mm; }
+  /* equal outer cells keep the middle block centred on the page, not on the
+     space the QR leaves behind */
+  .foot .ctrl-in{ display:grid; grid-template-columns:18mm 1fr 18mm; gap:3mm; align-items:center; }
+  .foot .ctrl-mid{ text-align:center; min-width:0; }
+  .foot .fqr{ text-align:center; }
+  .foot .fqr img{ width:12mm; height:12mm; display:block; margin:0 0 0 auto; }
+  .foot .fqr .cap{ font-size:5.2pt; letter-spacing:.07em; text-transform:uppercase; color:var(--faint); font-weight:600; margin-top:.5mm; }
+  .foot .accred-foot{ font-size:6pt; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--accred); line-height:1.15; }
+  .foot .ctrlline{ font-size:5.9pt; color:var(--faint); margin-top:.3mm; line-height:1.15; }
+  .foot .sysnote{ font-size:5.9pt; color:var(--muted); margin-top:.35mm; line-height:1.2; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+
+<script>
+const IMG = (window.__QSL_ASSETS__ || {});
+
+/* ------------------------------------------------------------------
+   Organisation constants
+------------------------------------------------------------------ */
+const ORG = window.__QSL_ORG__ || {
+  legalName:'Qalibrated Systems Limited',
+  accred :'ISO 9001:2015 Certified (TNV)  |  ISO/IEC 17025:2017 Accredited (KENAS)  |  ILAC-MRA',
+  /* Mail and web sit in the masthead under the phone numbers. They are not
+     repeated in the footer: a reader looking for how to reach QSL finds the
+     whole set in one place. */
+  addr   :['QSL Centre, Birdi Singh Complex',
+           'P.O. Box 34463-00100, Nairobi',
+           '+254 714 999 996 / 756 999 996',
+           'info@qalibrated.com  ·  www.qalibrated.com'],
+  system :'QaliMetric v2.4',          // control line only, not the masthead
+  verifyBase:'https://reports.qalibrated.com/reports/',
+  /* Printed at the foot of EVERY sheet, not just the first, so the statement
+     travels with any page that gets separated, forwarded or filed on its own.
+     Worded to hold true on a continuation page, where there is no approval
+     trail and no QR beside it. */
+  systemNote:'System-generated — No physical signature required. Approvals are captured electronically in the approval trail.',
+};
+
+/* Single status vocabulary. The pill, the approval trail and the QR payload
+   all read from here, so they cannot drift apart as they did in the original
+   (pill "Technical manager review" / trail "Submitted" / QR "pending
+   supervisor" were three names for one state). */
+const STATES = {
+  draft    : { label:'Draft',                     cls:'draft'    },
+  review   : { label:'Technical manager review',  cls:'review'   },
+  approved : { label:'Approved',                  cls:'approved' },
+  rejected : { label:'Returned for correction',   cls:'rejected' },
+};
+
+/* ------------------------------------------------------------------
+   Report data — one object per report
+------------------------------------------------------------------ */
+const REPORT = window.__QSL_REPORT__ || {
+  kind:'Technical Report',
+  state:'review',
+  ref:'QSL-TR01-2026-00050',
+  /* Header carries only what is not stated anywhere else. "Type" moved out
+     (the visit record states it in full) and the visit date lives here once;
+     the generation timestamp is a different fact and sits in the footer. */
+  meta:[
+    ['Date', '03 Nov 2026 · 16:33 EAT'],
+    ['Report no.', 'QSL-TR01-2026-00050'],
+  ],
+  generated:'03 Nov 2026, 16:33 EAT',
+  /* Left table — the client and the machine they own. The service vehicle is
+     QSL's, so it has moved to the visit record on the right.
+     Third element: true = red (a compliance gap), 'soft' = grey italic (data
+     the field app simply did not capture). A weighbridge serial is the
+     instrument's identity under Cap. 513, so a missing one is the first kind. */
+  clientRows:[
+    ['Client / Site',  'Cabro City — Katani Quarry'],
+    ['Contact person', 'Paul Gatimu'],
+    ['Contact',        '0727 570 145'],
+    ['Machine model',  'A9'],
+    ['Serial no.',     'Not recorded', true],
+    ['Capacity',       '60 Tonnes'],
+  ],
+  /* Right table — QSL's record of the visit. "Completed by", "Technical
+     manager", "Project manager" and "Date" all came out: the approval trail
+     already names every person with the time they acted, and the header
+     already carries the date. Time in / time out / mileage replace the empty
+     JOB TIME table the original printed as a black bar over a blank row. */
+  qslRows:[
+    ['Report type',     'Field service / calibration visit (TR01)'],
+    ['Nature of visit', 'Service'],
+    ['Vehicle no.',     'KDG 445Z'],
+    ['Time in',         '', 'soft'],
+    ['Time out',        '', 'soft'],
+    ['Mileage',         '', 'soft'],
+  ],
+  details:[
+    ['Fault reported', ['Negative indications observed.','Indicator holding weight readings.']],
+    ['Findings',       ['Suspected water ingress on some load cells caused by poor drainage. Could have caused earlier drifting / negative indications.']],
+    ['Correction',     ['Recommend corrective works on weighbridge drainage.']],
+    ['Final result',   ['Observed weighbridge performance and noted to be working okay. Sectional performance within permissible tolerance.','Zero tracking okay after weighment.']],
+  ],
+  /* Follow-up and outcome. "Client requested a quote" is a sales action with
+     an owner and a date, not a technical finding, and it was previously
+     buried as the fifth row of a seven-row table. */
+  followUp:[
+    /* ADDED. For legal-for-trade equipment this is the most consequential
+       line on the page: did QSL leave the weighbridge usable for trade?
+       One of: In service / Out of service / Restricted use. */
+    ['Status on leaving', ['In service — released for continued use.']],
+    /* ADDED. "Parts to order" records only what was NOT fitted. What was
+       actually replaced — with part number and the serial of the unit
+       removed — is what settles a warranty claim or a repeat-failure
+       argument months later. Blank collapses the row. */
+    ['Parts fitted',      ['— part no. and serial of any unit replaced —']],
+    ['Parts to order',    ['Client requested a quote for an AVR to avoid breakdowns caused by power surges.']],
+    ['Next service due',  ['— set from the service interval —']],
+  ],
+  /* The customer's own words on the job, with who said it and when. On a
+     repair call this is the line that settles a later dispute, so it prints
+     as a block of its own rather than as a row in a table — and when nothing
+     was captured it says so in red instead of quietly disappearing. */
+  customerComment:{ text:'Weighbridge ok.', by:'Paul Gatimu', title:'Contact person', at:'03 Nov 2026, 16:33 EAT' },
+  photos:[
+    { src:'p1', desc:'', at:'03 Nov 2026, 16:29 EAT', gps:'' },
+    { src:'p2', desc:'', at:'03 Nov 2026, 16:29 EAT', gps:'' },
+    { src:'p3', desc:'', at:'03 Nov 2026, 16:29 EAT', gps:'' },
+    { src:'p4', desc:'', at:'03 Nov 2026, 16:30 EAT', gps:'' },
+    { src:'p5', desc:'', at:'03 Nov 2026, 16:32 EAT', gps:'' },
+  ],
+  /* Who did the work and who signs it off. The timestamp column is gone —
+     the date and time of the visit are in the header, and repeating them
+     against each stage cost more width than the facts were worth. */
+  trail:[
+    { role:'Service engineer',   by:'Leonard Ondieki', state:'Submitted',      st:'done' },
+    { role:'Approving manager',  by:'— unassigned —',  state:'Pending review', st:'now'  },
+  ],
+};
+
+/* ------------------------------------------------------------------
+   Render
+------------------------------------------------------------------ */
+const esc = s => String(s==null?'':s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+/* The QR payload is built from the same fields the page prints, so a scan can
+   never contradict the paper. The original encoded a hand-written status
+   string and a mis-encoded separator character. */
+const field = (rows,k) => (rows.find(r => r[0] === k) || [])[1] || '';
+
+function qrPayload(r){
+  return [
+    'QSL ' + r.kind,
+    r.ref + ' · ' + field(r.clientRows,'Client') + ' — ' + field(r.clientRows,'Site'),
+    'Status: ' + STATES[r.state].label,
+    'Filed by ' + field(r.qslRows,'Completed by'),
+    ORG.verifyBase + r.ref,
+  ].join('\n');
+}
+
+function kvTable(rows){
+  return `<table class="kv"><tbody>${rows.map(([k,v,flag]) => {
+    const soft = flag === 'soft';
+    const cls  = soft ? ' soft' : (flag ? ' missing' : '');
+    const val  = (v && String(v).trim()) ? v : (soft ? '— not captured —' : v);
+    return `<tr><td class="k">${esc(k)}</td><td class="v${cls}">${esc(val)}</td></tr>`;
+  }).join('')}</tbody></table>`;
+}
+
+function strip(pairs){
+  const live = pairs.filter(p => p[1] && String(p[1]).trim());
+  if(!live.length) return '';
+  return `<div class="strip">${live.map(([k,v,bad]) =>
+    `<span class="it"><span class="k">${esc(k)}</span><span class="v${bad?' missing':''}">${esc(v)}</span></span>`
+  ).join('')}</div>`;
+}
+
+/* One page is the target. Photographs only move to an annex sheet when there
+   are more of them than a single page can hold at a size worth printing —
+   above INLINE_MAX the grid would be thumbnails, which is worse than a second
+   sheet. Up to that point the grid narrows instead: the column count rises
+   with the photo count so the block keeps roughly the same height. */
+const INLINE_MAX = 6;
+const gridCols = n => n <= 2 ? 'g2' : n <= 6 ? 'g3' : 'g4';
+
+function photoGrid(ph, cls){
+  return `<div class="photos ${cls}">${ph.map((p,i) => `
+    <figure>
+      <img src="data:image/jpeg;base64,${IMG[p.src]||''}" alt="Photo ${i+1}">
+      <figcaption><span class="n">${i+1}.</span>${p.desc?` <span class="d">${esc(p.desc)}</span>`:''}
+        <span class="t mono">${esc(p.at)} · <span class="gps ${p.gps?'':'no'}">${p.gps?esc(p.gps):'GPS unavailable'}</span></span>
+      </figcaption>
+    </figure>`).join('')}</div>`;
+}
+
+/* `list` renders plain; anything in `act` renders with a gold label, so
+   actions and client voice stay distinguishable inside one block. */
+function rows(list, cls, act){
+  const mk = (arr, extra) => arr
+    .filter(([,body]) => body.some(b => b && b.trim()))
+    .map(([k,body]) =>
+      `<div class="r${extra?' '+extra:''}"><div class="k">${esc(k)}</div><div class="b">${
+        body.filter(Boolean).map(b=>`<span class="ln">${esc(b)}</span>`).join('')
+      }</div></div>`);
+  const html = mk(list, cls).concat(mk(act||[], 'act'));
+  return html.length ? `<div class="rows">${html.join('')}</div>` : '';
+}
+
+function footer(r, legal, page, of, qr){
+  /* Three-column control strip: an empty cell, the centred accreditation
+     block, and the QR. The outer cells are the same width, so the centred
+     text stays centred on the page rather than on the space left over. */
+  return `
+    <footer class="foot">
+      ${legal ? `<div class="legal">${legal}</div>` : ''}
+      <div class="ctrl">
+        <div class="ctrl-in">
+          <div></div>
+          <div class="ctrl-mid">
+            <div class="accred-foot">${esc(ORG.accred)}</div>
+            <div class="ctrlline mono">${esc(ORG.legalName)} · ${esc(r.ref)} · ${esc(ORG.system)} · Page ${page} of ${of}</div>
+            <div class="sysnote">${esc(ORG.systemNote)}</div>
+          </div>
+          <div class="fqr">${ qr ? `
+            <img src="data:image/png;base64,${IMG.qr}" alt="Verification code">
+            <div class="cap">Scan to verify</div>` : '' }</div>
+        </div>
+      </div>
+    </footer>`;
+}
+
+/* Annex sheet: the same masthead rule so a page separated from the report is
+   still identifiable, then the photographs 2-up at full width. */
+function annexSheet(r, of){
+  return `
+  <div class="sheet" data-annex="1">
+    <header class="head">
+      <div class="head-id">
+        <img src="data:image/png;base64,${IMG.logo}" alt="${esc(ORG.legalName)}">
+        <div class="org"><div class="addr">${ORG.addr.map((l,i)=>i===ORG.addr.length-1&&l.includes('@')?`<span class="net">${esc(l)}</span>`:esc(l)).join('<br>')}</div></div>
+      </div>
+      <div class="head-meta"><dl>
+        <dt>Annex</dt><dd>Photographic evidence</dd>
+        <dt>No.</dt><dd>${esc(r.ref)}</dd>
+      </dl></div>
+    </header>
+    <div class="rule-gold"></div>
+    <section class="block" style="margin-top:3.4mm">
+      <div class="sec">Photographs <span class="n">· ${r.photos.length} · taken on site by ${esc(field(r.qslRows,'Completed by'))}</span></div>
+      ${photoGrid(r.photos, 'g2')}
+    </section>
+    ${footer(r, 'Photographs are stored unmodified against this report reference. Timestamps are recorded by the capturing device at the moment of capture.', of, of, false)}
+  </div>`;
+}
+
+
+/* ---------------------------------------------------------------- paging
+   The report's content is heterogeneous — key/value tables, a details table,
+   a photo grid, a sign-off row — so it pages by block rather than by row. A
+   block that will not fit on the current sheet moves whole to a continuation
+   sheet; a details table too tall for a sheet of its own then splits by row,
+   so a very long set of findings cannot silently overflow.
+
+   The photo annex (INLINE_MAX) runs first and handles the common case. This
+   is the safety net beneath it, and it leaves the annex sheet alone. */
+function contSheetReport(r, label){
+  const el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = `
+    <header class="head">
+      <div class="head-id">
+        <img src="data:image/png;base64,${IMG.logo}" alt="${esc(ORG.legalName)}">
+        <div class="org"><div class="addr">${ORG.addr.map(l =>
+          l.includes('@') ? `<span class="net">${esc(l)}</span>` : esc(l)).join('<br>')}</div></div>
+      </div>
+      <div class="head-meta"><dl>
+        <dt>Report no.</dt><dd>${esc(r.ref)}</dd>
+        <dt>Client</dt><dd>${esc(field(r.clientRows,'Client / Site'))}</dd>
+      </dl></div>
+    </header>
+    <div class="rule-gold"></div>
+    <div class="sec" style="margin-top:3mm">${esc(label)} <span class="n">· continued</span></div>`;
+  return el;
+}
+
+function paginateReport(sheet, r){
+  const MAX = 297 * (96/25.4);
+  const fits = el => el.scrollHeight <= MAX + 0.5;
+  const setFoot = (sh, page, of, qr) => {
+    const f = sh.querySelector('.foot'); if (f) f.remove();
+    sh.insertAdjacentHTML('beforeend', footer(r, '', page, of, qr));
+  };
+
+  // header, rule, title and the two record tables always stay on sheet one
+  const keep = ['head','rule-gold','title-row','cols'];
+  const movable = [...sheet.children].filter(c =>
+    c.tagName !== 'FOOTER' && !keep.some(k => c.classList.contains(k)));
+  movable.forEach(c => c.remove());
+
+  const sheets = [sheet];
+  setFoot(sheet, 1, 1, false);
+  const labelOf = b => { const el = b.querySelector('.sec');
+                         return el ? el.childNodes[0].textContent.trim() : 'Report'; };
+  const newSheet = label => {
+    const next = contSheetReport(r, label);
+    sheets[sheets.length - 1].after(next);
+    setFoot(next, 1, 1, false);
+    sheets.push(next);
+    return next;
+  };
+
+  let cur = sheet;
+  for (const block of movable){
+    cur.querySelector('.foot').before(block);
+    if (fits(cur)) continue;
+    block.remove();
+    cur = newSheet(labelOf(block));
+    cur.querySelector('.foot').before(block);
+    if (fits(cur)) continue;
+
+    // still too tall on a sheet of its own: split a details table by row
+    const rowsEl = block.querySelector('.rows');
+    if (!rowsEl) continue;
+    const kids = [...rowsEl.children];
+    kids.forEach(k => k.remove());
+    let host = rowsEl;
+    for (const k of kids){
+      host.appendChild(k);
+      if (fits(cur)) continue;
+      k.remove();
+      const clone = block.cloneNode(true);
+      const hole = clone.querySelector('.rows'); hole.innerHTML = '';
+      cur = newSheet(labelOf(block));
+      cur.querySelector('.foot').before(clone);
+      host = hole;
+      host.appendChild(k);
+    }
+  }
+  sheets.forEach((sh, i) => setFoot(sh, i + 1, sheets.length, i === sheets.length - 1));
+}
+
+function render(r){
+  const S = STATES[r.state];
+
+  const metaRows = r.meta.map(([k,v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+
+
+  /* Photographs: up to INLINE_MAX print on the record page at 3-up. Beyond
+     that they move to an annex sheet at 2-up, roughly three times the area.
+     The original tried to keep five photographs beside a full job record and
+     could do neither properly - the photos were squeezed, the record spilled
+     over, and page 2 carried a lone approval table above half a page of
+     white. Splitting on purpose means page 1 is always the complete record
+     and the evidence is always big enough to read. */
+  const ph = r.photos || [];
+  const annex = ph.length > INLINE_MAX;
+  const photosHtml = (ph.length && !annex) ? `
+    <section class="block">
+      <div class="sec">Photographs <span class="n">· ${ph.length}</span></div>
+      ${photoGrid(ph, gridCols(ph.length))}
+    </section>` : (annex ? `
+    <section class="block">
+      <div class="sec">Photographs</div>
+      <div class="strip"><span class="it"><span class="k">Evidence</span><span class="v">${ph.length} photographs — see annex, page 2</span></span></div>
+    </section>` : '');
+
+  /* Job details, follow-up and client acceptance share one set of rules under
+     one heading. As three separate blocks they cost three headings, three top
+     borders and three block margins for twelve lines of text — the spacing
+     between them was bigger than most of the entries in them. The follow-up
+     and acceptance rows keep their gold labels, so they still read as a
+     different kind of entry without being a different section. */
+  const bodyHtml = `
+    <section class="block">
+      <div class="sec">Job details</div>
+      ${rows(r.details, '', r.followUp)}
+    </section>`;
+
+  const cc = r.customerComment;
+  const acceptHtml = `
+      <div class="accept">
+        <div class="sec">Customer's comment</div>
+        ${ cc && cc.text ? `
+        <div class="box">
+          <div class="quote">${esc(cc.text)}</div>
+          <div class="sig">
+            <span class="who">${esc(cc.by)}</span>${cc.title?`<span class="role">${esc(cc.title)}</span>`:''}
+            <span class="when mono">${esc(cc.at)}</span>
+          </div>
+        </div>` : `
+        <div class="box empty">No comment recorded on site.</div>` }
+      </div>`;
+
+  const trailRows = r.trail.map(t => `
+    <tr class="${t.st==='done'?'':'pending'}">
+      <td>${esc(t.role)}</td>
+      <td class="who">${esc(t.by)}</td>
+      <td><span class="dot ${t.st}"></span>${esc(t.state)}</td>
+    </tr>`).join('');
+
+  return `
+  <div class="sheet">
+    <header class="head">
+      <div class="head-id">
+        <img src="data:image/png;base64,${IMG.logo}" alt="${esc(ORG.legalName)}">
+        <div class="org"><div class="addr">${ORG.addr.map((l,i)=>i===ORG.addr.length-1&&l.includes('@')?`<span class="net">${esc(l)}</span>`:esc(l)).join('<br>')}</div></div>
+      </div>
+      <div class="head-meta"><dl>${metaRows}</dl></div>
+    </header>
+
+    <div class="rule-gold"></div>
+
+    <div class="title-row">
+      <h1>${esc(r.kind)}</h1>
+      <span class="status ${S.cls}">${esc(S.label)}</span>
+    </div>
+
+    <section class="cols">
+      <div>
+        <div class="sec">Client &amp; equipment</div>
+        ${kvTable(r.clientRows)}
+      </div>
+      <div>
+        <div class="sec">Visit record</div>
+        ${kvTable(r.qslRows)}
+      </div>
+    </section>
+
+    ${bodyHtml}
+    ${photosHtml}
+
+    <section class="close">
+      ${acceptHtml}
+      <div class="trail">
+        <div class="sec">Approval trail</div>
+        <table class="tr">
+          <thead><tr><th>Role</th><th>Name</th><th>Status</th></tr></thead>
+          <tbody>${trailRows}</tbody>
+        </table>
+      </div>
+    </section>
+
+    ${footer(r, '', 1, annex ? 2 : 1, true)}
+  </div>
+  ${annex ? annexSheet(r, 2) : ''}`;
+}
+
+document.getElementById('out').innerHTML = render(REPORT);
+/* paginate after layout exists; the photo annex pages itself */
+document.querySelectorAll('#out > .sheet').forEach(sh => { if (!sh.dataset.annex) paginateReport(sh, REPORT); });
+window.__QR_PAYLOAD__ = qrPayload(REPORT);
+</script>
+</body>
+</html>

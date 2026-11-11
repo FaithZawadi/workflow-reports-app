@@ -1,24 +1,18 @@
-import React from "react";
-import { renderToBuffer } from "@react-pdf/renderer";
-import { InvoiceDocument } from "@/pdf/InvoiceDocument";
+import { renderHtmlPdf } from "@/lib/htmlPdf";
+import { orgData, invoiceToDoc, rawB64 } from "@/lib/docData";
 import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl } from "@/lib/qr";
-import { syncCompany, getSettings } from "@/lib/settings";
+import { syncCompany } from "@/lib/settings";
 
-// Render an invoice to a PDF Buffer. Payment details follow live System Settings
-// when the invoice hasn't frozen its own.
+// Render an invoice to a PDF Buffer using the HTML document template + headless
+// Chromium. The QR is generated server-side from the document's summary text.
 export async function renderInvoicePdf(inv) {
-  const qrText = [
-    `QSL Invoice ${inv.number}`,
-    `Client: ${inv.clientName}`,
-    `Amount due: ${inv.currency} ${Number(inv.grandTotal || 0).toLocaleString()}`,
-    inv.dueDate ? `Due ${new Date(inv.dueDate).toLocaleDateString()}` : null,
-  ].filter(Boolean).join("\n");
-  const qrSrc = await qrDataUrl(qrText);
   await syncCompany();
-  const settings = await getSettings();
-  const doc = { ...inv, paymentDetails: inv.paymentDetails || settings.finance?.paymentDetails };
-  return renderToBuffer(
-    React.createElement(InvoiceDocument, { invoice: doc, logoSrc: logoDataUrl(), qrSrc })
-  );
+  const doc = invoiceToDoc(inv);
+  const qr = await qrDataUrl(doc.qrText);
+  return renderHtmlPdf("quotation-invoice", {
+    __QSL_ASSETS__: { logo: rawB64(logoDataUrl()), qr_main: rawB64(qr) },
+    __QSL_ORG__: orgData(),
+    __QSL_DOCS__: [doc],
+  });
 }

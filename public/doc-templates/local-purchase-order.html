@@ -1,0 +1,532 @@
+<!--
+  QSL Local Purchase Order (QSL-LPO-)
+  ==================================
+  Fifth document on the same system as the quotation, invoice, technical
+  report and statement. Graphite is the LPO's colour — a deliberate neutral
+  against four chromatic documents, because this is the one QSL issues rather
+  than receives.
+
+  Two sheets: the order on the front, the Conditions of Purchase overleaf.
+
+  WHY THE TERMS ARE HERE AND NOT ONLY ON AN INVOICE
+  A purchase order is the buyer's OFFER. Printing conditions on it is what
+  makes them part of the contract, because a supplier accepts by delivering.
+  Conditions that first appear on a document issued AFTER supply — an invoice,
+  a statement — normally come too late to bind anyone.
+
+  BATTLE OF THE FORMS
+  Kenya applies the English common law of contract (Law of Contract Act
+  Cap. 23 s.2), so a supplier's conflicting conditions are a counter-offer and
+  the "last shot" usually wins. Clause 1 rejects them expressly. That is the
+  same device Kenyan buyers use (Wananchi/Zuku; Science for Africa), but it is
+  not self-executing: QSL should not sign a supplier's acknowledgement that
+  re-asserts their terms.
+
+  NOT LEGAL ADVICE. Drafted from research into Kenyan statute and practice.
+  A Kenyan advocate should review this text before it is printed.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Qalibrated Systems — local purchase order</title>
+<style>
+  :root{
+    --ink:#1D1D1F; --muted:#6E6A63; --faint:#9A958C;
+    --rule:#E4E1DA; --rule-mid:#CFCABD;
+    --gold:#F2AA00; --gold-ink:#9C7214; --accred:#8A6410;
+    --flag:#B3261E; --ok:#15713F;
+    --band:#3F4448; --tint:#F7F7F8; --wash:#ECECEE;
+  }
+  @page{ size:A4; margin:0; }
+  *{ box-sizing:border-box; hyphens:none; -webkit-hyphens:none; }
+  table{ font-size:inherit; line-height:inherit; font-family:inherit; }
+  html,body{ margin:0; padding:0; background:#D8D5CE; }
+  body{
+    font-family:"Inter","Helvetica Neue",Arial,sans-serif;
+    font-size:7.3pt; line-height:1.38; color:var(--ink);
+    font-feature-settings:"tnum" 1, "cv05" 1;
+    -webkit-font-smoothing:antialiased;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .sheet{
+    width:210mm; min-height:297mm; padding:3mm 13mm 7mm;
+    margin:0 auto 8mm; background:var(--tint);
+    display:flex; flex-direction:column;
+  }
+  .sheet::before{ content:""; display:block; height:4mm; background:var(--band); margin:-3mm -13mm 3mm; }
+  @media print{ html,body{ background:#fff; } .sheet{ margin:0; page-break-after:always; }
+    .sheet:last-child{ page-break-after:auto; } }
+
+  .mono{ font-family:"Liberation Mono","DejaVu Sans Mono",monospace; font-size:6.8pt; letter-spacing:-.01em; }
+  .sec{ display:flex; align-items:center; gap:1.9mm; font-size:5.8pt; letter-spacing:.1em;
+        text-transform:uppercase; color:var(--ink); font-weight:700; line-height:1.3; }
+  .sec::before{ content:""; flex:0 0 auto; width:1.6mm; height:1.6mm; background:var(--gold); border-radius:.2mm; }
+  .sec .n{ color:var(--faint); font-weight:600; letter-spacing:.08em; }
+
+  /* ---------- header ---------- */
+  .head{ display:flex; align-items:flex-start; gap:6mm; }
+  .head-id{ flex:1 1 auto; min-width:0; display:flex; gap:4.5mm; align-items:flex-start; }
+  .head-id img{ height:12.5mm; width:auto; display:block; flex:0 0 auto; }
+  .org{ padding-top:.8mm; min-width:0; }
+  .org .addr{ font-size:6.4pt; line-height:1.5; color:var(--muted); }
+  .org .addr .net{ color:var(--gold-ink); }
+  .head-meta{ flex:0 0 58mm; }
+  .head-meta dl{ margin:0; display:grid; grid-template-columns:19mm 1fr; row-gap:1.15mm; }
+  .head-meta dt{ margin:0; font-size:5.6pt; letter-spacing:.09em; text-transform:uppercase;
+                 color:var(--faint); font-weight:600; align-self:center; }
+  .head-meta dd{ margin:0; font-size:7.1pt; font-weight:600; text-align:left; line-height:1.3; }
+  .rule-gold{ height:1.4pt; background:var(--gold); margin:1.2mm 0 0; }
+
+  .title-row{ display:flex; align-items:center; justify-content:space-between; padding:2mm 0 2.1mm; }
+  h1{ margin:0; display:inline-block; background:var(--ink); color:var(--gold);
+      font-size:12.5pt; font-weight:800; letter-spacing:.17em; text-transform:uppercase;
+      line-height:1; padding:2.1mm 4.1mm 2.1mm 4.8mm; border-radius:1.2mm; }
+  .status{ font-size:6pt; font-weight:700; letter-spacing:.13em; text-transform:uppercase;
+           border-radius:1.2mm; padding:1.6mm 2.8mm 1.6mm 3.2mm; }
+  .status.approved{ background:var(--ok); color:#fff; }
+  .status.pending { background:var(--gold); color:var(--ink); }
+  .status.cancelled{ background:#C62828; color:#fff; }
+
+  /* ---------- record tables ---------- */
+  .cols{ display:flex; gap:5mm; align-items:flex-start; margin-top:2mm; }
+  .cols > div{ flex:1 1 0; min-width:0; }
+  table.kv{ width:100%; border-collapse:collapse; margin-top:1mm; border-top:1.2pt solid var(--gold); }
+  table.kv td{ border-bottom:.5pt solid var(--rule); padding:.8mm 2.4mm; vertical-align:top; line-height:1.3; }
+  table.kv tr:last-child td{ border-bottom:.5pt solid var(--rule-mid); }
+  table.kv td.k{ width:30mm; background:var(--wash); border-right:.5pt solid var(--rule);
+    font-size:5.6pt; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  table.kv td.v.miss{ color:var(--flag); font-weight:700; }
+
+  /* ---------- items ---------- */
+  table.items{ width:100%; border-collapse:collapse; margin-top:1mm; }
+  table.items th{ font-size:5.6pt; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    font-weight:600; text-align:left; padding:0 2.4mm 1.3mm 0; border-bottom:.9pt solid var(--ink); }
+  table.items td{ padding:1.1mm 2.4mm 1.1mm 0; border-bottom:.5pt solid var(--rule); vertical-align:top; }
+  table.items tr:last-child td{ border-bottom:.5pt solid var(--rule-mid); }
+  table.items th:last-child, table.items td:last-child{ padding-right:0; }
+  .r{ text-align:right; } .c{ text-align:center; }
+  .col-no{ width:9mm; } .col-qty{ width:13mm; } .col-unit{ width:13mm; }
+  .col-rate{ width:23mm; } .col-amt{ width:25mm; }
+  td.idx{ color:var(--faint); }
+  td.fig{ font-variant-numeric:tabular-nums lining-nums; white-space:nowrap; }
+  table.items tr.cf td, table.items tr.bf td{ background:var(--wash); font-size:5.8pt;
+    letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:600; text-align:right; }
+  table.items tr.cf td.col-amt, table.items tr.bf td.col-amt{ font-size:7.3pt; letter-spacing:0;
+    text-transform:none; color:var(--ink); font-weight:700; }
+
+  /* ---------- totals ---------- */
+  .totals{ display:flex; justify-content:flex-end; margin-top:2.4mm; }
+  .totals table{ border-collapse:collapse; min-width:78mm; }
+  .totals td{ padding:.95mm 0; border-bottom:.5pt solid var(--rule); line-height:1.25; }
+  .totals td.lbl{ color:var(--muted); padding-right:8mm; }
+  .totals td.val{ text-align:right; font-variant-numeric:tabular-nums lining-nums; white-space:nowrap; }
+  .totals tr.grand td{ border-bottom:none; background:var(--ink); color:#fff; padding:1.7mm 3mm; }
+  .totals tr.grand td.lbl{ font-size:9pt; font-weight:700; letter-spacing:.075em;
+    text-transform:uppercase; color:var(--gold); white-space:nowrap; }
+  .totals tr.grand td.val{ font-size:9pt; font-weight:800; }
+
+  .strip{ display:flex; border:.5pt solid var(--rule-mid); margin-top:1mm; }
+  .strip .it{ padding:1.1mm 2.4mm; border-right:.5pt solid var(--rule);
+    display:flex; align-items:baseline; gap:2.2mm; white-space:nowrap; flex:1 1 auto; min-width:0; }
+  .strip .it:last-child{ border-right:none; }
+  .strip .k{ font-size:5.5pt; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-weight:600; }
+  .strip .v{ overflow:hidden; text-overflow:ellipsis; }
+  .block{ margin-top:2.4mm; }
+  /* free text must wrap — the inline strip is for short label/value pairs and
+     ellipsises anything longer, which silently dropped half this instruction */
+  .note{ margin-top:1mm; border:.5pt solid var(--rule-mid); padding:1.3mm 2.4mm; line-height:1.4; }
+
+  /* ---------- authorisation ---------- */
+  table.auth{ width:100%; border-collapse:collapse; margin-top:1mm; }
+  table.auth th{ font-size:5.6pt; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    font-weight:600; text-align:left; padding:0 2.4mm 1.3mm 0; border-bottom:.9pt solid var(--ink); }
+  table.auth td{ padding:1.3mm 2.4mm 1.3mm 0; border-bottom:.5pt solid var(--rule); white-space:nowrap; }
+  table.auth th:last-child, table.auth td:last-child{ text-align:right; padding-right:0; }
+  .dot{ display:inline-block; width:1.5mm; height:1.5mm; border-radius:50%; margin-right:1.8mm; vertical-align:middle; }
+  .dot.done{ background:var(--ok); } .dot.now{ background:var(--gold); } .dot.wait{ background:var(--rule-mid); }
+  table.auth tr.pending td{ color:var(--faint); }
+
+  /* ---------- red-hand notice ----------
+     Onerous conditions need prominent notice to bind: "the more unreasonable
+     a clause is, the greater the notice which must be given of it"
+     (Spurling v Bradshaw, applied in Kenya in Securicor Courier v Onyango
+     [2008] eKLR). This box is that notice, and it names the clauses. */
+  .redhand{
+    margin-top:2.4mm; border:.9pt solid var(--band); background:#fff;
+    padding:2mm 2.8mm; display:flex; gap:3mm; align-items:flex-start;
+  }
+  .redhand .mark{ flex:0 0 auto; width:3.4mm; height:3.4mm; background:var(--flag);
+    border-radius:50%; margin-top:.4mm; }
+  .redhand .t{ font-size:6.2pt; line-height:1.45; }
+  .redhand .t b{ text-transform:uppercase; letter-spacing:.05em; font-size:5.8pt; }
+
+  /* ---------- overleaf ---------- */
+  .terms-head{ display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom:1.2pt solid var(--gold); padding-bottom:1.4mm; margin-top:3mm; }
+  .terms-head h2{ margin:0; font-size:10pt; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+  .terms-head .v{ font-size:5.8pt; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); font-weight:600; }
+  .terms{ column-count:2; column-gap:7mm; margin-top:2.4mm; font-size:6.1pt; line-height:1.38; }
+  .terms .cl{ break-inside:avoid; margin-bottom:1.9mm; }
+  .terms .cl h3{ margin:0 0 .4mm; font-size:6.1pt; font-weight:700; letter-spacing:.02em; }
+  .terms .cl h3 .n{ color:var(--gold-ink); }
+  .terms .cl p{ margin:0; color:#33312E; }
+  .terms .cl.key h3{ color:var(--flag); }
+
+  /* ---------- footer ---------- */
+  .foot{ margin-top:auto; padding-top:1.5mm; }
+  .foot .legal{ font-size:6.2pt; color:var(--muted); line-height:1.4; padding-bottom:1mm; }
+  .foot .ctrl{ border-top:.8pt solid var(--gold); padding-top:1.2mm; }
+  .foot .ctrl-in{ display:grid; grid-template-columns:18mm 1fr 18mm; gap:3mm; align-items:center; }
+  .foot .ctrl-mid{ text-align:center; min-width:0; }
+  .foot .accred-foot{ font-size:6pt; font-weight:700; letter-spacing:.07em;
+    text-transform:uppercase; color:var(--accred); line-height:1.15; }
+  .foot .ctrlline{ font-size:5.9pt; color:var(--faint); margin-top:.3mm; line-height:1.15; }
+  .foot .sysnote{ font-size:5.9pt; color:var(--muted); margin-top:.35mm; line-height:1.2; }
+  .foot .fqr{ text-align:center; }
+  .foot .fqr img{ width:12mm; height:12mm; display:block; margin:0 0 0 auto; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+
+<script>
+const IMG = (window.__QSL_ASSETS__ || {});
+
+const ORG = window.__QSL_ORG__ || {
+  legalName:'Qalibrated Systems Limited',
+  accred:'ISO 9001:2015 Certified (TNV)  |  ISO/IEC 17025:2017 Accredited (KENAS)  |  ILAC-MRA',
+  addr:['QSL Centre, Birdi Singh Complex',
+        'P.O. Box 34463-00100, Nairobi',
+        '+254 714 999 996 / 756 999 996',
+        'procurement@qalibrated.com  ·  www.qalibrated.com'],
+  pin:'P051889248C',
+  system:'QaliMetric v2.4',
+  sysNote:'System-generated document — No physical signature required. Issued subject to the Conditions of Purchase overleaf.',
+};
+
+const LPO = {
+  ref:'QSL-LPO-2026-00231',
+  rev:'GTB v1.0',
+  state:'approved',                                   // approved | pending | cancelled
+  currency:'KES',
+  meta:[ ['LPO no.','QSL-LPO-2026-00231'], ['Date','10 Nov 2026'], ['Required by','24 Nov 2026'] ],
+
+  supplier:[
+    ['Supplier','Scaleparts East Africa Ltd'],
+    ['Contact','Mercy Wanjiru'],
+    ['Tel.','0733 410 882'],
+    ['PIN no.','P051' + '772310M'],
+  ],
+  order:[
+    ['Deliver to','QSL Centre, Birdi Singh Complex, Nairobi'],
+    ['Delivery date','24 Nov 2026'],
+    ['Payment terms','30 days from valid eTIMS invoice'],
+    ['Your quotation','SPE/Q/2026/1184'],
+    ['Buyer','Procurement — QSL'],
+  ],
+
+  items:[
+    ['Load cell, 30 t compression, IP68, stainless, c/w 15 m cable', '8', 'EA', '46,500.00', '372,000.00'],
+    ['Junction box, 8-channel, IP67, with surge protection',          '1', 'EA', '38,400.00', '38,400.00'],
+    ['Signal cable, 6-core screened, per metre',                      '120','M',  '420.00',    '50,400.00'],
+    ['Weighbridge indicator, OIML R76 approved, Type approval ref. to be supplied', '1','EA','96,000.00','96,000.00'],
+  ],
+  sums:[ ['Subtotal','556,800.00'], ['VAT (16%)','89,088.00'] ],
+  grand:['Order total · KES','645,888.00'],
+
+  notes:'Deliver between 08:00 and 16:00, Monday to Friday. Quote the LPO number on the delivery note and on the invoice. Type approval reference for the indicator must be supplied before delivery.',
+
+  auth:[
+    { role:'Raised by',  by:'Procurement',    state:'Submitted', st:'done' },
+    { role:'Approved by',by:'Dennis Ngetich — CFO', state:'Approved', st:'done' },
+    { role:'Noted by',   by:'Henry Adar — MD', state:'For oversight', st:'now' },
+  ],
+};
+
+/* The Conditions of Purchase. `key:true` marks the clauses that the notice on
+   the front specifically draws attention to. */
+const TERMS = [
+ ['Formation and precedence', 'This order is QSL’s offer. The supplier accepts it by acknowledging it or by delivering, whichever is earlier. These Conditions govern to the exclusion of any terms the supplier puts forward, whether in a quotation, acknowledgement, delivery note or invoice, and any such terms are rejected. Variations bind QSL only if issued in writing by QSL Procurement.', 1],
+ ['Price', 'The price stated is firm and inclusive of packing, loading, delivery to the stated point, and all duties and levies, unless the order says otherwise. No increase, surcharge or additional charge is payable without QSL’s prior written approval.', 0],
+ ['Delivery', 'Time is of the essence. Goods must be delivered on the date and to the point stated, within QSL’s stated receiving hours. The supplier shall notify QSL in writing as soon as it becomes aware that a delivery date may be missed. Partial and over-deliveries are accepted only with QSL’s prior written agreement; over-delivered goods may be returned at the supplier’s cost.', 0],
+ ['Documentation', 'The LPO number must appear on the delivery note, packing list and invoice. Each consignment must carry an itemised packing list. Test certificates, type approval references, material certificates and manufacturer warranties must be supplied with the goods where the order calls for them.', 0],
+ ['Inspection and rejection', 'QSL may inspect before and after delivery. Goods not conforming to the order may be rejected within 7 days of delivery for apparent defects, and at any time within the warranty period for defects not reasonably apparent on inspection. Signature of a delivery note records receipt only and is not acceptance. Rejected goods are returned at the supplier’s cost and risk, and may not be redelivered without QSL’s written approval.', 0],
+ ['Title and risk', 'Title and risk pass to QSL on acceptance at the delivery point. Where QSL has paid in advance, title passes on payment and the supplier holds the goods as bailee, identified as QSL property. Title and risk in rejected goods remain with the supplier throughout.', 0],
+ ['Invoicing and tax', 'The supplier shall issue a valid electronic tax invoice generated and transmitted through KRA eTIMS, quoting the LPO number and the supplier’s PIN, and showing tax separately. QSL is not obliged to pay against an invoice that is not eTIMS-compliant, and the supplier shall indemnify QSL for any deduction disallowed by reason of a non-compliant invoice. QSL shall deduct withholding tax where the law requires and shall furnish the certificate.', 1],
+ ['Payment', 'Payment of undisputed amounts falls due 30 days from receipt of a valid invoice, or as stated on the order. The payment period runs from the later of receipt of a valid invoice and acceptance of the goods. QSL may withhold disputed amounts in good faith without interest or breach, and shall pay the balance.', 0],
+ ['Warranties', 'The supplier warrants that the goods conform to the order and specification, are of merchantable quality and fit for the purpose made known, are new unless stated otherwise, are free from defects in material and workmanship, are unencumbered, and comply with all applicable Kenyan law and standards. Where goods are to be incorporated into equipment used for trade, they shall comply with the Weights and Measures Act (Cap. 513) and carry any type approval the Director of Weights and Measures requires. Manufacturer warranties are assigned to QSL.', 0],
+ ['Warranty period and remedy', 'Goods are warranted for 12 months from acceptance, or the manufacturer’s period if longer. On breach QSL may require repair, replacement, re-performance or a refund, at QSL’s option and at the supplier’s cost, within 14 days of notice. Repaired or replaced goods carry a fresh warranty period. If the supplier fails to act within that time QSL may remedy the breach at the supplier’s expense.', 0],
+ ['Delay', 'If delivery is late QSL may, without prejudice to its other rights, require expedited delivery at the supplier’s cost, procure substitute goods and recover the extra cost, or cancel the undelivered balance. Where the order states a sum for delay, that sum is a genuine pre-estimate of the cost to QSL of standing down labour and plant and of delaying the end client, and is not a penalty.', 0],
+ ['Indemnity', 'The supplier shall indemnify QSL against all claims, losses and expenses arising from death or injury, damage to property, infringement of intellectual property, or the supplier’s negligence, breach or default, except to the extent caused by QSL.', 0],
+ ['Insurance', 'The supplier shall maintain public liability insurance and, for personnel attending any QSL or client site, cover under the Work Injury Benefits Act, together with motor insurance for vehicles entering site. Evidence shall be produced on request before attendance.', 0],
+ ['Site conduct and safety', 'Personnel attending a QSL or client site shall comply with the Occupational Safety and Health Act 2007, the site rules, and any permit-to-work and induction requirement. QSL may remove from site any person who does not.', 0],
+ ['Subcontracting and assignment', 'The supplier shall not subcontract or assign any part of the order without QSL’s prior written consent, and remains responsible for the acts and omissions of any approved subcontractor.', 0],
+ ['Confidentiality, IP and data', 'Drawings, specifications and technical information supplied by QSL remain QSL’s property and are confidential, to be used only to perform the order and returned or destroyed on completion. The supplier shall not publicise the order or use QSL’s name without written consent. Personal data exchanged under the order is processed in accordance with the Data Protection Act 2019.', 0],
+ ['Integrity', 'Neither party shall offer or accept any inducement, gift or advantage in connection with the order. The supplier shall comply with the Bribery Act 2016 and shall disclose any interest that conflicts, or might be seen to conflict, with QSL’s interests. Breach entitles QSL to terminate immediately.', 0],
+ ['Set-off', 'QSL may set off against any sum due to the supplier any sum the supplier owes QSL under this or any other order.', 1],
+ ['Termination', 'QSL may terminate the order in whole or in part: for convenience on written notice, paying for goods accepted and work properly done up to termination, with no liability for loss of profit; or immediately for the supplier’s material breach, repeated late delivery, or insolvency, receivership or analogous event.', 1],
+ ['Force majeure', 'Neither party is liable for delay caused by events beyond its reasonable control. The affected party shall notify the other promptly. If the event continues for more than 30 days either party may cancel the undelivered balance without liability.', 0],
+ ['Governing law and disputes', 'This order is governed by the laws of Kenya. The parties shall first attempt settlement by negotiation. Failing that, disputes are subject to the jurisdiction of the Kenyan courts, save that where the supplier is not resident in Kenya the dispute shall be referred to arbitration under the Nairobi Centre for International Arbitration Rules, seat Nairobi, in English, before a sole arbitrator.', 0],
+ ['General', 'No waiver of any breach is a waiver of any other. If any provision is held invalid the remainder continues in force. Notices shall be in writing to the addresses on the order. These Conditions and the order are the entire agreement between the parties for this purchase and supersede any prior understanding.', 0],
+];
+
+/* -------------------------------------------------------------- render */
+const esc = s => String(s==null?'':s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const STATES = { approved:{cls:'approved',label:'Approved'},
+                 pending:{cls:'pending',label:'Pending approval'},
+                 cancelled:{cls:'cancelled',label:'Cancelled'} };
+
+const money = {
+  parse: t => parseFloat(String(t).replace(/[^0-9.\-]/g,'')) || 0,
+  fmt  : n => n.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}),
+};
+
+function mast(){
+  return `
+    <header class="head">
+      <div class="head-id">
+        <img src="data:image/png;base64,${IMG.logo}" alt="${esc(ORG.legalName)}">
+        <div class="org"><div class="addr">${ORG.addr.map(l =>
+          l.includes('@') ? `<span class="net">${esc(l)}</span>` : esc(l)).join('<br>')}</div></div>
+      </div>`;
+}
+
+function footerHtml(d, page, of, last, qr){
+  return `
+    <footer class="foot">
+      ${last ? `<div class="legal">Issued subject to the QSL Conditions of Purchase overleaf (${esc(d.rev)}). Quote the LPO number on all correspondence, delivery notes and invoices.</div>` : ''}
+      <div class="ctrl">
+        <div class="ctrl-in">
+          <div></div>
+          <div class="ctrl-mid">
+            <div class="accred-foot">${esc(ORG.accred)}</div>
+            <div class="ctrlline mono">${esc(ORG.legalName)} · ${esc(d.ref)} · ${esc(ORG.system)} · Page ${page} of ${of}</div>
+            <div class="sysnote">${esc(ORG.sysNote)}</div>
+          </div>
+          <div class="fqr">${ qr ? `<img src="data:image/png;base64,${IMG.qr}" alt="Order summary code">` : '' }</div>
+        </div>
+      </div>
+    </footer>`;
+}
+
+function kvTable(rows){
+  return `<table class="kv"><tbody>${rows.map(([k,v,bad]) =>
+    `<tr><td class="k">${esc(k)}</td><td class="v${bad?' miss':''}">${esc(v)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function renderOrder(d){
+  const S = STATES[d.state];
+  const meta = d.meta.map(([k,v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+  const items = d.items.map(([desc,qty,unit,rate,amt], i) => `
+    <tr>
+      <td class="idx c col-no">${i+1}</td>
+      <td>${esc(desc)}</td>
+      <td class="c col-qty">${esc(qty)}</td>
+      <td class="c col-unit">${esc(unit)}</td>
+      <td class="fig r col-rate">${esc(rate)}</td>
+      <td class="fig r col-amt">${esc(amt)}</td>
+    </tr>`).join('');
+  const sums = d.sums.map(([k,v]) =>
+    `<tr><td class="lbl">${esc(k)}</td><td class="val">${esc(v)}</td></tr>`).join('');
+  const auth = d.auth.map(a => `
+    <tr class="${a.st==='done'?'':'pending'}">
+      <td>${esc(a.role)}</td><td>${esc(a.by)}</td>
+      <td><span class="dot ${a.st}"></span>${esc(a.state)}</td>
+    </tr>`).join('');
+
+  const keyNums = TERMS.map((t,i) => t[2] ? i+1 : 0).filter(Boolean);
+
+  return `
+  <div class="sheet">
+    ${mast()}
+      <div class="head-meta"><dl>${meta}</dl></div>
+    </header>
+    <div class="rule-gold"></div>
+
+    <div class="title-row">
+      <h1>Purchase Order</h1>
+      <span class="status ${S.cls}">${esc(S.label)}</span>
+    </div>
+
+    <section class="cols">
+      <div><div class="sec">Supplier</div>${kvTable(d.supplier)}</div>
+      <div><div class="sec">Order details</div>${kvTable(d.order)}</div>
+    </section>
+
+    <section class="block">
+      <div class="sec">Items <span class="n">· ${d.items.length}</span></div>
+      <table class="items">
+        <thead><tr>
+          <th class="col-no c">No</th><th>Description</th>
+          <th class="col-qty c">Qty</th><th class="col-unit c">Unit</th>
+          <th class="col-rate r">Rate</th><th class="col-amt r">Amount</th>
+        </tr></thead>
+        <tbody>${items}</tbody>
+      </table>
+    </section>
+
+    <div class="tail">
+      <div class="totals"><table><tbody>${sums}
+        <tr class="grand"><td class="lbl">${esc(d.grand[0])}</td><td class="val">${esc(d.grand[1])}</td></tr>
+      </tbody></table></div>
+
+      <section class="block">
+        <div class="sec">Delivery instructions</div>
+        <div class="note">${esc(d.notes)}</div>
+      </section>
+
+      <section class="block">
+        <div class="sec">Authorisation</div>
+        <table class="auth">
+          <thead><tr><th>Role</th><th>Name</th><th>Status</th></tr></thead>
+          <tbody>${auth}</tbody>
+        </table>
+      </section>
+
+      <div class="redhand">
+        <span class="mark"></span>
+        <div class="t">
+          <b>Your attention is drawn to the Conditions of Purchase overleaf</b><br>
+          Acceptance of this order, or delivery against it, is acceptance of those Conditions and
+          of no others. Note in particular clause ${keyNums.join(', clause ')} —
+          ${TERMS.filter(t=>t[2]).map(t=>esc(t[0].toLowerCase())).join(', ')}.
+        </div>
+      </div>
+    </div>
+
+    ${footerHtml(d, 1, 2, true, true)}
+  </div>`;
+}
+
+function renderTerms(d){
+  const cl = TERMS.map(([h,body,key], i) => `
+    <div class="cl${key?' key':''}">
+      <h3><span class="n">${i+1}.</span> ${esc(h)}</h3>
+      <p>${esc(body)}</p>
+    </div>`).join('');
+  return `
+  <div class="sheet" data-terms="1">
+    ${mast()}
+      <div class="head-meta"><dl>
+        <dt>LPO no.</dt><dd>${esc(d.ref)}</dd>
+        <dt>Terms</dt><dd>${esc(d.rev)}</dd>
+      </dl></div>
+    </header>
+    <div class="rule-gold"></div>
+    <div class="terms-head">
+      <h2>Conditions of Purchase</h2>
+      <span class="v">${esc(d.rev)} · applies to all QSL purchase orders</span>
+    </div>
+    <div class="terms">${cl}</div>
+    ${footerHtml(d, 2, 2, false, false)}
+  </div>`;
+}
+
+document.getElementById('out').innerHTML = renderOrder(LPO) + renderTerms(LPO);
+
+/* ------------------------------------------------------- pagination
+   Items page the same way as the quotation's: measured, with a subtotal
+   carried forward. The Conditions sheet is excluded and always printed last,
+   and page numbering counts it. */
+function paginateLPO(sheet, d){
+  const MAX = 297 * (96/25.4);
+  const fits = el => el.scrollHeight <= MAX + 0.5;
+  const tbodyOf = sh => sh.querySelector('table.items tbody');
+  const setFoot = (sh, page, of, last, qr) => {
+    const f = sh.querySelector('.foot'); if (f) f.remove();
+    sh.insertAdjacentHTML('beforeend', footerHtml(d, page, of, last, qr));
+  };
+  const runningTotal = sh => [...tbodyOf(sh).children]
+    .filter(r => !r.classList.contains('cf'))
+    .reduce((t, r) => t + money.parse(r.lastElementChild.textContent), 0);
+
+  const tail = sheet.querySelector('.tail');
+  tail.remove();
+  const rows = [...tbodyOf(sheet).children];
+  rows.forEach(r => r.remove());
+
+  const sheets = [sheet];
+  setFoot(sheet, 1, 2, false, false);
+
+  const contSheet = bf => {
+    const el = document.createElement('div');
+    el.className = 'sheet';
+    el.innerHTML = `
+      ${mast()}
+        <div class="head-meta"><dl>
+          <dt>LPO no.</dt><dd>${esc(d.ref)}</dd>
+          <dt>Supplier</dt><dd>${esc(d.supplier[0][1])}</dd>
+        </dl></div>
+      </header>
+      <div class="rule-gold"></div>
+      <section class="block" style="margin-top:3mm">
+        <div class="sec">Items <span class="n">· continued</span></div>
+        <table class="items">
+          <thead><tr>
+            <th class="col-no c">No</th><th>Description</th>
+            <th class="col-qty c">Qty</th><th class="col-unit c">Unit</th>
+            <th class="col-rate r">Rate</th><th class="col-amt r">Amount</th>
+          </tr></thead>
+          <tbody><tr class="bf"><td colspan="5">Subtotal brought forward</td><td class="col-amt">${bf}</td></tr></tbody>
+        </table>
+      </section>`;
+    return el;
+  };
+
+  const carryOver = () => {
+    const from = sheets[sheets.length - 1];
+    const cf = document.createElement('tr');
+    cf.className = 'cf';
+    const sync = () => {
+      const sub = runningTotal(from);
+      cf.innerHTML = `<td colspan="5">Subtotal carried forward</td><td class="col-amt">${money.fmt(sub)}</td>`;
+      return money.fmt(sub);
+    };
+    tbodyOf(from).appendChild(cf);
+    let sub = sync();
+    const moved = [];
+    while (!fits(from) && cf.previousElementSibling && !cf.previousElementSibling.classList.contains('bf')){
+      const r = cf.previousElementSibling; r.remove(); moved.unshift(r); sub = sync();
+    }
+    const next = contSheet(sub);
+    from.after(next);
+    setFoot(next, 1, 2, false, false);
+    sheets.push(next);
+    moved.forEach(r => tbodyOf(next).appendChild(r));
+    return next;
+  };
+
+  let cur = sheet;
+  for (const r of rows){
+    tbodyOf(cur).appendChild(r);
+    if (!fits(cur)){ r.remove(); cur = carryOver(); tbodyOf(cur).appendChild(r); }
+  }
+  const closeOut = sh => { setFoot(sh, 1, 2, true, true); sh.querySelector('.foot').before(tail); };
+  closeOut(cur);
+  let guard = 0;
+  while (!fits(cur) && tbodyOf(cur).children.length > 1 && guard++ < 400){
+    const last = tbodyOf(cur).lastElementChild;
+    last.remove(); tail.remove();
+    cur = carryOver();
+    tbodyOf(cur).appendChild(last);
+    closeOut(cur);
+  }
+
+  const total = sheets.length + 1;                       // + the Conditions sheet
+  sheets.forEach((sh, i) => setFoot(sh, i + 1, total, i === sheets.length - 1, i === sheets.length - 1));
+  if (tail.parentNode !== sheets[sheets.length - 1]) sheets[sheets.length - 1].querySelector('.foot').before(tail);
+  const terms = document.querySelector('.sheet[data-terms]');
+  if (terms){ const f = terms.querySelector('.foot'); if (f) f.remove();
+    terms.insertAdjacentHTML('beforeend', footerHtml(d, total, total, false, false)); }
+}
+
+paginateLPO(document.querySelector('#out > .sheet'), LPO);
+window.__QR_PAYLOAD__ = [
+  'QSL Purchase Order', LPO.ref + ' · ' + LPO.supplier[0][1],
+  'Order total ' + LPO.currency + ' ' + LPO.grand[1],
+  'Required by ' + LPO.meta[2][1],
+].join('\n');
+</script>
+</body>
+</html>

@@ -1,0 +1,608 @@
+<!--
+  QSL Statement of Account
+  =======================
+  Fourth document on the same system as the quotation, invoice and technical
+  report: Inter with tabular figures, hairline rules, gold-on-black title
+  badge, coloured head band, one accreditation footer, QR bottom-right.
+  Plum is the statement's colour, distinct from slate blue (quotation),
+  bronze (invoice) and teal (technical report).
+
+  Structural changes vs. the source statement:
+
+   1. Two pages -> one. The source spent two sheets on eleven rows and left
+      the second about eighty per cent white. Nothing was cut.
+   2. Dates lose the weekday. "Wed, January 01, 2025" wrapped onto two lines
+      and set the row height for the whole table; "01 Jan 2025" does not wrap.
+      Nobody reconciling a ledger needs to know it was a Wednesday.
+   3. "- due on <date>" removed from every Details cell. It repeated the row's
+      own date in all eleven rows, and it was the second thing forcing a
+      two-line wrap. A due date now prints ONLY where it differs from the
+      transaction date, which is the only case where it carries information.
+   4. Amount/Payments -> Debit/Credit. The source's Payments column read 0.00
+      on every single row: payments were being written into Amount as negative
+      numbers in brackets. One column carried no information at all while the
+      other carried two meanings. Debit and credit is how a statement is read.
+   5. Aging summary kept, but the overdue buckets are picked out - on a
+      statement chasing KES 20m, the number you act on is what has aged past
+      90 days, and in the source it was the quietest figure on the page.
+   6. Payment details added. A statement exists to be paid against; the source
+      did not say where to send the money.
+   7. Balance due is the one strongly filled block on the page, as the grand
+      total is on the quotation.
+
+  Assets are injected as data URIs by the build so the file is self-contained.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Qalibrated Systems — statement of account</title>
+<style>
+  :root{
+    --ink:#1D1D1F;
+    --muted:#6E6A63;
+    --faint:#9A958C;
+    --rule:#E4E1DA;
+    --rule-mid:#CFCABD;
+    --gold:#F2AA00;
+    --gold-ink:#9C7214;
+    --accred:#8A6410;      /* deeper than brand gold: AA at 6pt bold */
+    --paper:#FFFFFF;
+    --flag:#B3261E;
+    --credit:#15713F;
+    /* statement colour coding */
+    --band:#6E3B5C;
+    --tint:#FBF7FA;
+    --wash:#F4ECF2;
+  }
+
+  @page{ size:A4; margin:0; }
+  *{ box-sizing:border-box; hyphens:none; -webkit-hyphens:none; }
+  table{ font-size:inherit; line-height:inherit; font-family:inherit; }
+  html,body{ margin:0; padding:0; background:#D8D5CE; }
+
+  body{
+    font-family:"Inter","Helvetica Neue",Arial,sans-serif;
+    font-size:7.3pt; line-height:1.38; color:var(--ink);
+    font-feature-settings:"tnum" 1, "cv05" 1;
+    -webkit-font-smoothing:antialiased;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+
+  .sheet{
+    width:210mm; min-height:297mm;
+    padding:3mm 13mm 7mm;
+    margin:0 auto 8mm;
+    background:var(--tint);
+    display:flex; flex-direction:column;
+  }
+  .sheet::before{
+    content:""; display:block; height:4mm; background:var(--band);
+    margin:-3mm -13mm 3mm;
+  }
+  @media print{
+    html,body{ background:#fff; }
+    .sheet{ margin:0; page-break-after:always; }
+    .sheet:last-child{ page-break-after:auto; }
+  }
+
+  .mono{ font-family:"Liberation Mono","DejaVu Sans Mono",monospace; font-size:6.8pt; letter-spacing:-.01em; }
+  .num{ font-variant-numeric:tabular-nums lining-nums; }
+
+  .sec{
+    display:flex; align-items:center; gap:1.9mm;
+    font-size:5.8pt; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--ink); font-weight:700; line-height:1.3;
+  }
+  .sec::before{ content:""; flex:0 0 auto; width:1.6mm; height:1.6mm; background:var(--gold); border-radius:.2mm; }
+  .sec .n{ color:var(--faint); font-weight:600; letter-spacing:.08em; }
+
+  /* ---------- header ---------- */
+  .head{ display:flex; align-items:flex-start; gap:6mm; }
+  .head-id{ flex:1 1 auto; min-width:0; display:flex; gap:4.5mm; align-items:flex-start; }
+  .head-id img{ height:12.5mm; width:auto; display:block; flex:0 0 auto; }
+  .org{ padding-top:.8mm; min-width:0; }
+  .org .addr{ font-size:6.4pt; line-height:1.5; color:var(--muted); }
+  .org .addr .net{ color:var(--gold-ink); }
+  .head-meta{ flex:0 0 58mm; }
+  .head-meta dl{ margin:0; display:grid; grid-template-columns:19mm 1fr; row-gap:1.15mm; }
+  .head-meta dt{ margin:0; font-size:5.6pt; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-weight:600; align-self:center; }
+  .head-meta dd{ margin:0; font-size:7.1pt; font-weight:600; text-align:left; line-height:1.3; }
+
+  .rule-gold{ height:1.4pt; background:var(--gold); margin:1.2mm 0 0; }
+
+  /* ---------- title ---------- */
+  .title-row{ display:flex; align-items:center; justify-content:space-between; padding:2mm 0 2.1mm; }
+  h1{
+    margin:0; display:inline-block; background:var(--ink); color:var(--gold);
+    font-size:12.5pt; font-weight:800; letter-spacing:.17em; text-transform:uppercase;
+    line-height:1; padding:2.1mm 4.1mm 2.1mm 4.8mm; border-radius:1.2mm;
+  }
+  .status{
+    font-size:6pt; font-weight:700; letter-spacing:.13em; text-transform:uppercase;
+    border-radius:1.2mm; padding:1.6mm 2.8mm 1.6mm 3.2mm;
+  }
+  .status.current { background:#15713F; color:#FFFFFF; }
+  .status.pastdue { background:#C62828; color:#FFFFFF; }
+  .status.settled { background:var(--ink);  color:#FFFFFF; }
+
+  /* ---------- the two record tables ---------- */
+  .cols{ display:flex; gap:5mm; align-items:flex-start; margin-top:2mm; }
+  .cols > div{ flex:1 1 0; min-width:0; }
+  table.kv{ width:100%; border-collapse:collapse; margin-top:1mm; border-top:1.2pt solid var(--gold); }
+  table.kv td{ border-bottom:.5pt solid var(--rule); padding:.8mm 2.4mm; vertical-align:top; line-height:1.3; }
+  table.kv tr:last-child td{ border-bottom:.5pt solid var(--rule-mid); }
+  table.kv td.k{
+    width:30mm; background:var(--wash); border-right:.5pt solid var(--rule);
+    font-size:5.6pt; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--muted); font-weight:600;
+  }
+  table.kv td.v{ }   /* values set at normal weight: the uppercase muted label
+                       and the washed gutter already separate label from value */
+  table.kv td.v.n{ text-align:right; }
+
+  /* ---------- transactions ---------- */
+  table.tx{ width:100%; border-collapse:collapse; margin-top:1mm; }
+  table.tx th{
+    font-size:5.6pt; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    font-weight:600; text-align:left; padding:0 2.4mm 1.3mm 0; border-bottom:.9pt solid var(--ink);
+  }
+  table.tx td{ padding:1.1mm 2.4mm 1.1mm 0; border-bottom:.5pt solid var(--rule); vertical-align:top; }
+  table.tx tr:last-child td{ border-bottom:.5pt solid var(--rule-mid); }
+  table.tx .r{ text-align:right; }
+  table.tx th:last-child, table.tx td:last-child{ padding-right:0; }
+  .col-date{ width:20mm; } .col-type{ width:21mm; }
+  /* Figure columns sized to the widest figure actually printed
+     (15,160,968.00 = 18.75mm at 7.3pt) plus cell padding, rather than to a
+     round guess. The 18mm that frees goes to Reference, which gains ~29%,
+     and the figures sit hard against the right margin. */
+  .col-dr{ width:21.5mm; } .col-cr{ width:21.5mm; } .col-bal{ width:20mm; }
+  td.date{ white-space:nowrap; color:var(--muted); }
+  td.ref{ overflow-wrap:anywhere; }
+  td.ref .due{ font-weight:400; color:var(--faint); white-space:nowrap; }
+  td.fig{ font-variant-numeric:tabular-nums lining-nums; white-space:nowrap; }
+  td.fig.cr{ color:var(--credit); }   /* green already marks a credit; weight as well is one signal too many */
+  td.bal{ font-variant-numeric:tabular-nums lining-nums; white-space:nowrap; }
+  td.bal.neg{ color:var(--credit); }
+  /* carried / brought forward: a marker row, set apart from movements */
+  tr.cf td, tr.bf td{ background:var(--wash); font-size:5.8pt; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--muted); font-weight:600; }
+  tr.cf td.bal, tr.bf td.bal{ font-size:7.3pt; letter-spacing:0; text-transform:none; color:var(--ink); }
+
+  /* an opening balance is a marker, not a movement */
+  tr.open td{ color:var(--faint); }
+  tr.open td.ref{ font-weight:600; letter-spacing:.06em; text-transform:uppercase; font-size:5.8pt; }
+  .type{
+    display:inline-block; font-size:5.5pt; letter-spacing:.07em; text-transform:uppercase;
+    font-weight:700; padding:.5mm 1.5mm; border-radius:.8mm; white-space:nowrap;
+  }
+  .type.inv{ background:var(--wash); color:var(--band); }
+  .type.pay{ background:#E7F1EA; color:var(--credit); }
+  .type.opn{ background:transparent; color:var(--faint); padding-left:0; }
+
+  /* ---------- balance due ---------- */
+  .due-bar{
+    margin-top:2.4mm; background:var(--ink); color:#FFFFFF;
+    display:flex; align-items:baseline; justify-content:space-between;
+    padding:2.6mm 4mm; border-radius:1.2mm;
+  }
+  .due-bar .lbl{
+    font-size:9pt; font-weight:700; letter-spacing:.075em; text-transform:uppercase;
+    color:var(--gold); white-space:nowrap;
+  }
+  .due-bar .asof{ font-size:5.8pt; letter-spacing:.06em; text-transform:uppercase; color:#B9B4AA; margin-left:3mm; }
+  .due-bar .val{ font-size:11.5pt; font-weight:800; letter-spacing:-.01em; font-variant-numeric:tabular-nums lining-nums; }
+
+  /* ---------- aging ---------- */
+  .strip{ display:flex; border:.5pt solid var(--rule-mid); margin-top:1mm; }
+  .strip .it{
+    padding:1.3mm 2.4mm; border-right:.5pt solid var(--rule);
+    flex:1 1 0; min-width:0; white-space:nowrap;
+  }
+  .strip .it:last-child{ border-right:none; }
+  .strip .k{ display:block; font-size:5.5pt; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-weight:600; }
+  .strip .v{ display:block; font-weight:600; margin-top:.5mm; font-variant-numeric:tabular-nums lining-nums; }
+  /* zero buckets recede; aged money is picked out, because that is the part
+     of an aging summary anyone acts on */
+  .strip .it.zero .v{ color:var(--faint); font-weight:400; }
+  .strip .it.aged{ background:#FBEDEC; }
+  .strip .it.aged .v{ color:var(--flag); font-weight:700; }
+  .strip .it.total{ background:var(--wash); }
+  .strip .it.total .v{ font-weight:800; }
+
+  /* ---------- payment details ---------- */
+  .pay .strip{ margin-top:1mm; }
+  /* size payment cells from their content, then share what is left: with
+     flex:1 1 0 all four cells are equal and the account name — the one value
+     that must be transcribed exactly for a transfer — is the one that
+     truncates */
+  .pay .strip .it{ display:flex; align-items:baseline; gap:2.2mm; flex:1 1 auto; }
+  .pay .strip .k{ display:inline; margin:0; }
+  .pay .strip .v{ display:inline; margin:0; overflow:hidden; text-overflow:ellipsis; }
+  .block{ margin-top:2.4mm; }
+
+  /* ---------- footer ---------- */
+  .foot{ margin-top:auto; padding-top:1.5mm; }
+  .foot .legal{ font-size:6.2pt; color:var(--muted); line-height:1.4; padding-bottom:1mm; }
+  .foot .ctrl{ border-top:.8pt solid var(--gold); padding-top:1.2mm; }
+  .foot .ctrl-in{ display:grid; grid-template-columns:18mm 1fr 18mm; gap:3mm; align-items:center; }
+  .foot .ctrl-mid{ text-align:center; min-width:0; }
+  .foot .accred-foot{ font-size:6pt; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--accred); line-height:1.15; }
+  .foot .ctrlline{ font-size:5.9pt; color:var(--faint); margin-top:.3mm; line-height:1.15; }
+  .foot .sysnote{ font-size:5.9pt; color:var(--muted); margin-top:.35mm; line-height:1.2; }
+  .foot .fqr{ text-align:center; }
+  .foot .fqr img{ width:12mm; height:12mm; display:block; margin:0 0 0 auto; }
+  .foot .fqr .cap{ font-size:5.2pt; letter-spacing:.07em; text-transform:uppercase; color:var(--faint); font-weight:600; margin-top:.5mm; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+
+<script>
+const IMG = (window.__QSL_ASSETS__ || {});
+
+const ORG = window.__QSL_ORG__ || {
+  legalName:'Qalibrated Systems Limited',
+  accred :'ISO 9001:2015 Certified (TNV)  |  ISO/IEC 17025:2017 Accredited (KENAS)  |  ILAC-MRA',
+  /* The source statement carried accounts@qalibrated.co.ke and
+     www.qalibrated.co.ke while the quotation, invoice and report all use
+     .com. The accounts@ mailbox is a real and sensible difference on a
+     statement — queries about a ledger should not go to info@ — so it is
+     kept; the DOMAIN is brought into line. Confirm which domain the
+     accounting system should be sending. */
+  addr   :['QSL Centre, Birdi Singh Complex',
+           'P.O. Box 34463-00100, Nairobi',
+           '+254 714 999 996 / 756 999 996',
+           'accounts@qalibrated.com  ·  www.qalibrated.com'],
+  pin    :'P051889248C',
+  system :'QaliMetric v2.4',
+  systemNote:'System-generated — No physical signature required. Balances exclude payments received after the date shown.',
+  payRow :[ ['Account name','Qalibrated Systems Limited'], ['Bank','Kenya Commercial Bank'],
+            ['Branch','Industrial Area'], ['Account no.','1319820654'] ],
+  payStrip:[ ['Paybill','522522'], ['Bank code','01'], ['Branch code','113'], ['PIN no.','P051889248C'] ],
+};
+
+const STATEMENTS = window.__QSL_STATEMENTS__ || [
+{
+  /* Reference inferred from the source filename (…AEALIMITED_14). Neither
+     source statement carried a reference of its own, which means a client
+     cannot cite one when querying a line. Wire these to the real series. */
+  ref:'QSL-STM-2026-00014',
+  qr:'qr1',
+  from:'01 Jan 2025', to:'04 Nov 2026', asOf:'04 Nov 2026',
+  currency:'KES',
+
+  client:{
+    name:'AEA Limited',
+    /* Source read "Nairobi / 00100 Nairobi / Kenya" over three lines — a
+       data-entry artefact repeating the city. Collapsed. */
+    lines:['34 Factory Street','P.O. Box 30417-00100, Nairobi, Kenya'],
+    pin:'P000594445X',
+  },
+
+  summary:[ ['Opening balance','0.00'], ['Invoiced','20,499,288.00'], ['Paid','444,280.00'] ],
+  balanceDue:'20,055,008.00',
+
+  /* due: printed only when it differs from the row date. In both statements
+     every invoice falls due on the day it is raised, so none print. */
+  tx:[
+    { date:'01 Jan 2025', type:'opn', ref:'Opening balance',    bal:'0.00' },
+    { date:'29 May 2025', type:'pay', ref:'RECEIPT30077',        cr:'84,680.00',     bal:'-84,680.00', neg:true },
+    { date:'18 Jun 2025', type:'inv', ref:'KRACU020010632332',   dr:'139,200.00',    bal:'54,520.00' },
+    { date:'18 Jun 2025', type:'inv', ref:'KRACU020010632333',   dr:'803,880.00',    bal:'858,400.00' },
+    { date:'12 Sep 2025', type:'inv', ref:'KRACU020010632381',   dr:'313,200.00',    bal:'1,171,600.00' },
+    { date:'15 Sep 2025', type:'inv', ref:'QSL15092025',         dr:'134,560.00',    bal:'1,306,160.00' },
+    { date:'19 Sep 2025', type:'inv', ref:'INV91031',            dr:'98,600.00',     bal:'1,404,760.00' },
+    { date:'23 Sep 2025', type:'inv', ref:'INV91032',            dr:'20,880.00',     bal:'1,425,640.00' },
+    { date:'10 Apr 2026', type:'pay', ref:'RECEIPT30244',        cr:'359,600.00',    bal:'1,066,040.00' },
+    { date:'18 Sep 2026', type:'inv', ref:'INV91140',            dr:'3,828,000.00',  bal:'4,894,040.00' },
+    { date:'04 Nov 2026', type:'inv', ref:'INV91141',            dr:'15,160,968.00', bal:'20,055,008.00' },
+  ],
+
+  aging:[ ['Current','15,160,968.00'], ['1 – 30','0.00'], ['31 – 60','3,828,000.00'],
+          ['61 – 90','0.00'], ['Over 90','1,066,040.00','aged'] ],
+},
+{
+  ref:'QSL-STM-2026-00015',
+  qr:'qr2',
+  from:'01 Dec 2023', to:'04 Nov 2026', asOf:'04 Nov 2026',
+  currency:'KES',
+
+  /* The source carried no address and no PIN for this account — those rows
+     collapse rather than printing empty cells. A cross-border account with
+     no tax identifier on file is worth chasing: see the note in the reply. */
+  client:{ name:'AEA Limited — Tanzania', lines:[], pin:'' },
+
+  summary:[ ['Opening balance','0.00'], ['Invoiced','6,335,000.00'], ['Paid','0.00'] ],
+  balanceDue:'6,335,000.00',
+
+  tx:[
+    { date:'01 Dec 2023', type:'opn', ref:'Opening balance', bal:'0.00' },
+    { date:'17 Dec 2023', type:'inv', ref:'TRN22050208',     dr:'1,300,000.00', bal:'1,300,000.00' },
+    { date:'12 Mar 2024', type:'inv', ref:'TRN22050208a',    dr:'340,000.00',   bal:'1,640,000.00' },
+    { date:'18 Sep 2024', type:'inv', ref:'TRN22050207A',    dr:'315,000.00',   bal:'1,955,000.00' },
+    { date:'18 Sep 2024', type:'inv', ref:'TRN22050207A2',   dr:'2,630,000.00', bal:'4,585,000.00' },
+    { date:'25 Apr 2025', type:'inv', ref:'INV22050425',     dr:'1,750,000.00', bal:'6,335,000.00' },
+  ],
+
+  aging:[ ['Current','0.00'], ['1 – 30','0.00'], ['31 – 60','0.00'],
+          ['61 – 90','0.00'], ['Over 90','6,335,000.00','aged'] ],
+},
+];
+
+const LEGAL = 'Please quote the statement reference with any remittance or query. Invoices are payable within 30 days of issue.';
+
+/* -------------------------------------------------------------- render */
+const esc = s => String(s==null?'':s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const TYPE = { inv:'Invoice', pay:'Payment', opn:'' };
+
+/* The pill states the one thing a reader of a statement wants at a glance:
+   is anything overdue? Derived from the aging buckets, never hand-written. */
+function state(s){
+  const num = v => parseFloat(String(v).replace(/,/g,'')) || 0;
+  if(num(s.balanceDue) <= 0) return { cls:'settled', label:'Settled' };
+  const overdue = s.aging.slice(1).reduce((t,b) => t + num(b[1]), 0);
+  return overdue > 0
+    ? { cls:'pastdue', label:'Past due' }
+    : { cls:'current', label:'Current' };
+}
+
+function qrPayload(s){
+  return [
+    'QSL Statement of Account',
+    s.ref + ' · ' + s.client.name,
+    'Period ' + s.from + ' – ' + s.to,
+    'Balance due ' + s.currency + ' ' + s.balanceDue + ' as at ' + s.asOf,
+  ].join('\n');
+}
+
+
+/* One footer builder, used by the first sheet and by every continuation
+   sheet the paginator creates. The QR prints on the last sheet only: it
+   encodes the closing balance, which is not yet true on an earlier sheet. */
+function footerHtml(s, page, of, last){
+  return `
+    <footer class="foot">
+      ${last ? `<div class="legal">${esc(LEGAL)}</div>` : ''}
+      <div class="ctrl">
+        <div class="ctrl-in">
+          <div></div>
+          <div class="ctrl-mid">
+            <div class="accred-foot">${esc(ORG.accred)}</div>
+            <div class="ctrlline mono">${esc(ORG.legalName)} · ${esc(s.ref)} · ${esc(ORG.system)} · Page ${page} of ${of}</div>
+            <div class="sysnote">${esc(ORG.systemNote)}</div>
+          </div>
+          <div class="fqr">${ last ? `<img src="data:image/png;base64,${IMG[s.qr]}" alt="Statement summary code">` : '' }</div>
+        </div>
+      </div>
+    </footer>`;
+}
+
+/* Continuation sheet: the masthead repeats so a page separated from the set
+   is still identifiable, and the column headers repeat so the figures can be
+   read. The title badge, the client block and the account summary do not —
+   they are stated once, on the first sheet. */
+function contSheet(s, broughtFwd){
+  const el = document.createElement('div');
+  el.className = 'sheet';
+  el.innerHTML = `
+    <header class="head">
+      <div class="head-id">
+        <img src="data:image/png;base64,${IMG.logo}" alt="${esc(ORG.legalName)}">
+        <div class="org"><div class="addr">${ORG.addr.map(l =>
+          l.includes('@') ? `<span class="net">${esc(l)}</span>` : esc(l)).join('<br>')}</div></div>
+      </div>
+      <div class="head-meta"><dl>
+        <dt>Statement no.</dt><dd>${esc(s.ref)}</dd>
+        <dt>Account</dt><dd>${esc(s.client.name)}</dd>
+        <dt>As at</dt><dd>${esc(s.asOf)}</dd>
+      </dl></div>
+    </header>
+    <div class="rule-gold"></div>
+    <section class="block tx-block" style="margin-top:3mm">
+      <div class="sec">Transactions <span class="n">· continued</span></div>
+      <table class="tx">
+        <thead><tr>
+          <th class="col-date">Date</th><th class="col-type">Type</th><th>Reference</th>
+          <th class="col-dr r">Debit</th><th class="col-cr r">Credit</th><th class="col-bal r">Balance</th>
+        </tr></thead>
+        <tbody><tr class="bf"><td colspan="5">Brought forward</td><td class="bal r">${esc(broughtFwd)}</td></tr></tbody>
+      </table>
+    </section>`;
+  return el;
+}
+
+/* Fit the transaction rows to the sheet by measurement rather than by a
+   guessed rows-per-page constant: a row's height depends on whether its
+   reference wraps, so counting rows would eventually be wrong.
+
+   Order matters here. The tail (balance bar, aging, payment details) is
+   detached before rows are placed — measured in place it makes every sheet
+   look ~48mm fuller than it is, and page one stops about nine rows early.
+   It is re-attached to whichever sheet ends up last, and rows are then
+   pushed off that sheet until the tail fits under them. */
+function setFooter(sh, s, page, of, last){
+  const f = sh.querySelector('.foot');
+  if (f) f.remove();
+  sh.insertAdjacentHTML('beforeend', footerHtml(s, page, of, last));
+}
+
+function paginate(sheet, s){
+  const MAX = 297 * (96/25.4);
+  const fits = el => el.scrollHeight <= MAX + 0.5;
+  const tbodyOf = sh => sh.querySelector('table.tx tbody');
+  const lastBal = sh => { const r = tbodyOf(sh).lastElementChild;
+                          return r ? r.querySelector('td.bal').textContent.trim() : '0.00'; };
+
+  const tail = sheet.querySelector('.tail');
+  tail.remove();
+
+  const rows = [...tbodyOf(sheet).children];
+  rows.forEach(r => r.remove());
+
+  const sheets = [sheet];
+  setFooter(sheet, s, 1, 1, false);          // provisional: no legal line, no QR
+
+  /* The carried-forward line is part of the sheet it closes, so it has to be
+     measured there: appended after the fit check it tips the sheet over by
+     one row. Rows give way to it until it fits, and they travel to the next
+     sheet with the balance recomputed each time. */
+  const carryOver = () => {
+    const from = sheets[sheets.length - 1];
+    const cf = document.createElement('tr');
+    cf.className = 'cf';
+    const syncCf = () => {
+      const prev = cf.previousElementSibling;
+      const bal = prev ? prev.querySelector('td.bal').textContent.trim() : '0.00';
+      cf.innerHTML = `<td colspan="5">Carried forward</td><td class="bal r">${bal}</td>`;
+      return bal;
+    };
+    tbodyOf(from).appendChild(cf);
+    let bal = syncCf();
+    const moved = [];
+    while (!fits(from) && cf.previousElementSibling && !cf.previousElementSibling.classList.contains('bf')){
+      const r = cf.previousElementSibling;
+      r.remove(); moved.unshift(r);
+      bal = syncCf();
+    }
+    const next = contSheet(s, bal);
+    from.after(next);
+    setFooter(next, s, 1, 1, false);
+    sheets.push(next);
+    moved.forEach(r => tbodyOf(next).appendChild(r));
+    return next;
+  };
+
+  let cur = sheet;
+  for (const r of rows){
+    tbodyOf(cur).appendChild(r);
+    if (!fits(cur)){ r.remove(); cur = carryOver(); tbodyOf(cur).appendChild(r); }
+  }
+
+  /* the last sheet now takes the tail and the full footer, and gives back
+     rows until both fit */
+  const closeOut = sh => { setFooter(sh, s, 1, 1, true); sh.querySelector('.foot').before(tail); };
+  closeOut(cur);
+  let guard = 0;
+  while (!fits(cur) && tbodyOf(cur).children.length > 1 && guard++ < 400){
+    const last = tbodyOf(cur).lastElementChild;
+    last.remove();
+    tail.remove();
+    cur = carryOver();
+    tbodyOf(cur).appendChild(last);
+    closeOut(cur);
+  }
+
+  sheets.forEach((sh, i) => setFooter(sh, s, i + 1, sheets.length, i === sheets.length - 1));
+  if (tail.parentNode !== sheets[sheets.length - 1]) sheets[sheets.length - 1].querySelector('.foot').before(tail);
+}
+
+
+function render(s){
+  const S = state(s);
+
+  const meta = [['Statement no.', s.ref], ['Period', s.from + ' – ' + s.to], ['As at', s.asOf]]
+    .map(([k,v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+
+  const clientRows = [
+    ['Account',  s.client.name],
+    ...(s.client.lines||[]).map((l,i) => [i===0 ? 'Address' : '', l]),
+    ['PIN no.',  s.client.pin],
+  ].filter(([,v]) => v && String(v).trim())
+   .map(([k,v]) => `<tr><td class="k">${esc(k)}</td><td class="v">${esc(v)}</td></tr>`).join('');
+
+  const sumRows = s.summary.concat([['Balance due', s.balanceDue]])
+    .map(([k,v]) => `<tr><td class="k">${esc(k)}</td><td class="v n">${esc(s.currency)} ${esc(v)}</td></tr>`).join('');
+
+  const txRows = s.tx.map(t => `
+    <tr class="${t.type==='opn'?'open':''}">
+      <td class="date">${esc(t.date)}</td>
+      <td>${TYPE[t.type] ? `<span class="type ${t.type}">${esc(TYPE[t.type])}</span>` : ''}</td>
+      <td class="ref">${esc(t.ref)}${t.due && t.due!==t.date ? ` <span class="due">· due ${esc(t.due)}</span>` : ''}</td>
+      <td class="fig r">${t.dr ? esc(t.dr) : ''}</td>
+      <td class="fig cr r">${t.cr ? esc(t.cr) : ''}</td>
+      <td class="bal r${t.neg?' neg':''}">${esc(t.bal)}</td>
+    </tr>`).join('');
+
+  const zero = v => !parseFloat(String(v).replace(/,/g,''));
+  const aging = s.aging.map(([k,v,flag]) =>
+      `<span class="it${flag==='aged' && !zero(v) ? ' aged' : ''}${zero(v)?' zero':''}">
+         <span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></span>`).join('')
+    + `<span class="it total"><span class="k">Total due</span><span class="v">${esc(s.balanceDue)}</span></span>`;
+
+  const payLine = arr => `<div class="strip">${arr.map(([k,v]) =>
+    `<span class="it"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></span>`).join('')}</div>`;
+
+  return `
+  <div class="sheet" data-ref="${esc(s.ref)}">
+    <header class="head">
+      <div class="head-id">
+        <img src="data:image/png;base64,${IMG.logo}" alt="${esc(ORG.legalName)}">
+        <div class="org"><div class="addr">${ORG.addr.map(l =>
+          l.includes('@') ? `<span class="net">${esc(l)}</span>` : esc(l)).join('<br>')}</div></div>
+      </div>
+      <div class="head-meta"><dl>${meta}</dl></div>
+    </header>
+
+    <div class="rule-gold"></div>
+
+    <div class="title-row">
+      <h1>Statement</h1>
+      <span class="status ${S.cls}">${esc(S.label)}</span>
+    </div>
+
+    <section class="cols">
+      <div>
+        <div class="sec">Statement to</div>
+        <table class="kv"><tbody>${clientRows}</tbody></table>
+      </div>
+      <div>
+        <div class="sec">Account summary</div>
+        <table class="kv"><tbody>${sumRows}</tbody></table>
+      </div>
+    </section>
+
+    <section class="block tx-block">
+      <div class="sec">Transactions <span class="n">· ${s.tx.length}</span></div>
+      <table class="tx">
+        <thead><tr>
+          <th class="col-date">Date</th>
+          <th class="col-type">Type</th>
+          <th>Reference</th>
+          <th class="col-dr r">Debit</th>
+          <th class="col-cr r">Credit</th>
+          <th class="col-bal r">Balance</th>
+        </tr></thead>
+        <tbody>${txRows}</tbody>
+      </table>
+    </section>
+
+    <div class="tail">
+    <div class="due-bar">
+      <div><span class="lbl">Balance due · ${esc(s.currency)}</span><span class="asof">as at ${esc(s.asOf)}</span></div>
+      <div class="val">${esc(s.balanceDue)}</div>
+    </div>
+
+    <section class="block">
+      <div class="sec">Aging summary <span class="n">· as at ${esc(s.asOf)}</span></div>
+      <div class="strip">${aging}</div>
+    </section>
+
+    <section class="block pay">
+      <div class="sec">Payment details</div>
+      ${payLine(ORG.payRow)}
+      ${payLine(ORG.payStrip)}
+    </section>
+    </div>
+
+    ${footerHtml(s, 1, 1, true)}
+  </div>`;
+}
+
+document.getElementById('out').innerHTML = STATEMENTS.map(render).join('');
+/* paginate after layout exists, so heights are real */
+document.querySelectorAll('#out > .sheet').forEach((sh, i) => paginate(sh, STATEMENTS[i]));
+window.__QR_PAYLOADS__ = STATEMENTS.map(qrPayload);
+</script>
+</body>
+</html>

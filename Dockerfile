@@ -18,7 +18,11 @@ RUN npx prisma generate && npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apk add --no-cache openssl && addgroup -S nodejs && adduser -S nextjs -G nodejs
+# System Chromium (+ fonts) for headless PDF rendering of the HTML document
+# templates. Playwright-core drives this binary — no browser download needed.
+RUN apk add --no-cache openssl chromium nss freetype harfbuzz ca-certificates ttf-liberation font-noto \
+  && addgroup -S nodejs && adduser -S nextjs -G nodejs
+ENV CHROMIUM_PATH=/usr/bin/chromium-browser
 
 # Standalone server + static assets + public files
 COPY --from=build /app/public ./public
@@ -29,6 +33,9 @@ COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=build /app/node_modules/prisma ./node_modules/prisma
 COPY --from=build /app/node_modules/bcryptjs ./node_modules/bcryptjs
+# Playwright driver (drives the system Chromium above) — dynamic import isn't
+# always traced into the standalone build, so copy it explicitly.
+COPY --from=build /app/node_modules/playwright-core ./node_modules/playwright-core
 COPY --from=build /app/prisma ./prisma
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x docker-entrypoint.sh

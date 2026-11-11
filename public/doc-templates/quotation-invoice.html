@@ -1,0 +1,677 @@
+<!--
+  QSL business document template — Quotation / Invoice
+  ====================================================
+  Single template, data-driven. Edit the DOCS array at the bottom (or feed it
+  from the server) — the markup is generated from it, so quote and invoice
+  share one stylesheet and one layout.
+
+  Refinement notes vs. the previous template:
+   - Type scale reduced throughout (body 9.5pt -> 7.3pt, title 16pt -> 12.5pt).
+   - Money columns use Inter tabular figures (font-feature-settings "tnum")
+     instead of a monospace face: columns still align exactly, but the figures
+     are ~25% narrower and far quieter. True monospace is now reserved for
+     document references and the footer control line, where it actually signals
+     "system generated" rather than just adding noise.
+   - Filled blocks cut from seven to one. The gold title badge, cream subject
+     band, solid-black table header and the black/gold payment grid are all
+     replaced by hairline rules. The only remaining solid block is the grand
+     total — deliberately, so the single most important number carries the
+     page's only strong contrast.
+   - QR code moved out of the bottom-right corner into the empty space to the
+     left of the totals. What it encodes is unchanged from the current system —
+     a self-contained text summary (ref / client / total), not a URL — so no
+     verification endpoint is implied that does not exist.
+   - Duplicate "Date" row removed from the invoice meta grid (it was already in
+     the header block).
+   - Empty sections now collapse — the previous invoice rendered an empty
+     bordered "PAYMENT TERMS" box.
+   - hyphens:none everywhere; the old template broke "www.qalibrat-ed.com" and
+     "QALIBRATED SYSTEMS LIMIT-ED" mid-word.
+
+  Assets: logo and QR are injected as data URIs by the build so the file is
+  self-contained. In production, swap IMG.logo for your asset path and
+  generate the QR per document from its verification URL.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Qalibrated Systems — document template</title>
+<style>
+  :root{
+    --ink:#1D1D1F;
+    --muted:#6E6A63;
+    --faint:#9A958C;
+    --rule:#E4E1DA;
+    --rule-mid:#CFCABD;
+    --rule-strong:#1D1D1F;
+    --gold:#F2AA00;        /* brand gold — fills and accent rules */
+    --gold-ink:#9C7214;
+    --accred:#8A6410;   /* deeper than brand gold: 5.1:1 on the page tints, AA at 6pt bold */
+    --paper:#FFFFFF;
+    --wash:#FAF8F4;        /* barely-there row wash */
+  }
+
+  @page{ size:A4; margin:0; }
+
+  *{ box-sizing:border-box; hyphens:none; -webkit-hyphens:none; }
+  /* Chrome resets font-size to medium inside tables when a cell sets none of
+     its own; every table here inherits the page size instead. */
+  table{ font-size:inherit; line-height:inherit; font-family:inherit; }
+
+  html,body{ margin:0; padding:0; background:#D8D5CE; }
+
+  body{
+    font-family:"Inter","Helvetica Neue",Arial,sans-serif;
+    font-size:7.3pt;
+    line-height:1.45;
+    color:var(--ink);
+    font-feature-settings:"tnum" 1, "cv05" 1;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .sheet{
+    width:210mm; min-height:297mm;
+    padding:3mm 13mm 7mm;
+    margin:0 auto 8mm;
+    background:var(--paper);
+    position:relative;
+    display:flex; flex-direction:column;
+  }
+  @media print{
+    html,body{ background:#fff; }
+    .sheet{ margin:0; box-shadow:none; page-break-after:always; }
+    .sheet:last-child{ page-break-after:auto; }
+  }
+
+
+  /* ---------- document colour coding ----------
+     Each document type carries its own hue so a printed set can be told apart
+     in a folder. Three parts, strongest first:
+
+       --band  a solid bar across the head of every sheet. This is the part
+               that actually identifies the document in a stack or a file,
+               because the top edge is what you see.
+       --tint  a very light page wash (about 2% saturation). Enough to read as
+               "a different document" on a desk; light enough that body text
+               keeps its contrast and a photocopy does not come back grey.
+       --wash  the label-gutter and row shade, derived from the tint so the
+               cream gutters do not clash with a cool page.
+
+     Set --tint to #FFFFFF to switch the page flood off and keep the band —
+     see the README on toner cost and banding on office printers. */
+  .sheet{ background:var(--tint, #FFFFFF); }
+  .sheet::before{
+    content:""; display:block; height:4mm; background:var(--band, var(--gold));
+    margin:-3mm -13mm 3mm;
+  }
+  /* backgrounds must survive the browser's own print dialog, not just the
+     headless renderer, which is passed printBackground explicitly */
+  body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+  /* numeric cells: aligned, lining, tabular */
+  .num{ text-align:right; font-variant-numeric:tabular-nums lining-nums; white-space:nowrap; }
+  .mono{ font-family:"Liberation Mono","DejaVu Sans Mono",monospace; font-size:6.8pt; letter-spacing:-.01em; }
+
+  .micro{
+    font-size:5.6pt; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--faint); font-weight:600; line-height:1.3;
+  }
+
+  /* ---------- header ----------
+     Fixed-width meta column. The previous version used margin-left:auto plus a
+     min-width on the value, which pushed the block past the page box — date and
+     document number were printing to the very edge of the paper (x=595.6pt on a
+     595.28pt page, i.e. no right margin at all). */
+  .head{ display:flex; align-items:flex-start; gap:6mm; }
+  .head-id{ flex:1 1 auto; min-width:0; display:flex; gap:4.5mm; align-items:flex-start; }
+  .head-id img{ height:14mm; width:auto; display:block; flex:0 0 auto; }
+  .org{ padding-top:.8mm; min-width:0; }
+  .org .addr{ font-size:6.4pt; line-height:1.6; color:var(--muted); }
+  .org .addr .net{ color:var(--gold-ink); }
+
+  /* label + value both left-aligned, as a compact two-column table */
+  .head-meta{ flex:0 0 52mm; }
+  .head-meta dl{ margin:0; display:grid; grid-template-columns:17.5mm 1fr; row-gap:1.15mm; }
+  .head-meta dt{
+    margin:0; font-size:5.6pt; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--faint); font-weight:600; align-self:center;
+  }
+  .head-meta dd{ margin:0; font-size:7.1pt; font-weight:600; text-align:left; line-height:1.3; }
+
+  .rule-gold{ height:1.4pt; background:var(--gold); margin:1.2mm 0 0; }
+
+  /* ---------- title ---------- */
+  .title-row{ display:flex; align-items:center; justify-content:space-between; padding:2.6mm 0 2.8mm; }
+  /* document type reads as the brand signature: gold on black */
+  h1{
+    margin:0; display:inline-block; background:var(--ink); color:var(--gold);
+    font-size:12.5pt; font-weight:800; letter-spacing:.17em; text-transform:uppercase;
+    line-height:1; padding:2.5mm 4.3mm 2.5mm 5mm; border-radius:1.2mm;
+  }
+  .status{
+    font-size:6pt; font-weight:700; letter-spacing:.13em; text-transform:uppercase;
+    border-radius:1.2mm; padding:1.9mm 3mm 1.9mm 3.4mm;
+  }
+  .status.quoted{ background:var(--ink); color:#FFFFFF; }
+  .status.unpaid{ background:#C62828; color:#FFFFFF; }     /* white on red */
+  .status.paid  { background:#15713F; color:#FFFFFF; }     /* white on green */
+
+  /* ---------- parties ---------- */
+  .parties{ display:flex; gap:10mm; border-top:.5pt solid var(--rule); padding-top:2.4mm; }
+  .party{ flex:1 1 0; min-width:0; }
+  .party .name{ font-size:10pt; font-weight:700; letter-spacing:-.005em; margin:1mm 0 1.1mm; line-height:1.2; }
+  .party .lines{ color:var(--muted); line-height:1.5; }
+  .party .lines a{ color:var(--muted); text-decoration:none; }
+
+  .facts{ flex:0 0 72mm; align-self:flex-start; }
+  .facts dl{ margin:1.1mm 0 0; display:grid; grid-template-columns:auto 1fr; gap:0; }
+  .facts dt,.facts dd{ margin:0; padding:1.05mm 0; border-top:.5pt solid var(--rule); }
+  .facts dt:first-of-type,.facts dd:first-of-type{ border-top:none; padding-top:0; }
+  .facts dt{ color:var(--muted); padding-right:6mm; white-space:nowrap; }
+  .facts dd{ text-align:right; font-weight:600; }
+
+  /* ---------- subject ---------- */
+  .subject{ margin:3.2mm 0 0; padding-bottom:2mm; border-bottom:.5pt solid var(--rule); }
+  .subject .txt{ font-size:8.4pt; font-weight:700; margin-top:.8mm; line-height:1.3; }
+
+  /* ---------- items ---------- */
+  table.items{ width:100%; border-collapse:collapse; margin-top:3.4mm; }
+  table.items th{
+    font-size:5.6pt; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    font-weight:600; text-align:left; padding:0 2mm 1.3mm; border-bottom:.9pt solid var(--rule-strong);
+  }
+  table.items th.num, table.items td.num{ text-align:right; }
+  table.items th.idx-h{ width:9mm; text-align:center; padding-left:0; padding-right:0; }
+  table.items th:first-child, table.items td:first-child{ padding-left:0; }
+  table.items th:last-child, table.items td:last-child{ padding-right:0; }
+  table.items td{ padding:1.35mm 2mm; border-bottom:.5pt solid var(--rule); vertical-align:top; }
+  table.items tbody tr:nth-child(even) td{ background:var(--wash); }
+  table.items td.idx{ color:var(--faint); font-variant-numeric:tabular-nums; width:9mm; text-align:center; }
+  table.items td.desc{ line-height:1.38; }
+  /* Rate/Amount sized to the widest figure actually printed (16,470,382.00 =
+     18.75mm at 7.3pt) plus cell padding — the slack goes to Description,
+     which gains ~16mm (+17%). */
+  .col-qty{ width:11mm; } .col-unit{ width:12mm; } .col-rate{ width:21.5mm; } .col-amt{ width:21.5mm; }
+
+  /* ---------- totals block (QR left, sums right) ---------- */
+  .close{ display:flex; gap:10mm; align-items:flex-start; margin-top:3.4mm; }
+
+  .verify{ flex:0 0 auto; display:flex; gap:3.4mm; align-items:flex-start; padding-top:.4mm; }
+  .verify img{ width:19mm; height:19mm; display:block; }
+  .verify .cap{ padding-top:.6mm; width:56mm; }
+  .verify .cap .t{ font-size:6.1pt; font-weight:700; letter-spacing:.02em; }
+  .verify .cap .d{ font-size:5.9pt; color:var(--muted); line-height:1.5; margin-top:.8mm; }
+  /* keep the reference on one line — it must stay transcribable */
+  .verify .cap .u{ margin-top:1.1mm; color:var(--gold-ink); font-size:5.6pt; white-space:nowrap; }
+
+  .sums{ margin-left:auto; flex:0 0 84mm; }
+  .sums table{ width:100%; border-collapse:collapse; }
+  .sums td{ padding:.95mm 0; border-bottom:.5pt solid var(--rule); line-height:1.25; }
+  .sums td.lbl{ color:var(--muted); }
+  .sums tr.em td.lbl{ color:var(--ink); font-weight:600; }
+  .sums tr.neg td.val{ color:var(--muted); }
+  .sums tr.grand td{
+    border-bottom:none; background:var(--ink); color:#fff; padding:1.7mm 3mm;
+  }
+  /* label and figure share one size (10pt — the largest that fits the widest
+     pairing, "AMOUNT DUE · KES" + 21,016,207.20, inside the block) */
+  .sums tr.grand td.lbl{
+    font-size:10pt; font-weight:700; letter-spacing:.075em; text-transform:uppercase;
+    color:var(--gold); white-space:nowrap;
+  }
+  .sums tr.grand td.val{ font-size:10pt; font-weight:800; letter-spacing:-.01em; }
+
+  .words{ margin-top:2.6mm; padding-top:2mm; border-top:.5pt solid var(--rule); }
+  .words .v{ font-weight:600; margin-top:.9mm; }
+
+  /* carried / brought forward: a marker row, set apart from the items */
+  table.items tr.cf td, table.items tr.bf td{
+    background:var(--wash); font-size:5.8pt; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--muted); font-weight:600; text-align:right;
+  }
+  table.items tr.cf td.col-amt, table.items tr.bf td.col-amt{
+    font-size:7.3pt; letter-spacing:0; text-transform:none; color:var(--ink); font-weight:700;
+  }
+  .cont-mark{ margin-top:3mm; }
+
+  /* ---------- payment details ----------
+     Both rows are inline strips: label and value sit on one baseline rather
+     than stacked, so the whole block is two printed lines instead of three.
+     Row 1 items are elastic (the bank name is long); row 2 items are short
+     codes and stay at their natural width. */
+  .pay{ margin-top:3.4mm; }
+  .pay .strip{ display:flex; border:.5pt solid var(--rule-mid); }
+  .pay .strip.row1{ margin-top:1.3mm; border-bottom:none; }
+  .pay .strip .it{
+    padding:1.3mm 2.4mm; border-right:.5pt solid var(--rule);
+    display:flex; align-items:baseline; gap:2.2mm; white-space:nowrap;
+  }
+  .pay .strip.row1 .it{ flex:1 1 auto; min-width:0; }
+  .pay .strip .it:last-child{ border-right:none; }
+  .pay .strip .k{ font-size:5.5pt; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-weight:600; }
+  .pay .strip .v{ font-weight:600; overflow:hidden; text-overflow:ellipsis; }
+
+  /* ---------- terms & notes ----------
+     One full-width itemised list. Previously two side-by-side columns, which
+     wrapped each clause to roughly half the page and cost vertical space for
+     no gain — the clauses are unrelated, not parallel, so columns implied a
+     comparison that isn't there. Numbering also makes a clause citable
+     ("per item 3") in correspondence. */
+  .terms{ margin-top:3.2mm; }
+  .terms ol{ margin:.9mm 0 0; padding:0; list-style:none; counter-reset:t; }
+  .terms li{
+    counter-increment:t; position:relative; padding-left:4.6mm;
+    color:var(--muted); line-height:1.45; margin-top:.9mm;
+  }
+  .terms li:first-child{ margin-top:0; }
+  .terms li::before{
+    content:counter(t) "."; position:absolute; left:0; top:0;
+    font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums;
+  }
+  .terms li b{ font-weight:700; color:var(--ink); }
+
+  /* ---------- footer ---------- */
+  .foot{ margin-top:auto; padding-top:2.6mm; }
+  .foot .legal{ font-size:6.4pt; color:var(--muted); line-height:1.5; padding-bottom:1.8mm; }
+  .foot .ctrl{ border-top:.8pt solid var(--gold); padding-top:1.5mm; text-align:center; }
+  .foot .accred-foot{
+    font-size:6pt; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--accred); line-height:1.15;
+  }
+  .foot .ctrlline{ font-size:5.9pt; color:var(--faint); margin-top:.3mm; line-height:1.15; }
+</style>
+</head>
+<body>
+<div id="out"></div>
+
+<script>
+/* ------------------------------------------------------------------
+   Assets — replaced by build. In production use real asset paths.
+------------------------------------------------------------------ */
+const IMG = window.__QSL_ASSETS__ || { logo:'', qr_quote:'', qr_inv:'' };
+
+/* ------------------------------------------------------------------
+   Org constants
+------------------------------------------------------------------ */
+const ORG = window.__QSL_ORG__ || {
+  // shown centred in the footer, not the header
+  // KENAS is the body granting the 17025 accreditation; ILAC-MRA signals the
+  // international recognition of that accreditation. Naming the body matters:
+  // an accreditation claim without it is weaker, and often non-compliant.
+  accred : 'ISO 9001:2015 Certified (TNV)  |  ISO/IEC 17025:2017 Accredited (KENAS)  |  ILAC-MRA',
+  /* Mail and web sit in the masthead under the phone numbers, matching the
+     technical report, so a reader finds every way to reach QSL in one place.
+     They are not repeated in the footer. */
+  addr   : ['QSL Centre, Birdi Singh Complex',
+            'P.O. Box 34463-00100, Nairobi',
+            '+254 714 999 996 / 756 999 996',
+            'info@qalibrated.com  ·  www.qalibrated.com'],
+  legalName : 'Qalibrated Systems Limited',
+  // row 1 renders as a four-cell grid; row 2 as a single inline strip
+  payRow : [
+    ['Account name','Qalibrated Systems Limited'],
+    ['Bank','Kenya Commercial Bank'],
+    ['Branch','Industrial Area'],
+    ['Account no.','1319820654'],
+  ],
+  payStrip : [
+    // For foreign-currency invoices add the bank's SWIFT/BIC here once confirmed
+    // with KCB — deliberately left unset rather than filled from an assumed value.
+    // ['SWIFT','KCBLKENX'],
+    ['Paybill','522522'],
+    ['Bank code','01'],
+    ['Branch code','113'],
+    ['PIN no.','P051889248C'],
+  ],
+};
+
+/* ------------------------------------------------------------------
+   Documents
+------------------------------------------------------------------ */
+const DOCS = window.__QSL_DOCS__ || [
+{
+  kind:'QUOTATION', themeVars:'--band:#2E5E8E;--tint:#F6F9FC;--wash:#EBF2F8', status:'Quoted', statusClass:'quoted',
+  qr: 'qr_quote',
+  /* qrText is what the QR encodes — a self-contained summary, matching QSL's
+     existing scheme. It needs no endpoint and works offline. Generate the QR
+     from this string server-side. */
+  qrText:'QSL Quotation QSL-Q-2026-00086\nClient: THE ETIHAD CONSTRUCTION LTD\nTotal: KES 757,016.00\nValid until 06 Dec 2026',
+  ref:'QSL-Q-2026-00086',
+  meta:[ ['Date','06 Nov 2026 · 18:15 EAT'], ['Quote no.','QSL-Q-2026-00086'], ['Valid to','06 Dec 2026'] ],
+  partyLabel:'Prepared for',
+  party:{ name:'The Etihad Construction Ltd',
+          lines:['Attn: Hanan Taleb','md@etihadconstructionltd.com','+254 790 878 199'] },
+  /* Items replaced by a per-preparer running number, so each staff member's
+     quotation output is auditable from the documents themselves.
+     Suggested format <initials>-<year>-<sequence>, issued by the system. */
+  facts:[ ['Prepared by','Henry Adar'],
+          ['Your ref.',''],                              // client enquiry or requisition no.; blank collapses
+          ['Currency','KES'],
+          ['Lead time','— weeks from acceptance —'],
+          ['Warranty','— months from commissioning —'],
+          ['File no.','HA-2026-027'] ],
+  subject:'Re: Weighbridge relocation',
+  items:[
+    ['Weighbridge decommissioning and safe removal of all components and accessories','1','EA','52,000.00','52,000.00'],
+    ['Hire of crane and truck for lifting and transporting the weighbridge','2','EA','95,000.00','190,000.00'],
+    ['Weighbridge reinstallation on the new site','6','Dys','17,200.00','103,200.00'],
+    ['Hire and delivery of calibration standards to and from site','2','EA','45,000.00','90,000.00'],
+    ['Hire of unskilled labour throughout the exercise','8','EA','4,000.00','32,000.00'],
+    ['Payment of stamping fee and facilitation of the inspector','1','EA','45,400.00','45,400.00'],
+    ['Engineering mileage','10','Days','4,000.00','40,000.00'],
+    ['Civil works design and supervision','1','EA','100,000.00','100,000.00'],
+  ],
+  sums:[ ['Subtotal','652,600.00',''], ['VAT (16%)','104,416.00',''] ],
+  grand:['Grand total · KES','757,016.00'],
+  words:'Kenyan Shilling Seven Hundred Fifty-Seven Thousand and Sixteen Only',
+  /* Terms of sale and Notes merged into one numbered list, each clause a
+     separate item. Split by clause rather than by old heading — one clause
+     per number is what makes "per item 2" usable in correspondence. */
+  termsTitle:'Terms & notes',
+  terms:[
+    'Prices quoted are exclusive of applicable taxes unless otherwise stated.',
+    'Delivery timelines commence once the quotation has been accepted and the initial payment has been received.',
+    'Anything else noted to be defective as the work progresses shall be quoted for separately.',
+  ],
+  legal:'Acceptance is recorded electronically in the QSL system — no signature required.',
+},
+{
+  /* statusClass: 'unpaid' (white on red) | 'paid' (white on green) | 'quoted' (white on black) */
+  kind:'INVOICE', themeVars:'--band:#8A5A1E;--tint:#FCF9F4;--wash:#F6EFE3', status:'Unpaid', statusClass:'unpaid',
+  qr: 'qr_inv',
+  qrText:'QSL Invoice QSL-INV-2026-00085\nClient: AFRINET BUSINESS LIMITED\nAmount due: KES 21,016,207.20\nRef: QSL/MVI/WPC/2026/003-C1',
+  ref:'QSL-INV-2026-00085',
+  meta:[ ['Date','05 Nov 2026 · 15:29 EAT'], ['Invoice no.','QSL-INV-2026-00085'],
+         ['Ref.','QSL/MVI/WPC/2026/003-C1'], ['Due','05 Dec 2026'] ],   // 30 days from invoice date
+  partyLabel:'Bill to',
+  party:{ name:'Afrinet Business Limited',
+          lines:['Attn: Christine, Project Manager','Laiboni Center, 5th Floor, Lenana Road','P.O. Box 48021-00100, Nairobi'] },
+  /* "Issued by" added: the invoice previously named no preparer at all, so
+     per-staff invoice records were not possible. */
+  facts:[ ['Issued by','Henry Adar'],
+          ['Your LPO no.','AFR/LPO/2026/0417'],        // the order this invoice is raised against
+          ['Currency','KES'],
+          ['File no.','HA-2026-014'] ],
+  subject:'MVI Nakuru & Kisumu — civil works: payment milestones M1 and M2',
+  items:[
+    ['Milestone M1 — Advance on contract signing, for mobilisation and early procurement of materials (10% of contract sum)','1','Lot','3,294,076.00','3,294,076.00'],
+    ['Milestone M2 — Sites cleared; pits, lanes, equipment bases, hallway floor base and hallway conduiting complete and certified (50% of contract sum)','1','Lot','16,470,382.00','16,470,382.00'],
+  ],
+  sums:[
+    ['Subtotal (M1 + M2)','19,764,458.00','em'],
+    ['Less retention 10% on M2','(1,647,038.00)','neg'],
+    ['Net amount','18,117,420.00','em'],
+    ['VAT (16%)','2,898,787.20',''],
+  ],
+  grand:['Amount due · KES','21,016,207.20'],
+  words:'Kenyan Shilling Twenty-One Million Sixteen Thousand Two Hundred and Seven and Twenty Cents Only',
+  /* PLACEHOLDER — the source invoice left this box empty. Replace with QSL's
+     actual terms; an empty array collapses the section entirely. */
+  termsTitle:'Terms & notes',
+  terms:[
+    'Payable within 30 days of the invoice date to the account shown above.',
+    'Please quote the invoice number on all remittances.',
+    'Retention is released on certification of practical completion.',
+  ],
+  legal:'Raised against the Commercial Proposal referenced above — contract sum KES 32,940,764.00 excluding VAT.',
+},
+];
+
+/* ------------------------------------------------------------------
+   Render
+------------------------------------------------------------------ */
+const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+
+/* ---------------------------------------------------------------- paging
+   Same approach as the statement: fit rows to the sheet by measurement, not
+   by a rows-per-page constant, because a row's height depends on whether its
+   description wraps. Two ordering rules carry over — the tail is detached
+   before rows are placed (measured in place it makes every sheet look fuller
+   than it is), and the carried-forward line is measured on the sheet it
+   closes, not appended after the fit check. */
+function footerHtml(d, page, of, last){
+  return `
+    <footer class="foot">
+      ${last ? `<div class="legal">${esc(d.legal)}</div>` : ''}
+      <div class="ctrl">
+        <div class="accred-foot">${esc(ORG.accred)}</div>
+        <div class="ctrlline mono">${esc(ORG.legalName)} · ${esc(d.ref)} · System-generated · Page ${page} of ${of}</div>
+      </div>
+    </footer>`;
+}
+
+const money = {
+  parse: t => parseFloat(String(t).replace(/[^0-9.\-]/g, '')) || 0,
+  fmt  : n => n.toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }),
+};
+
+function contSheetDoc(d, broughtFwd){
+  const el = document.createElement('div');
+  el.className = 'sheet';
+  el.setAttribute('style', d.themeVars);
+  el.innerHTML = `
+    <header class="head">
+      <div class="head-id">
+        <img src="data:image/png;base64,${IMG.logo}" alt="${esc(ORG.legalName)}">
+        <div class="org"><div class="addr">${ORG.addr.map(l =>
+          l.includes('@') ? `<span class="net">${esc(l)}</span>` : esc(l)).join('<br>')}</div></div>
+      </div>
+      <div class="head-meta"><dl>
+        <dt>${esc(d.kind === 'INVOICE' ? 'Invoice no.' : 'Quote no.')}</dt><dd>${esc(d.ref)}</dd>
+        <dt>${esc(d.partyLabel)}</dt><dd>${esc(d.party.name)}</dd>
+      </dl></div>
+    </header>
+    <div class="rule-gold"></div>
+    <div class="cont-mark micro">${esc(d.kind)} · continued</div>
+    <table class="items">
+      <thead><tr>
+        <th class="idx-h">No</th><th>Description</th>
+        <th class="num col-qty">Qty</th><th class="col-unit">Unit</th>
+        <th class="num col-rate">Rate</th><th class="num col-amt">Amount</th>
+      </tr></thead>
+      <tbody><tr class="bf"><td colspan="5">Subtotal brought forward</td><td class="num col-amt">${broughtFwd}</td></tr></tbody>
+    </table>`;
+  return el;
+}
+
+function paginateDoc(sheet, d){
+  const MAX = 297 * (96/25.4);
+  const fits = el => el.scrollHeight <= MAX + 0.5;
+  const tbodyOf = sh => sh.querySelector('table.items tbody');
+  const setFoot = (sh, page, of, last) => {
+    const f = sh.querySelector('.foot'); if (f) f.remove();
+    sh.insertAdjacentHTML('beforeend', footerHtml(d, page, of, last));
+  };
+  const runningTotal = sh => [...tbodyOf(sh).children]
+    .filter(r => !r.classList.contains('cf'))
+    .reduce((t, r) => t + money.parse(r.lastElementChild.textContent), 0);
+
+  const tail = sheet.querySelector('.tail');
+  tail.remove();
+
+  const rows = [...tbodyOf(sheet).children];
+  rows.forEach(r => r.remove());
+
+  const sheets = [sheet];
+  setFoot(sheet, 1, 1, false);
+
+  const carryOver = () => {
+    const from = sheets[sheets.length - 1];
+    const cf = document.createElement('tr');
+    cf.className = 'cf';
+    const sync = () => {
+      const sub = runningTotal(from);
+      cf.innerHTML = `<td colspan="5">Subtotal carried forward</td><td class="num col-amt">${money.fmt(sub)}</td>`;
+      return money.fmt(sub);
+    };
+    tbodyOf(from).appendChild(cf);
+    let sub = sync();
+    const moved = [];
+    while (!fits(from) && cf.previousElementSibling && !cf.previousElementSibling.classList.contains('bf')){
+      const r = cf.previousElementSibling;
+      r.remove(); moved.unshift(r); sub = sync();
+    }
+    const next = contSheetDoc(d, sub);
+    from.after(next);
+    setFoot(next, 1, 1, false);
+    sheets.push(next);
+    moved.forEach(r => tbodyOf(next).appendChild(r));
+    return next;
+  };
+
+  let cur = sheet;
+  for (const r of rows){
+    tbodyOf(cur).appendChild(r);
+    if (!fits(cur)){ r.remove(); cur = carryOver(); tbodyOf(cur).appendChild(r); }
+  }
+
+  const closeOut = sh => { setFoot(sh, 1, 1, true); sh.querySelector('.foot').before(tail); };
+  closeOut(cur);
+  let guard = 0;
+  while (!fits(cur) && tbodyOf(cur).children.length > 1 && guard++ < 400){
+    const last = tbodyOf(cur).lastElementChild;
+    last.remove(); tail.remove();
+    cur = carryOver();
+    tbodyOf(cur).appendChild(last);
+    closeOut(cur);
+  }
+  sheets.forEach((sh, i) => setFoot(sh, i + 1, sheets.length, i === sheets.length - 1));
+  if (tail.parentNode !== sheets[sheets.length - 1]) sheets[sheets.length - 1].querySelector('.foot').before(tail);
+}
+
+function renderDoc(d){
+  // PIN now lives in the payment grid, which keeps this header block short
+  const metaRows = d.meta.map(([k,v]) =>
+    `<dt>${esc(k)}</dt><dd class="${/^(No\.|Ref\.)$/.test(k)?'mono':''}">${esc(v)}</dd>`).join('');
+
+  const factRows = d.facts.filter(([,v]) => v && String(v).trim()).map(([k,v]) =>
+    `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+
+  const itemRows = d.items.map(([desc,qty,unit,rate,amt],i) => `
+    <tr>
+      <td class="idx">${i+1}</td>
+      <td class="desc">${esc(desc)}</td>
+      <td class="num">${esc(qty)}</td>
+      <td>${esc(unit)}</td>
+      <td class="num">${esc(rate)}</td>
+      <td class="num">${esc(amt)}</td>
+    </tr>`).join('');
+
+  const sumRows = d.sums.map(([k,v,cls]) =>
+    `<tr class="${cls||''}"><td class="lbl">${esc(k)}</td><td class="val num">${esc(v)}</td></tr>`).join('');
+
+  const it = ([k,v]) =>
+    `<span class="it"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></span>`;
+  const payRow1  = ORG.payRow.map(it).join('');
+  const payStrip = ORG.payStrip.map(it).join('');
+
+  // collapse an empty list — the old template rendered an empty bordered box
+  const terms = (d.terms||[]).filter(t => t && t.trim());
+  const termsHtml = terms.length ? `
+    <section class="terms">
+      <div class="micro">${esc(d.termsTitle||'Terms & notes')}</div>
+      <ol>${terms.map(t => `<li>${esc(t)}</li>`).join('')}</ol>
+    </section>` : '';
+
+  return `
+  <div class="sheet" style="${esc(d.themeVars)}">
+    <header class="head">
+      <div class="head-id">
+        <img src="data:image/png;base64,${IMG.logo}" alt="Qalibrated Systems Limited">
+        <div class="org">
+          <div class="addr">${ORG.addr.map(l => l.includes('@') ? `<span class="net">${esc(l)}</span>` : esc(l)).join('<br>')}</div>
+        </div>
+      </div>
+      <div class="head-meta"><dl>${metaRows}</dl></div>
+    </header>
+
+    <div class="rule-gold"></div>
+
+    <div class="title-row">
+      <h1>${esc(d.kind)}</h1>
+      <span class="status ${esc(d.statusClass||'quoted')}">${esc(d.status)}</span>
+    </div>
+
+    <section class="parties">
+      <div class="party">
+        <div class="micro">${esc(d.partyLabel)}</div>
+        <div class="name">${esc(d.party.name)}</div>
+        <div class="lines">${d.party.lines.map(esc).join('<br>')}</div>
+      </div>
+      <div class="facts">
+        <dl>${factRows}</dl>
+      </div>
+    </section>
+
+    <section class="subject">
+      <div class="micro">Subject</div>
+      <div class="txt">${esc(d.subject)}</div>
+    </section>
+
+    <table class="items">
+      <thead>
+        <tr>
+          <th class="idx-h">No</th>
+          <th>Description</th>
+          <th class="num col-qty">Qty</th>
+          <th class="col-unit">Unit</th>
+          <th class="num col-rate">Rate</th>
+          <th class="num col-amt">Amount</th>
+        </tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+
+    <div class="tail">
+    <section class="close">
+      <div class="verify">
+        <img src="data:image/png;base64,${IMG[d.qr]}" alt="Verification QR code">
+        <div class="cap">
+          <div class="t">Document summary</div>
+          <div class="d">Scan for the reference, client and total. Encoded in the code itself — no network needed.</div>
+        </div>
+      </div>
+      <div class="sums">
+        <table>
+          <tbody>
+            ${sumRows}
+            <tr class="grand">
+              <td class="lbl">${esc(d.grand[0])}</td>
+              <td class="val num">${esc(d.grand[1])}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Amount in words removed: not required for a Kenyan VAT invoice, and a
+         mismatch between the words and the figure is a live dispute risk.
+         The 'words' field is still in the data - uncomment to restore, but
+         generate it from the figure in code, never by hand.
+    <section class="words">
+      <span class="micro">Amount in words</span>
+      <div class="v">${esc(d.words)}</div>
+    </section>
+    -->
+
+    <section class="pay">
+      <div class="micro">Payment details</div>
+      <div class="strip row1">${payRow1}</div>
+      <div class="strip row2">${payStrip}</div>
+    </section>
+
+    ${termsHtml}
+    </div>
+
+    ${footerHtml(d, 1, 1, true)}
+  </div>`;
+}
+
+document.getElementById('out').innerHTML = DOCS.map(renderDoc).join('');
+/* paginate once layout exists, so heights are real */
+document.querySelectorAll('#out > .sheet').forEach((sh, i) => paginateDoc(sh, DOCS[i]));
+</script>
+</body>
+</html>

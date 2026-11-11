@@ -1,10 +1,5 @@
-import React from "react";
-import { renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/db";
-import { QuotationDocument } from "@/pdf/QuotationDocument";
-import { logoDataUrl } from "@/lib/logo";
-import { qrDataUrl } from "@/lib/qr";
-import { syncCompany } from "@/lib/settings";
+import { renderQuotationPdf } from "@/lib/quotationPdf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,17 +16,7 @@ export async function GET(_req, { params }) {
   const q = await prisma.quotation.findUnique({ where: { shareToken: token } });
   if (!q) return Response.json({ error: "Not found." }, { status: 404 });
 
-  const qrText = [
-    `QSL Quotation ${q.number}`,
-    `Client: ${q.clientName}`,
-    `Total: ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}`,
-    q.validUntil ? `Valid until ${new Date(q.validUntil).toLocaleDateString()}` : null,
-  ].filter(Boolean).join("\n");
-  const qrSrc = await qrDataUrl(qrText);
-  await syncCompany(); // reflect any branding changes from System Settings
-  const buffer = await renderToBuffer(
-    React.createElement(QuotationDocument, { quotation: q, logoSrc: logoDataUrl(), qrSrc })
-  );
+  const buffer = await renderQuotationPdf(q);
 
   return new Response(buffer, {
     status: 200,
