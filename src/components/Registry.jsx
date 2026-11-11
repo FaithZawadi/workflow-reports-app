@@ -213,6 +213,7 @@ export default function Registry({ profile }) {
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
               <thead>
                 <tr style={{ background: COAL, color: "#fff", fontSize: 10.5, textTransform: "uppercase", letterSpacing: ".05em" }}>
+                  <Th center>#</Th>
                   <Th>Date</Th>
                   <Th>Serial</Th>
                   <Th>Service</Th>
@@ -235,6 +236,7 @@ export default function Registry({ profile }) {
                       onClick={() => router.push(`/reports/${r.serial}`)}
                       style={{ cursor: "pointer", borderTop: "1px solid #eee4d0", background: recent ? "#fffdf4" : i % 2 ? "#faf7f0" : "#fff", boxShadow: recent ? `inset 3px 0 0 ${GOLD}` : "none" }}
                     >
+                      <td style={{ ...td, textAlign: "center", color: MUTE, fontFamily: "var(--mono)", fontSize: 12, fontWeight: 700 }} title="Registry number (1 = latest)">{i + 1}</td>
                       <td style={td} title={new Date(r.reportDate || r.createdAt).toLocaleString()}>
                         <span style={{ fontFamily: "var(--mono)", fontSize: 12 }}>{shortDate(r.reportDate || r.createdAt)}</span>
                         {backdated && <span className="muted" style={{ fontSize: 9.5, display: "block" }}>backdated</span>}
