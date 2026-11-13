@@ -432,22 +432,32 @@ export function invoiceToDoc(inv) {
 const LPO_STATE = {
   DRAFT: "pending",
   PENDING: "pending",
+  PENDING_TM: "pending",
+  PENDING_CFO: "pending",
+  PENDING_MD: "pending",
   APPROVED: "approved",
   CANCELLED: "cancelled",
 };
 
+// The three-stage authorisation trail: Technical Manager -> Chief Finance
+// Officer -> Managing Director. Each stage reads "done" once signed, "now" when
+// it is the order's current pending stage, else "wait".
 function lpoAuth(lpo) {
+  const stage = (at, by, pendingStatus) => {
+    if (at) return { by: by || "—", state: "Approved", st: "done" };
+    if (lpo.status === pendingStatus) return { by: "— pending —", state: "Pending review", st: "now" };
+    return { by: "—", state: lpo.status === "CANCELLED" ? "—" : "Awaiting", st: "wait" };
+  };
   const rows = [
     { role: "Raised by", by: lpo.raisedByName || "Procurement", state: "Submitted", st: "done" },
+    { role: "Technical Manager", ...stage(lpo.tmApprovedAt, lpo.tmApprovedByName, "PENDING_TM") },
+    { role: "Chief Finance Officer", ...stage(lpo.cfoApprovedAt, lpo.cfoApprovedByName, "PENDING_CFO") },
+    { role: "Managing Director", ...stage(lpo.mdApprovedAt, lpo.mdApprovedByName, "PENDING_MD") },
   ];
-  if (lpo.status === "APPROVED") {
-    rows.push({ role: "Approved by", by: lpo.approvedByName || "—", state: "Approved", st: "done" });
-  } else if (lpo.status === "CANCELLED") {
-    rows.push({ role: "Approved by", by: lpo.approvedByName || "—", state: "Cancelled", st: "now" });
-  } else {
-    rows.push({ role: "Approved by", by: lpo.approvedByName || "— pending —", state: "Pending approval", st: "now" });
+  // A rejected order names who returned it, in place of the open stage.
+  if (lpo.status === "CANCELLED" && lpo.rejectedByName) {
+    rows.push({ role: "Rejected by", by: lpo.rejectedByName, state: lpo.rejectComment ? `Returned — "${lpo.rejectComment}"` : "Returned", st: "now" });
   }
-  if (lpo.notedByName) rows.push({ role: "Noted by", by: lpo.notedByName, state: "For oversight", st: "now" });
   return rows;
 }
 

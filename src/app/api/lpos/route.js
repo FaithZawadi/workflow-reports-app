@@ -2,13 +2,14 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { nextSerial } from "@/lib/serial";
 import { recordAudit } from "@/lib/audit";
-import { rolesOf, LPO_ROLES } from "@/lib/roles";
+import { rolesOf, LPO_ROLES, LPO_CREATE_ROLES } from "@/lib/roles";
 import { getSettings } from "@/lib/settings";
 import { computeInvoiceTotals } from "@/lib/invoice";
 
 export const dynamic = "force-dynamic";
 
 const canLpo = (user) => rolesOf(user).some((r) => LPO_ROLES.includes(r));
+const canCreate = (user) => rolesOf(user).some((r) => LPO_CREATE_ROLES.includes(r));
 
 // Normalise and total a set of line items (LPO has no retention).
 function cleanItems(raw) {
@@ -69,7 +70,7 @@ export async function POST(req) {
   } catch (res) {
     return res;
   }
-  if (!canLpo(user)) return Response.json({ error: "Not allowed." }, { status: 403 });
+  if (!canCreate(user)) return Response.json({ error: "Only managers, the CFO or the MD can raise an LPO. Technicians raise a purchase request instead." }, { status: 403 });
 
   let body;
   try {
@@ -90,7 +91,8 @@ export async function POST(req) {
   const { subtotal, vatAmount, grandTotal } = computeInvoiceTotals(items, vatRate, 0);
 
   const number = await nextSerial("LPO");
-  const status = body.status === "DRAFT" ? "DRAFT" : "PENDING";
+  // Submitting an LPO starts the approval chain at the Technical Manager.
+  const status = body.status === "DRAFT" ? "DRAFT" : "PENDING_TM";
   const toDate = (v) => {
     if (!v) return null;
     const d = new Date(v);
@@ -123,7 +125,7 @@ export async function POST(req) {
       notes: String(body.notes || "").trim() || null,
       raisedByName: user.name,
       raisedById: user.sub,
-      issuedAt: status === "PENDING" ? new Date() : null,
+      issuedAt: status === "PENDING_TM" ? new Date() : null,
     },
   });
 

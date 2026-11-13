@@ -43,6 +43,8 @@ export const ALL_ROLES = [
   "MANAGER",
   "PROJECT_MANAGER",
   "TECHNICAL_MANAGER",
+  "CFO",
+  "MANAGING_DIRECTOR",
   "ADMIN",
   "CLIENT",
   "HR",
@@ -126,10 +128,30 @@ export const canManageAttendance = (input) => intersects(input, ATTENDANCE_MANAG
 export const INVOICE_ROLES = ["ADMIN", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
 export const canSeeInvoices = (input) => intersects(input, INVOICE_ROLES);
 
-// Local Purchase Orders (procurement) are raised/approved by the same
-// managers / admins who run invoicing.
-export const LPO_ROLES = INVOICE_ROLES;
+// Local Purchase Orders are raised by managers, the CFO and the Managing
+// Director — never technicians (who raise purchase requests instead) — and
+// approved up a three-stage chain: Technical Manager -> Chief Finance Officer
+// -> Managing Director.
+export const LPO_CREATE_ROLES = ["MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "CFO", "MANAGING_DIRECTOR", "ADMIN"];
+export const LPO_TM_ROLES = ["TECHNICAL_MANAGER", "ADMIN"];
+export const LPO_CFO_ROLES = ["CFO", "ADMIN"];
+export const LPO_MD_ROLES = ["MANAGING_DIRECTOR", "ADMIN"];
+// Anyone who can create or approve an LPO can open the LPO list.
+export const LPO_ROLES = [...new Set([...LPO_CREATE_ROLES, ...LPO_TM_ROLES, ...LPO_CFO_ROLES, ...LPO_MD_ROLES])];
 export const canSeeLpos = (input) => intersects(input, LPO_ROLES);
+export const canCreateLpos = (input) => intersects(input, LPO_CREATE_ROLES);
+
+// The pending status each approval role acts on, and whether a user may act on
+// the order's current stage.
+export const LPO_STAGE_ROLES = {
+  PENDING_TM: LPO_TM_ROLES,
+  PENDING_CFO: LPO_CFO_ROLES,
+  PENDING_MD: LPO_MD_ROLES,
+};
+export const canApproveLpoStage = (status, input) => {
+  const roles = LPO_STAGE_ROLES[status];
+  return roles ? intersects(input, roles) : false;
+};
 
 // PM/TM/admin see & prepare all quotations; supervisors get a scoped read view;
 // Technicians & Sales see only their own; clients raise requests.

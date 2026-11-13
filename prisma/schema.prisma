@@ -825,13 +825,28 @@ model Lpo {
   // The Conditions of Purchase revision printed on the document footer.
   conditionsRev String  @default("GTB v1.0")
 
-  // Authorisation trail (raised → approved → optional oversight note).
+  // Authorisation trail. A purchase order is approved in three stages:
+  // Technical Manager → Chief Finance Officer → Managing Director. Each stage
+  // records who signed it off and when; the status tracks the current stage.
   raisedByName  String?
   raisedById    String?
+  tmApprovedByName  String? // Technical Manager
+  tmApprovedById    String?
+  tmApprovedAt      DateTime?
+  cfoApprovedByName String? // Chief Finance Officer
+  cfoApprovedById   String?
+  cfoApprovedAt     DateTime?
+  mdApprovedByName  String? // Managing Director
+  mdApprovedById    String?
+  mdApprovedAt      DateTime?
+  // The reviewer who rejected the order (sends it back), with their comment.
+  rejectedByName String?
+  rejectedAt     DateTime?
+  rejectComment  String?
+  // Final approval timestamp (set when the Managing Director signs off).
   approvedByName String?
   approvedById  String?
   approvedAt    DateTime?
-  notedByName   String?
 
   issuedAt   DateTime? // moved out of draft (issued to the supplier)
   shareToken String?   @unique
@@ -845,8 +860,11 @@ model Lpo {
 
 enum LpoStatus {
   DRAFT // being prepared
-  PENDING // issued / awaiting approval
-  APPROVED // authorised
+  PENDING // legacy single-stage pending (kept for any in-flight rows)
+  PENDING_TM // awaiting the Technical Manager
+  PENDING_CFO // awaiting the Chief Finance Officer
+  PENDING_MD // awaiting the Managing Director
+  APPROVED // fully authorised (all three stages)
   CANCELLED // voided
 }
 

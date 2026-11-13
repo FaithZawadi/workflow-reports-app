@@ -5,9 +5,19 @@ import { COAL, GOLD, INK, MUTE, PASS, FAIL, WAIT } from "@/lib/theme";
 const STATUS_CHIP = {
   DRAFT: { label: "Draft", bg: "#e8e3d6", color: INK },
   PENDING: { label: "Pending", bg: "#fff3d6", color: "#8a6d00" },
+  PENDING_TM: { label: "Technical Mgr", bg: "#fff3d6", color: "#8a6d00" },
+  PENDING_CFO: { label: "CFO", bg: "#fff3d6", color: "#8a6d00" },
+  PENDING_MD: { label: "Managing Dir.", bg: "#fff3d6", color: "#8a6d00" },
   APPROVED: { label: "Approved", bg: "#eaf4ee", color: PASS },
   CANCELLED: { label: "Cancelled", bg: COAL, color: GOLD },
 };
+// Who may approve each pending stage (mirrors the server-side gate).
+const STAGE = {
+  PENDING_TM: { label: "Technical Manager", roles: ["TECHNICAL_MANAGER", "ADMIN"] },
+  PENDING_CFO: { label: "Chief Finance Officer", roles: ["CFO", "ADMIN"] },
+  PENDING_MD: { label: "Managing Director", roles: ["MANAGING_DIRECTOR", "ADMIN"] },
+};
+const CREATE_ROLES = ["MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "CFO", "MANAGING_DIRECTOR", "ADMIN"];
 const money = (n) => Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const emptyItem = () => ({ description: "", qty: 1, unit: "EA", unitPrice: "" });
 
@@ -30,12 +40,23 @@ export default function Lpos({ profile }) {
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [status]);
 
-  const setStatusOf = async (lpo, next) => {
-    await fetch(`/api/lpos/${lpo.id}`, {
+  const myRoles = (profile?.roles && profile.roles.length ? profile.roles : [profile?.role]).filter(Boolean);
+  const canApproveStage = (st) => (STAGE[st]?.roles || []).some((r) => myRoles.includes(r));
+  const canCreate = CREATE_ROLES.some((r) => myRoles.includes(r));
+
+  const doAction = async (lpo, action, extra = {}) => {
+    setErr("");
+    const res = await fetch(`/api/lpos/${lpo.id}`, {
       method: "PATCH", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: next }),
+      body: JSON.stringify({ action, ...extra }),
     });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) return setErr(d.error || "Could not update the order.");
     load();
+  };
+  const reject = (lpo) => {
+    const comment = typeof window !== "undefined" ? window.prompt("Reason for rejecting this order:") : "";
+    if (comment && comment.trim()) doAction(lpo, "reject", { comment: comment.trim() });
   };
 
   return (
@@ -45,7 +66,7 @@ export default function Lpos({ profile }) {
           <h1 className="h1" style={{ margin: 0 }}>Purchase orders</h1>
           <div className="muted" style={{ fontSize: 13 }}>Raise and authorise Local Purchase Orders to suppliers.</div>
         </div>
-        <button className="btn btn-primary" onClick={() => setCreating(true)} style={{ fontWeight: 800 }}>+ New LPO</button>
+        {canCreate ? <button className="btn btn-primary" onClick={() => setCreating(true)} style={{ fontWeight: 800 }}>+ New LPO</button> : null}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
@@ -93,11 +114,21 @@ export default function Lpos({ profile }) {
                       <td style={{ padding: "8px 10px", color: MUTE, fontSize: 12.5 }}>{lpo.requiredBy ? new Date(lpo.requiredBy).toLocaleDateString() : "—"}</td>
                       <td style={{ padding: "8px 10px", whiteSpace: "nowrap", textAlign: "right" }}>
                         <a className="btn" href={`/api/lpos/${lpo.id}/pdf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, textDecoration: "none" }}>PDF</a>{" "}
-                        {lpo.status !== "APPROVED" && lpo.status !== "CANCELLED" ? (
-                          <button className="btn" onClick={() => setStatusOf(lpo, "APPROVED")} style={{ fontSize: 12, color: PASS }}>Approve</button>
+                        {lpo.status === "DRAFT" && canCreate ? (
+                          <button className="btn" onClick={() => doAction(lpo, "submit")} style={{ fontSize: 12, color: PASS }}>Submit</button>
+                        ) : null}
+                        {STAGE[lpo.status] ? (
+                          canApproveStage(lpo.status) ? (
+                            <>
+                              <button className="btn" onClick={() => doAction(lpo, "approve")} style={{ fontSize: 12, color: PASS }}>Approve</button>{" "}
+                              <button className="btn" onClick={() => reject(lpo)} style={{ fontSize: 12, color: FAIL }}>Reject</button>
+                            </>
+                          ) : (
+                            <span className="muted" style={{ fontSize: 11.5 }}>awaiting {STAGE[lpo.status].label}</span>
+                          )
                         ) : null}{" "}
-                        {lpo.status !== "CANCELLED" ? (
-                          <button className="btn" onClick={() => setStatusOf(lpo, "CANCELLED")} style={{ fontSize: 12, color: WAIT }}>Cancel</button>
+                        {lpo.status !== "CANCELLED" && lpo.status !== "APPROVED" && canCreate ? (
+                          <button className="btn" onClick={() => doAction(lpo, "cancel")} style={{ fontSize: 12, color: WAIT }}>Cancel</button>
                         ) : null}
                       </td>
                     </tr>
