@@ -824,6 +824,9 @@ model Lpo {
   notes         String?
   // The Conditions of Purchase revision printed on the document footer.
   conditionsRev String  @default("GTB v1.0")
+  // When raised from an approved purchase request, the request it came from.
+  fromRequestId     String?
+  fromRequestNumber String?
 
   // Authorisation trail. A purchase order is approved in three stages:
   // Technical Manager → Chief Finance Officer → Managing Director. Each stage
@@ -866,6 +869,52 @@ enum LpoStatus {
   PENDING_MD // awaiting the Managing Director
   APPROVED // fully authorised (all three stages)
   CANCELLED // voided
+}
+
+// A Purchase Request is raised by a technician (or any staffer) to ask for
+// something to be bought. A manager approves or declines it; from an approved
+// request, a manager/CFO/MD raises an LPO. The request is informational — the
+// financial authority lives on the LPO's three-stage approval.
+model PurchaseRequest {
+  id     String   @id @default(cuid())
+  number String   @unique // QSL-PR-2026-00001
+  status PrStatus @default(PENDING)
+
+  requestedByName String
+  requestedById   String?
+
+  title             String? // short summary of what is needed
+  justification     String? // why it is needed
+  items             Json? // [{ description, qty, unit, estUnitPrice }]
+  suggestedSupplier String?
+  requiredBy        DateTime?
+  currency          String  @default("KES")
+  estTotal          Float   @default(0) // estimated total from the est. prices
+
+  // Manager review.
+  reviewedByName String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  reviewComment  String?
+
+  // The LPO raised from this request (snapshot ids — no FK).
+  lpoId     String?
+  lpoNumber String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([requestedById])
+}
+
+enum PrStatus {
+  PENDING // awaiting a manager's review
+  APPROVED // approved — ready to be raised as an LPO
+  DECLINED // a manager declined it
+  CONVERTED // an LPO has been raised from it
+  CANCELLED // withdrawn by the requester
 }
 
 // A client invoice. Mirrors the quotation shape (line items, VAT) and adds

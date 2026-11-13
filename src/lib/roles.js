@@ -153,6 +153,15 @@ export const canApproveLpoStage = (status, input) => {
   return roles ? intersects(input, roles) : false;
 };
 
+// Purchase requests: any staffer (technicians included) may raise one; managers
+// review (approve/decline) them, and an approved request can be raised as an LPO
+// by the LPO creators.
+export const PR_CREATE_ROLES = ["TECHNICIAN", "ENGINEER", "SUPERVISOR", "SALES", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "CFO", "MANAGING_DIRECTOR", "ADMIN"];
+export const PR_REVIEW_ROLES = ["MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER", "ADMIN"];
+export const canSeePurchaseRequests = (input) => intersects(input, PR_CREATE_ROLES);
+export const canCreatePurchaseRequests = (input) => intersects(input, PR_CREATE_ROLES);
+export const canReviewPurchaseRequests = (input) => intersects(input, PR_REVIEW_ROLES);
+
 // PM/TM/admin see & prepare all quotations; supervisors get a scoped read view;
 // Technicians & Sales see only their own; clients raise requests.
 export const canSeeQuotations = (input) =>
