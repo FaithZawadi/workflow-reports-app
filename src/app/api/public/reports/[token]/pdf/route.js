@@ -2,7 +2,6 @@ import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/db";
 import { ReportDocument } from "@/pdf/ReportDocument";
-import { renderTechReportPdf } from "@/lib/reportPdf";
 import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl, verifyUrl } from "@/lib/qr";
 import { syncCompany } from "@/lib/settings";
@@ -36,14 +35,9 @@ export async function GET(_req, { params }) {
   ].join("\n");
   const qrSrc = await qrDataUrl(qrText);
   await syncCompany();
-  // Technical Reports (TR01) render from the HTML template via headless Chromium;
-  // all other templates use the react-pdf document.
-  let buffer =
-    report.template === "TR01"
-      ? await renderTechReportPdf(report, qrSrc)
-      : await renderToBuffer(
-          React.createElement(ReportDocument, { report, logoSrc: logoDataUrl(), qrSrc })
-        );
+  let buffer = await renderToBuffer(
+    React.createElement(ReportDocument, { report, logoSrc: logoDataUrl(), qrSrc })
+  );
   if (report.attachments && report.attachments.length) {
     buffer = await appendPdfPages(buffer, report.attachments, { serial: report.serial });
   }

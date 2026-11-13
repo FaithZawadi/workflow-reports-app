@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canView } from "@/lib/rbac";
 import { ReportDocument } from "@/pdf/ReportDocument";
-import { renderTechReportPdf } from "@/lib/reportPdf";
 import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl, verifyUrl } from "@/lib/qr";
 import { syncCompany } from "@/lib/settings";
@@ -44,14 +43,9 @@ export async function GET(req, { params }) {
   ].join("\n");
   const qrSrc = await qrDataUrl(qrText);
   await syncCompany(); // reflect any branding changes from System Settings
-  // Technical Reports (TR01) render from the HTML template via headless Chromium
-  // (the refined design system); all other templates use the react-pdf document.
-  let buffer =
-    report.template === "TR01"
-      ? await renderTechReportPdf(report, qrSrc)
-      : await renderToBuffer(
-          React.createElement(ReportDocument, { report, logoSrc: logoDataUrl(), qrSrc })
-        );
+  let buffer = await renderToBuffer(
+    React.createElement(ReportDocument, { report, logoSrc: logoDataUrl(), qrSrc })
+  );
   // A supporting PDF (e.g. on a Site Instruction) becomes part of the document —
   // its pages are appended to the end of the generated report.
   if (report.attachments && report.attachments.length) {

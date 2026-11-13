@@ -56,7 +56,7 @@ export async function GET(req) {
   });
 
   await syncCompany(); // reflect any branding changes from System Settings
-  const buffer = await renderStatementPdf([statement]);
+  const buffer = await renderStatementPdf(statement);
 
   const stamp = new Date().toISOString().slice(0, 10);
   const fileClient = statementName.replace(/[^A-Za-z0-9]+/g, "-").toLowerCase();
