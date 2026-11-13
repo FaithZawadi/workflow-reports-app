@@ -210,15 +210,14 @@
   .strip .it.total{ background:var(--wash); }
   .strip .it.total .v{ font-weight:800; }
 
-  /* ---------- payment details ---------- */
+  /* ---------- payment details ----------
+     Each cell stacks its label over the value, and the value wraps rather than
+     truncating — the account name and number must be transcribed exactly for a
+     transfer, so they can never be clipped with an ellipsis. */
   .pay .strip{ margin-top:1mm; }
-  /* size payment cells from their content, then share what is left: with
-     flex:1 1 0 all four cells are equal and the account name — the one value
-     that must be transcribed exactly for a transfer — is the one that
-     truncates */
-  .pay .strip .it{ display:flex; align-items:baseline; gap:2.2mm; flex:1 1 auto; }
-  .pay .strip .k{ display:inline; margin:0; }
-  .pay .strip .v{ display:inline; margin:0; overflow:hidden; text-overflow:ellipsis; }
+  .pay .strip .it{ display:block; flex:1 1 0; min-width:0; }
+  .pay .strip .k{ display:block; margin:0; }
+  .pay .strip .v{ display:block; margin-top:.5mm; white-space:normal; overflow-wrap:anywhere; }
   .block{ margin-top:2.4mm; }
 
   /* ---------- footer ---------- */

@@ -236,21 +236,21 @@
   .cont-mark{ margin-top:3mm; }
 
   /* ---------- payment details ----------
-     Both rows are inline strips: label and value sit on one baseline rather
-     than stacked, so the whole block is two printed lines instead of three.
-     Row 1 items are elastic (the bank name is long); row 2 items are short
-     codes and stay at their natural width. */
+     Each cell stacks its label over the value, and the value wraps rather than
+     truncating — a bank account must always print in full, never clipped with
+     an ellipsis. Row 1 cells share the width equally; row 2 codes are short and
+     keep their natural width. */
   .pay{ margin-top:3.4mm; }
   .pay .strip{ display:flex; border:.5pt solid var(--rule-mid); }
   .pay .strip.row1{ margin-top:1.3mm; border-bottom:none; }
   .pay .strip .it{
     padding:1.3mm 2.4mm; border-right:.5pt solid var(--rule);
-    display:flex; align-items:baseline; gap:2.2mm; white-space:nowrap;
+    display:block; min-width:0;
   }
-  .pay .strip.row1 .it{ flex:1 1 auto; min-width:0; }
+  .pay .strip.row1 .it{ flex:1 1 0; min-width:0; }
   .pay .strip .it:last-child{ border-right:none; }
-  .pay .strip .k{ font-size:5.5pt; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-weight:600; }
-  .pay .strip .v{ font-weight:600; overflow:hidden; text-overflow:ellipsis; }
+  .pay .strip .k{ display:block; font-size:5.5pt; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-weight:600; }
+  .pay .strip .v{ display:block; margin-top:.5mm; font-weight:600; white-space:normal; overflow-wrap:anywhere; }
 
   /* ---------- terms & notes ----------
      One full-width itemised list. Previously two side-by-side columns, which
