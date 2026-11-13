@@ -130,8 +130,8 @@ img { max-width: 100%; }
 /* The logo wordmark is white, so on the dark (coal) sidebar it stands directly
    on the surface — no pill. */
 .brand-logo { display: inline-flex; align-items: center; justify-content: center; background: transparent; border-radius: 8px; padding: 4px 2px; flex-shrink: 0; }
-.brand-full { display: block; height: 30px; width: auto; }
-.brand-mini { display: none; width: 26px; height: 26px; }
+.brand-full { display: block; height: 52px; width: auto; max-width: 100%; }
+.brand-mini { display: none; width: 40px; height: 40px; }
 .collapse-btn { display: none; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.08); border: none; color: #d7cdb8; flex-shrink: 0; }
 .collapse-btn:hover { background: rgba(255,255,255,.16); color: #fff; }
 .collapse-btn svg { transition: transform .2s ease; }
