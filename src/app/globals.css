@@ -127,7 +127,9 @@ img { max-width: 100%; }
 .brand-text { font-weight: 900; font-size: 15px; letter-spacing: -.01em; color: #fff; white-space: nowrap; }
 /* Official logo used as-is on a white chip (its wordmark is dark, so it needs a
    light backdrop on the dark sidebar). Full lockup expanded; mark when collapsed. */
-.brand-logo { display: inline-flex; align-items: center; justify-content: center; background: #fff; border-radius: 8px; padding: 7px 10px; flex-shrink: 0; }
+/* The logo wordmark is white, so on the dark (coal) sidebar it stands directly
+   on the surface — no pill. */
+.brand-logo { display: inline-flex; align-items: center; justify-content: center; background: transparent; border-radius: 8px; padding: 4px 2px; flex-shrink: 0; }
 .brand-full { display: block; height: 30px; width: auto; }
 .brand-mini { display: none; width: 26px; height: 26px; }
 .collapse-btn { display: none; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.08); border: none; color: #d7cdb8; flex-shrink: 0; }
@@ -342,7 +344,7 @@ img { max-width: 100%; }
 }
 @keyframes welcomeSpin { to { transform: rotate(360deg); } }
 .welcome-chip {
-  position: relative; z-index: 1; background: #fff; border-radius: 14px;
+  position: relative; z-index: 1; background: var(--coal); border: 1px solid rgba(245,168,0,.35); border-radius: 14px;
   padding: 14px 20px; box-shadow: 0 18px 50px rgba(245,168,0,.22);
   animation: welcomeFloat 4.5s ease-in-out infinite;
 }

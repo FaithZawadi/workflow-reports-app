@@ -6,8 +6,9 @@ export function Stripe() {
 }
 
 export function Brand({ small, onDark }) {
-  // The official logo lockup (icon + wordmark), used as-is. Its wordmark is dark,
-  // so on dark surfaces it sits on a white pill; on light surfaces it stands alone.
+  // The official logo lockup (icon + wordmark), used as-is. Its wordmark is
+  // white, so on dark surfaces it stands alone; on light surfaces it sits on a
+  // coal pill so the wordmark stays legible.
   const height = small ? 24 : 34;
   const img = (
     // eslint-disable-next-line @next/next/no-img-element
@@ -19,8 +20,8 @@ export function Brand({ small, onDark }) {
         display: "inline-flex",
         alignItems: "center",
         ...(onDark
-          ? { background: "#fff", borderRadius: 8, padding: small ? "5px 9px" : "8px 12px" }
-          : {}),
+          ? {}
+          : { background: "var(--coal)", borderRadius: 8, padding: small ? "5px 9px" : "8px 12px" }),
       }}
     >
       {img}
