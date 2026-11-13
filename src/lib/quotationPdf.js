@@ -1,23 +1,33 @@
-import { renderHtmlPdf } from "@/lib/htmlPdf";
-import { orgData, quotationToDoc, rawB64 } from "@/lib/docData";
+import React from "react";
+import { renderToBuffer } from "@react-pdf/renderer";
+import { QuotationDocument } from "@/pdf/QuotationDocument";
 import { logoDataUrl } from "@/lib/logo";
 import { qrDataUrl } from "@/lib/qr";
-import { syncCompany } from "@/lib/settings";
+import { syncCompany, getSettings } from "@/lib/settings";
 
-// Render a quotation to a PDF Buffer using the HTML document template + headless
-// Chromium (the single source of truth for the design). The QR is generated
-// server-side from the document's own summary text.
+// Render a quotation to a PDF Buffer with react-pdf (the bordered document
+// layout). Shared by the inline/download PDF route, the public share link and
+// the "email PDF to client" action so all three produce an identical document.
 //
-// `internal` is accepted for API compatibility; the HTML template carries no
-// staff-only amendment history.
+// Payment details & terms follow live System Settings when the quote hasn't
+// frozen its own; an issued quote keeps what it was issued with. `internal`
+// includes staff-only amendment history.
 export async function renderQuotationPdf(q, { internal = false } = {}) {
-  void internal;
-  await syncCompany();
-  const doc = quotationToDoc(q);
-  const qr = await qrDataUrl(doc.qrText);
-  return renderHtmlPdf("quotation-invoice", {
-    __QSL_ASSETS__: { logo: rawB64(logoDataUrl()), qr_main: rawB64(qr) },
-    __QSL_ORG__: orgData(),
-    __QSL_DOCS__: [doc],
-  });
+  const qrText = [
+    `QSL Quotation ${q.number}`,
+    `Client: ${q.clientName}`,
+    `Total: ${q.currency} ${Number(q.grandTotal || 0).toLocaleString()}`,
+    q.validUntil ? `Valid until ${new Date(q.validUntil).toLocaleDateString()}` : null,
+  ].filter(Boolean).join("\n");
+  const qrSrc = await qrDataUrl(qrText);
+  await syncCompany(); // reflect any branding changes from System Settings
+  const settings = await getSettings();
+  const doc = {
+    ...q,
+    paymentDetails: q.paymentDetails || settings.finance?.paymentDetails,
+    terms: q.terms || settings.finance?.quoteTerms,
+  };
+  return renderToBuffer(
+    React.createElement(QuotationDocument, { quotation: doc, logoSrc: logoDataUrl(), qrSrc, internal })
+  );
 }
