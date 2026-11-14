@@ -244,6 +244,7 @@ model Site {
   approvedAt       DateTime?
   approvalNote     String?
   quotations Quotation[]
+  workers    Worker[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1039,10 +1040,24 @@ model Worker {
   name             String
   phone            String?
   jobTitle         String? // e.g. "Casual", "Technician"
+  // Identity details — captured once at registration. A worker cannot be
+  // registered twice (face + ID number are checked), and these identity fields
+  // are not editable afterwards; only the assigned site can be reassigned.
+  idNumber         String? // national ID / passport number
+  idPhoto          String? // photo / scan of the ID document (data URL)
+  gender           String?
+  address          String?
+  nextOfKin        String?
+  nextOfKinPhone   String?
   photo            String? // reference face photo (data URL), captured at registration
   // face-api 128-d descriptor of the reference photo, used for 1:1 verification
   // at clock-in. Empty when face models weren't available during registration.
   faceDescriptor   Float[]      @default([])
+  // The site the worker is assigned to. May be reassigned later; every change
+  // is written to the audit log.
+  siteId           String?
+  site             Site?        @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  siteName         String? // snapshot of the site name at assignment
   active           Boolean      @default(true)
   registeredById   String?
   registeredByName String?
@@ -1052,6 +1067,8 @@ model Worker {
 
   @@index([active])
   @@index([name])
+  @@index([siteId])
+  @@index([idNumber])
 }
 
 // One clock IN or OUT punch for a Worker, taken on the manager's phone.

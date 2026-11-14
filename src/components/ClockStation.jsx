@@ -283,18 +283,73 @@ export default function ClockStation({ manager }) {
   );
 }
 
+// Read an image file and downscale it to a JPEG data URL (ID documents can be
+// large straight off a phone camera).
+async function fileToDataUrl(file, max = 1280, quality = 0.72) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    let { width, height } = img;
+    if (Math.max(width, height) > max) { const s = max / Math.max(width, height); width = Math.round(width * s); height = Math.round(height * s); }
+    const c = document.createElement("canvas"); c.width = width; c.height = height;
+    c.getContext("2d").drawImage(img, 0, 0, width, height);
+    return c.toDataURL("image/jpeg", quality);
+  } finally { URL.revokeObjectURL(url); }
+}
+
 function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
   const [name, setName] = useState("");
+  const [idNumber, setIdNumber] = useState("");
+  const [idPhoto, setIdPhoto] = useState("");
   const [phone, setPhone] = useState("");
   const [jobTitle, setJobTitle] = useState("");
+  const [gender, setGender] = useState("");
+  const [address, setAddress] = useState("");
+  const [nextOfKin, setNextOfKin] = useState("");
+  const [nextOfKinPhone, setNextOfKinPhone] = useState("");
   const [photo, setPhoto] = useState("");
+  const [siteId, setSiteId] = useState("");
+  const [sites, setSites] = useState([]);
+  const [newSite, setNewSite] = useState(false);
+  const [newSiteName, setNewSiteName] = useState("");
+  const [newSiteCity, setNewSiteCity] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
+  useEffect(() => {
+    fetch("/api/attendance/sites").then((r) => (r.ok ? r.json() : { sites: [] })).then((d) => setSites(d.sites || [])).catch(() => {});
+  }, []);
+
   const capture = () => { const d = grabFrame(videoRef.current); if (d) { setPhoto(d); setErr(""); } else setErr("Camera not ready — allow camera access."); };
+
+  const pickId = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    try { setIdPhoto(await fileToDataUrl(f)); setErr(""); } catch { setErr("Couldn't read that image — try another."); }
+  };
+
+  const addSite = async () => {
+    const nm = newSiteName.trim();
+    if (!nm) return setErr("Enter the new site's name.");
+    setErr("");
+    try {
+      const r = await fetch("/api/attendance/sites", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: nm, city: newSiteCity.trim() }),
+      });
+      const d = await r.json();
+      if (!r.ok) return setErr(d.error || "Could not add the site.");
+      setSites((arr) => (arr.some((s) => s.id === d.site.id) ? arr : [...arr, d.site].sort((a, b) => a.name.localeCompare(b.name))));
+      setSiteId(d.site.id);
+      setNewSite(false); setNewSiteName(""); setNewSiteCity("");
+    } catch { setErr("Network problem — try again."); }
+  };
+
   const save = async () => {
     if (!name.trim()) return setErr("Enter the worker's name.");
-    if (!photo) return setErr("Take the worker's photo first — a face is required to register.");
+    if (!idNumber.trim()) return setErr("Enter the worker's ID number.");
+    if (!photo) return setErr("Take the worker's face photo — a face is required to register.");
+    if (!idPhoto) return setErr("Attach a photo of the worker's ID.");
     setBusy(true); setErr("");
     // A face descriptor is required so the worker can be verified at clock-in AND
     // so the server can reject registering the same person twice.
@@ -307,7 +362,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
     try {
       const r = await fetch("/api/attendance/workers", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, phone, jobTitle, photo, faceDescriptor }),
+        body: JSON.stringify({ name, idNumber, idPhoto, phone, jobTitle, gender, address, nextOfKin, nextOfKinPhone, photo, faceDescriptor, siteId: siteId || undefined }),
       });
       const d2 = await r.json();
       if (!r.ok) { setErr(d2.error || "Could not save."); setBusy(false); return; }
@@ -322,22 +377,68 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
           <b style={{ fontSize: 16 }}>Register worker</b>
           <button onClick={onClose} style={{ background: "none", border: 0, color: "#c9c1b0", fontSize: 20 }}>×</button>
         </div>
+
         <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
           <div style={{ width: 72, height: 72, borderRadius: "50%", overflow: "hidden", background: "#000", border: "1px solid #3a342c", flexShrink: 0 }}>
             {photo ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6355", fontSize: 11 }}>No photo</div>}
           </div>
           <button onClick={capture} style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${GOLD}`, background: "transparent", color: GOLD, fontWeight: 800 }}>
-            {photo ? "Retake photo" : "📷 Capture face photo"}
+            {photo ? "Retake face" : "📷 Capture face"}
           </button>
         </div>
-        <Field label="Name" value={name} onChange={setName} placeholder="e.g. John Mwangi" />
+
+        <Field label="Full name" value={name} onChange={setName} placeholder="e.g. John Mwangi" />
+        <Field label="ID number" value={idNumber} onChange={setIdNumber} placeholder="National ID / passport no." />
+
+        {/* ID document attachment */}
+        <label style={{ display: "block", marginBottom: 8 }}>
+          <span style={{ fontSize: 11.5, color: "#c9c1b0", fontWeight: 700 }}>ID document photo</span>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4 }}>
+            <div style={{ width: 86, height: 56, borderRadius: 8, overflow: "hidden", background: "#000", border: "1px solid #3a342c", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {idPhoto ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={idPhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: "#6b6355", fontSize: 10 }}>No ID</span>}
+            </div>
+            <label style={{ padding: "9px 12px", borderRadius: 10, border: `1px solid ${GOLD}`, background: "transparent", color: GOLD, fontWeight: 800, cursor: "pointer", fontSize: 13 }}>
+              {idPhoto ? "Replace ID photo" : "📎 Attach ID photo"}
+              <input type="file" accept="image/*" capture="environment" onChange={pickId} style={{ display: "none" }} />
+            </label>
+          </div>
+        </label>
+
+        {/* Site assignment */}
+        <label style={{ display: "block", marginBottom: 8 }}>
+          <span style={{ fontSize: 11.5, color: "#c9c1b0", fontWeight: 700 }}>Assigned site</span>
+          {!newSite ? (
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+              <select value={siteId} onChange={(e) => setSiteId(e.target.value)} style={{ flex: 1, padding: "11px 12px", borderRadius: 10, border: "1px solid #3a342c", background: "#211d18", color: "#fff", fontSize: 15 }}>
+                <option value="">— No site —</option>
+                {sites.map((s) => <option key={s.id} value={s.id}>{s.name}{s.city ? ` · ${s.city}` : ""}</option>)}
+              </select>
+              <button type="button" onClick={() => setNewSite(true)} style={{ padding: "0 12px", borderRadius: 10, border: "1px solid #3a342c", background: "#211d18", color: GOLD, fontWeight: 800, whiteSpace: "nowrap" }}>+ New</button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 4, padding: 10, borderRadius: 10, border: "1px solid #3a342c", background: "#201c17", display: "grid", gap: 6 }}>
+              <input value={newSiteName} onChange={(e) => setNewSiteName(e.target.value)} placeholder="New site name" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #3a342c", background: "#211d18", color: "#fff", fontSize: 14 }} />
+              <input value={newSiteCity} onChange={(e) => setNewSiteCity(e.target.value)} placeholder="Town / city (optional)" style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #3a342c", background: "#211d18", color: "#fff", fontSize: 14 }} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" onClick={() => { setNewSite(false); setNewSiteName(""); setNewSiteCity(""); }} style={{ flex: 1, padding: 9, borderRadius: 8, border: "1px solid #3a342c", background: "transparent", color: "#c9c1b0", fontWeight: 700 }}>Cancel</button>
+                <button type="button" onClick={addSite} style={{ flex: 1, padding: 9, borderRadius: 8, border: 0, background: GOLD, color: COAL, fontWeight: 800 }}>Add site</button>
+              </div>
+            </div>
+          )}
+        </label>
+
         <Field label="Job title (optional)" value={jobTitle} onChange={setJobTitle} placeholder="e.g. Casual / Technician" />
         <Field label="Phone (optional)" value={phone} onChange={setPhone} placeholder="+254…" />
+        <Field label="Gender (optional)" value={gender} onChange={setGender} placeholder="e.g. Male / Female" />
+        <Field label="Home address (optional)" value={address} onChange={setAddress} placeholder="Estate / town" />
+        <Field label="Next of kin (optional)" value={nextOfKin} onChange={setNextOfKin} placeholder="Name" />
+        <Field label="Next of kin phone (optional)" value={nextOfKinPhone} onChange={setNextOfKinPhone} placeholder="+254…" />
+
         {err && <div style={{ color: "#ff9b8e", fontSize: 13, fontWeight: 700, margin: "6px 0" }}>{err}</div>}
         <button onClick={save} disabled={busy} style={{ width: "100%", marginTop: 10, padding: 14, borderRadius: 12, border: 0, background: GOLD, color: COAL, fontWeight: 800, fontSize: 15 }}>
           {busy ? "Saving…" : "Save worker"}
         </button>
-        <p style={{ fontSize: 11.5, color: "#9a9284", marginTop: 8 }}>This one-time registration is what tracks the worker’s attendance. They are not given a login.</p>
+        <p style={{ fontSize: 11.5, color: "#9a9284", marginTop: 8 }}>One-time registration — a worker can’t be registered twice. Only their site can be changed later, and every change is recorded in the audit log. Workers are not given a login.</p>
       </div>
     </div>
   );

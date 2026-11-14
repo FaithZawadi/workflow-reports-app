@@ -108,17 +108,29 @@ function ClockLog() {
 
 function Workers() {
   const [workers, setWorkers] = useState([]);
+  const [sites, setSites] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(null); // worker id being site-changed
+  const [pickSite, setPickSite] = useState("");
+  const [expanded, setExpanded] = useState(null); // worker id showing details
+  const [lightbox, setLightbox] = useState(null);
+
   const load = useCallback(async () => {
     setBusy(true);
     try { const r = await fetch("/api/attendance/workers?all=1"); const d = await r.json(); if (r.ok) setWorkers(d.workers || []); } catch {}
     setBusy(false);
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { fetch("/api/attendance/sites").then((r) => (r.ok ? r.json() : { sites: [] })).then((d) => setSites(d.sites || [])).catch(() => {}); }, []);
 
   const toggle = async (w) => {
     await fetch(`/api/attendance/workers/${w.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ active: !w.active }) });
     load();
+  };
+  const startEdit = (w) => { setEditing(w.id); setPickSite(w.siteId || ""); };
+  const saveSite = async (w) => {
+    await fetch(`/api/attendance/workers/${w.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ siteId: pickSite || null }) });
+    setEditing(null); load();
   };
 
   return (
@@ -127,18 +139,51 @@ function Workers() {
       {workers.length === 0 && !busy && <div className="muted" style={{ fontSize: 13, padding: 12 }}>No workers registered yet. Open the clocking station to add them.</div>}
       <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
         {workers.map((w) => (
-          <div key={w.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 10px", border: "1px solid #e6e0d2", borderRadius: 10, opacity: w.active ? 1 : 0.55 }}>
-            <div style={{ width: 42, height: 42, borderRadius: "50%", overflow: "hidden", background: "#f0ebe0", flexShrink: 0 }}>
-              {w.photo ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={w.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: MUTE, fontWeight: 800 }}>{w.name[0]?.toUpperCase()}</div>}
+          <div key={w.id} style={{ border: "1px solid #e6e0d2", borderRadius: 10, opacity: w.active ? 1 : 0.6 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 10px" }}>
+              <div style={{ width: 42, height: 42, borderRadius: "50%", overflow: "hidden", background: "#f0ebe0", flexShrink: 0 }}>
+                {w.photo ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={w.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: MUTE, fontWeight: 800 }}>{w.name[0]?.toUpperCase()}</div>}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, color: INK }}>{w.name}{!w.active && <span style={{ color: FAIL, fontSize: 11, fontWeight: 800 }}> · inactive</span>}</div>
+                <div style={{ fontSize: 12, color: MUTE }}>{[w.jobTitle, w.idNumber ? `ID ${w.idNumber}` : null, w.phone].filter(Boolean).join(" · ") || "—"}</div>
+                <div style={{ fontSize: 12, color: w.siteName ? INK : MUTE, fontWeight: w.siteName ? 600 : 400 }}>📍 {w.siteName || "No site assigned"}</div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+                <button className="btn" onClick={() => startEdit(w)} style={{ fontSize: 12 }}>Change site</button>
+                <button className="btn" onClick={() => setExpanded(expanded === w.id ? null : w.id)} style={{ fontSize: 12 }}>{expanded === w.id ? "Hide" : "Details"}</button>
+                <button className="btn" onClick={() => toggle(w)} style={{ fontSize: 12, color: w.active ? FAIL : PASS }}>{w.active ? "Deactivate" : "Reactivate"}</button>
+              </div>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, color: INK }}>{w.name}{!w.active && <span style={{ color: FAIL, fontSize: 11, fontWeight: 800 }}> · inactive</span>}</div>
-              <div style={{ fontSize: 12, color: MUTE }}>{[w.jobTitle, w.phone].filter(Boolean).join(" · ") || "—"}</div>
-            </div>
-            <button className="btn" onClick={() => toggle(w)} style={{ fontSize: 12, color: w.active ? FAIL : PASS }}>{w.active ? "Deactivate" : "Reactivate"}</button>
+
+            {editing === w.id && (
+              <div style={{ display: "flex", gap: 8, padding: "0 10px 10px", alignItems: "center" }}>
+                <select value={pickSite} onChange={(e) => setPickSite(e.target.value)} className="input" style={{ flex: 1, fontSize: 13 }}>
+                  <option value="">— No site —</option>
+                  {sites.map((s) => <option key={s.id} value={s.id}>{s.name}{s.city ? ` · ${s.city}` : ""}</option>)}
+                </select>
+                <button className="btn" onClick={() => setEditing(null)} style={{ fontSize: 12 }}>Cancel</button>
+                <button className="btn btn-primary" onClick={() => saveSite(w)} style={{ fontSize: 12 }}>Save</button>
+              </div>
+            )}
+
+            {expanded === w.id && (
+              <div style={{ padding: "0 10px 10px", display: "grid", gap: 6, fontSize: 12.5, color: INK }}>
+                {w.idPhoto ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={w.idPhoto} alt="ID document" onClick={() => setLightbox(w.idPhoto)} style={{ maxWidth: 240, borderRadius: 8, border: "1px solid #e6e0d2", cursor: "zoom-in" }} />) : <span style={{ color: MUTE }}>No ID document on file.</span>}
+                <div><b>Gender:</b> {w.gender || "—"} · <b>Address:</b> {w.address || "—"}</div>
+                <div><b>Next of kin:</b> {w.nextOfKin || "—"}{w.nextOfKinPhone ? ` (${w.nextOfKinPhone})` : ""}</div>
+                <div style={{ color: MUTE }}>Registered by {w.registeredByName || "—"}{w.createdAt ? ` · ${new Date(w.createdAt).toLocaleDateString()}` : ""}</div>
+              </div>
+            )}
           </div>
         ))}
       </div>
+      {lightbox && (
+        <div onClick={() => setLightbox(null)} style={{ position: "fixed", inset: 0, background: "#000c", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={lightbox} alt="ID document" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 10 }} />
+        </div>
+      )}
     </div>
   );
 }
