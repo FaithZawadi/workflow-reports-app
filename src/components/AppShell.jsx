@@ -9,7 +9,7 @@ import NotificationBell from "./NotificationBell";
 import OfflineBadge from "./OfflineBadge";
 import PasswordPrompt from "./PasswordPrompt";
 import { ROLE_LABEL } from "@/lib/theme";
-import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, canSeeInvoices, canSeeLpos, canSeePurchaseRequests, canGenerateReports, canApproveClients, canManageAttendance, isClientOnly, rolesOf } from "@/lib/roles";
+import { canFileReports, canManageUsers, canManageTasks, canPrepareQuotes, canManageTraining, canManageWeighbridges, canManageProjects, canSeeQuotations, canSeeInvoices, canSeeLpos, canSeePurchaseRequests, canApproveClients, canManageAttendance, isClientOnly, rolesOf } from "@/lib/roles";
 import { COMPANY } from "@/lib/company";
 
 export default function AppShell({ user, children }) {
@@ -86,7 +86,6 @@ export default function AppShell({ user, children }) {
           items: [
             { href: "/overview", label: "Dashboard", icon: "dashboard" },
             { href: "/dashboard", label: "Report registry", icon: "reports" },
-            canGenerateReports(user) && { href: "/reports-summary", label: "Management report", icon: "chart" },
             { href: "/schedule", label: "Schedule", icon: "schedule" },
             { href: "/tasks", label: "Tasks", icon: "tasks" },
             canManageAttendance(user) && { href: "/attendance", label: "Attendance", icon: "schedule" },
@@ -98,6 +97,7 @@ export default function AppShell({ user, children }) {
             showQuotes && { href: "/quotations", label: "Quotations", icon: "quote" },
             showInvoices && { href: "/invoices", label: "Invoices", icon: "quote" },
             showPurchaseRequests && { href: "/purchase-requests", label: "Purchase requests", icon: "quote" },
+            showPurchaseRequests && { href: "/mrf", label: "Material requisition (MRF)", icon: "reports" },
             showLpos && { href: "/lpos", label: "Purchase orders", icon: "contract" },
             showQuotes && { href: "/calibration-requests", label: "Calibration requests", icon: "gauge" },
             showProjects && { href: "/projects", label: "Projects", icon: "projects" },

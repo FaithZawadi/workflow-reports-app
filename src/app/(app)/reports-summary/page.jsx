@@ -1,13 +1,8 @@
 import { redirect } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
-import { canGenerateReports } from "@/lib/roles";
-import ManagementReport from "@/components/ManagementReport";
 
-export const metadata = { title: "Management report · QSL" };
-
-export default async function ReportsSummaryPage() {
-  const claims = await getCurrentUser();
-  if (!claims) redirect("/login");
-  if (!canGenerateReports(claims)) redirect("/overview");
-  return <ManagementReport />;
+// The management report is now the detailed Dashboard at /overview — there is a
+// single dashboard. Keep this route as a redirect so old links/bookmarks land
+// on it rather than 404.
+export default function ReportsSummaryPage() {
+  redirect("/overview");
 }

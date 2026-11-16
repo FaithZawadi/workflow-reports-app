@@ -99,6 +99,7 @@ export async function POST(req) {
       projectName: String(body.projectName || "").trim().slice(0, 160) || null,
       projectNumber: String(body.projectNumber || "").trim().slice(0, 60) || null,
       storeName: String(body.storeName || "").trim().slice(0, 120) || null,
+      checkedByName: String(body.checkedByName || "").trim().slice(0, 120) || null,
       items,
       suggestedSupplier: String(body.suggestedSupplier || "").trim() || null,
       requiredBy: toDate(body.requiredBy),

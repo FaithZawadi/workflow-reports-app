@@ -115,7 +115,6 @@ export default function PurchaseRequests({ profile }) {
                       </td>
                       <td style={{ padding: "8px 10px", color: MUTE, fontSize: 12.5 }}>{pr.requiredBy ? new Date(pr.requiredBy).toLocaleDateString() : "—"}</td>
                       <td style={{ padding: "8px 10px", whiteSpace: "nowrap", textAlign: "right" }}>
-                        <a className="btn" href={`/api/purchase-requests/${pr.id}/mrf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, textDecoration: "none" }}>MRF</a>{" "}
                         {pr.status === "PENDING" && canReview ? (
                           <>
                             <button className="btn" onClick={() => doAction(pr, "approve")} style={{ fontSize: 12, color: PASS }}>Approve</button>{" "}
