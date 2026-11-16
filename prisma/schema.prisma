@@ -21,6 +21,10 @@ enum Role {
   MANAGER
   PROJECT_MANAGER
   TECHNICAL_MANAGER
+  // Executive offices — exactly one active holder each (see SINGLETON_ROLES).
+  // The Chief Finance Officer and Managing Director in the LPO approval chain.
+  CFO
+  MANAGING_DIRECTOR
   ADMIN
   // A client contact. Restricted login: files calibration requests and requests
   // quotations, and sees only their own — nothing else in the system.
