@@ -303,6 +303,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
   const [idPhoto, setIdPhoto] = useState("");
   const [phone, setPhone] = useState("");
   const [jobTitle, setJobTitle] = useState("");
+  const [dailyWage, setDailyWage] = useState("");
   const [gender, setGender] = useState("");
   const [address, setAddress] = useState("");
   const [nextOfKin, setNextOfKin] = useState("");
@@ -362,7 +363,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
     try {
       const r = await fetch("/api/attendance/workers", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, idNumber, idPhoto, phone, jobTitle, gender, address, nextOfKin, nextOfKinPhone, photo, faceDescriptor, siteId: siteId || undefined }),
+        body: JSON.stringify({ name, idNumber, idPhoto, phone, jobTitle, dailyWage, gender, address, nextOfKin, nextOfKinPhone, photo, faceDescriptor, siteId: siteId || undefined }),
       });
       const d2 = await r.json();
       if (!r.ok) { setErr(d2.error || "Could not save."); setBusy(false); return; }
@@ -428,6 +429,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
         </label>
 
         <Field label="Job title (optional)" value={jobTitle} onChange={setJobTitle} placeholder="e.g. Casual / Technician" />
+        <Field label="Daily wage (optional)" value={dailyWage} onChange={setDailyWage} placeholder="e.g. 800" type="number" inputMode="decimal" />
         <Field label="Phone (optional)" value={phone} onChange={setPhone} placeholder="+254…" />
         <Field label="Gender (optional)" value={gender} onChange={setGender} placeholder="e.g. Male / Female" />
         <Field label="Home address (optional)" value={address} onChange={setAddress} placeholder="Estate / town" />
@@ -444,11 +446,11 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder }) {
+function Field({ label, value, onChange, placeholder, type = "text", inputMode }) {
   return (
     <label style={{ display: "block", marginBottom: 8 }}>
       <span style={{ fontSize: 11.5, color: "#c9c1b0", fontWeight: 700 }}>{label}</span>
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} type={type} inputMode={inputMode} min={type === "number" ? 0 : undefined}
         style={{ width: "100%", marginTop: 3, padding: "11px 12px", borderRadius: 10, border: "1px solid #3a342c", background: "#211d18", color: "#fff", fontSize: 15 }} />
     </label>
   );

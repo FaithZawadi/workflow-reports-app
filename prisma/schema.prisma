@@ -1054,6 +1054,10 @@ model Worker {
   address          String?
   nextOfKin        String?
   nextOfKinPhone   String?
+  // Daily wage the manager sets for this worker — what they are paid for each
+  // day worked. Used by the daily-wages report (one day present = one day's
+  // wage). Editable later; every change is written to the audit log.
+  dailyWage        Float?
   photo            String? // reference face photo (data URL), captured at registration
   // face-api 128-d descriptor of the reference photo, used for 1:1 verification
   // at clock-in. Empty when face models weren't available during registration.

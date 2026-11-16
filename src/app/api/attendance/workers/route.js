@@ -10,6 +10,12 @@ const MAX_IMG = 900 * 1024; // ~900 KB per face selfie
 const MAX_DOC = 1800 * 1024; // ~1.8 MB for an ID document scan
 const isImg = (s) => typeof s === "string" && /^data:image\/(png|jpe?g|webp);base64,/.test(s);
 const clean = (v, n) => String(v || "").trim().slice(0, n) || null;
+// A non-negative money amount, or null when blank/invalid.
+const money = (v) => {
+  if (v === undefined || v === null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
+};
 
 async function requireManager() {
   const user = await requireUser();
@@ -43,6 +49,7 @@ export async function GET(req) {
     address: w.address,
     nextOfKin: w.nextOfKin,
     nextOfKinPhone: w.nextOfKinPhone,
+    dailyWage: w.dailyWage,
     photo: w.photo,
     idPhoto: w.idPhoto,
     siteId: w.siteId,
@@ -147,6 +154,7 @@ export async function POST(req) {
       address: clean(body.address, 200),
       nextOfKin: clean(body.nextOfKin, 120),
       nextOfKinPhone: clean(body.nextOfKinPhone, 40),
+      dailyWage: money(body.dailyWage),
       photo,
       faceDescriptor: descriptor,
       siteId,

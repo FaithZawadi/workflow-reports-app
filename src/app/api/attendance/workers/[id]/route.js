@@ -68,6 +68,20 @@ export async function PATCH(req, { params }) {
     }
   }
 
+  // Daily wage (what the worker is paid per day worked).
+  if (body.dailyWage !== undefined) {
+    let wage = null;
+    if (body.dailyWage !== null && body.dailyWage !== "") {
+      const n = Number(body.dailyWage);
+      if (!Number.isFinite(n) || n < 0) return Response.json({ error: "Enter a valid daily wage." }, { status: 400 });
+      wage = Math.round(n * 100) / 100;
+    }
+    if (wage !== worker.dailyWage) {
+      data.dailyWage = wage;
+      changes.push(`daily wage ${worker.dailyWage ?? "—"} → ${wage ?? "—"}`);
+    }
+  }
+
   if (body.active !== undefined && !!body.active !== worker.active) {
     data.active = !!body.active;
     changes.push(body.active ? "reactivated" : "deactivated");
