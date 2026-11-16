@@ -67,7 +67,7 @@ export async function PATCH(req, { params }) {
   if (!mine) return Response.json({ error: "Only the requester can edit this." }, { status: 403 });
   if (pr.status !== "PENDING") return Response.json({ error: "A reviewed request can't be edited." }, { status: 400 });
   const data = {};
-  for (const k of ["title", "justification", "suggestedSupplier"]) if (body[k] !== undefined) data[k] = String(body[k] || "").trim() || null;
+  for (const k of ["title", "justification", "suggestedSupplier", "projectName", "projectNumber", "storeName", "checkedByName"]) if (body[k] !== undefined) data[k] = String(body[k] || "").trim() || null;
   if (body.requiredBy !== undefined) {
     const d = body.requiredBy ? new Date(body.requiredBy) : null;
     data.requiredBy = d && !isNaN(d) ? d : null;

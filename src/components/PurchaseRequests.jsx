@@ -115,6 +115,7 @@ export default function PurchaseRequests({ profile }) {
                       </td>
                       <td style={{ padding: "8px 10px", color: MUTE, fontSize: 12.5 }}>{pr.requiredBy ? new Date(pr.requiredBy).toLocaleDateString() : "—"}</td>
                       <td style={{ padding: "8px 10px", whiteSpace: "nowrap", textAlign: "right" }}>
+                        <a className="btn" href={`/api/purchase-requests/${pr.id}/mrf`} target="_blank" rel="noreferrer" style={{ fontSize: 12, textDecoration: "none" }}>MRF</a>{" "}
                         {pr.status === "PENDING" && canReview ? (
                           <>
                             <button className="btn" onClick={() => doAction(pr, "approve")} style={{ fontSize: 12, color: PASS }}>Approve</button>{" "}
@@ -144,6 +145,9 @@ export default function PurchaseRequests({ profile }) {
 
 function RequestForm({ onClose, onSaved }) {
   const [title, setTitle] = useState("");
+  const [projectName, setProjectName] = useState("");
+  const [projectNumber, setProjectNumber] = useState("");
+  const [storeName, setStoreName] = useState("");
   const [justification, setJustification] = useState("");
   const [suggestedSupplier, setSuggestedSupplier] = useState("");
   const [requiredBy, setRequiredBy] = useState("");
@@ -163,7 +167,7 @@ function RequestForm({ onClose, onSaved }) {
     try {
       const res = await fetch("/api/purchase-requests", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title, justification, suggestedSupplier, requiredBy, items: clean }),
+        body: JSON.stringify({ title, projectName, projectNumber, storeName, justification, suggestedSupplier, requiredBy, items: clean }),
       });
       const d = await res.json();
       if (!res.ok) { setErr(d.error || "Could not save."); setBusy(false); return; }
@@ -182,6 +186,9 @@ function RequestForm({ onClose, onSaved }) {
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div><label style={lab}>Project name</label><input className="input" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. N8 NTSA Nakuru & Kisumu" /></div>
+          <div><label style={lab}>Project number</label><input className="input" value={projectNumber} onChange={(e) => setProjectNumber(e.target.value)} placeholder="If any" /></div>
+          <div style={{ gridColumn: "1 / -1" }}><label style={lab}>Store name (optional)</label><input className="input" value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="Store / stationed from" /></div>
           <div style={{ gridColumn: "1 / -1" }}><label style={lab}>What do you need?</label><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short summary, e.g. Replacement load cells for Katani" /></div>
           <div><label style={lab}>Suggested supplier (optional)</label><input className="input" value={suggestedSupplier} onChange={(e) => setSuggestedSupplier(e.target.value)} placeholder="If you know one" /></div>
           <div><label style={lab}>Needed by</label><input className="input" type="date" value={requiredBy} onChange={(e) => setRequiredBy(e.target.value)} /></div>

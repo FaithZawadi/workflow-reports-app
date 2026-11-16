@@ -886,6 +886,11 @@ model PurchaseRequest {
 
   title             String? // short summary of what is needed
   justification     String? // why it is needed
+  // Material Requisition Form (QSL-A2) header fields.
+  projectName       String?
+  projectNumber     String?
+  storeName         String?
+  checkedByName     String?
   items             Json? // [{ description, qty, unit, estUnitPrice }]
   suggestedSupplier String?
   requiredBy        DateTime?
