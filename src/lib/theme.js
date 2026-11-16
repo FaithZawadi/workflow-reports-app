@@ -30,6 +30,8 @@ export const ROLE_LABEL = {
   MANAGER: "Client/Manager",
   PROJECT_MANAGER: "Project Manager",
   TECHNICAL_MANAGER: "Technical Manager",
+  CFO: "Chief Finance Officer",
+  MANAGING_DIRECTOR: "Managing Director",
   ADMIN: "Administrator",
   CLIENT: "Client",
   HR: "HR / Training",

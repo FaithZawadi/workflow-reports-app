@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser, hashPassword } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { USER_ADMIN_ROLES, assignableRoles, canActOnUserRole } from "@/lib/roles";
+import { findSingletonConflicts, reassignSingletonRoles } from "@/lib/singletonRoles";
 
 const rolesOfRow = (u) => (u && u.roles && u.roles.length ? u.roles : u ? [u.role] : []);
 
@@ -36,6 +37,22 @@ export async function PATCH(req, { params }) {
       return Response.json({ error: "You can't assign that role." }, { status: 400 });
     if (target.id === admin.sub && !(roles.length === 1 && roles[0] === "ADMIN"))
       return Response.json({ error: "You can't change your own role." }, { status: 400 });
+    // Single-office roles (CFO / Managing Director): only one active holder each.
+    // If the office is already held by someone else, confirm reassignment first.
+    const conflicts = await findSingletonConflicts(roles, target.id);
+    if (conflicts.length && !body.reassignSingleton) {
+      return Response.json(
+        { error: `${conflicts.map((c) => `${c.roleLabel} is held by ${c.holderName}`).join("; ")}. Only one person may hold each — confirm reassignment to continue.`, singletonConflicts: conflicts },
+        { status: 409 }
+      );
+    }
+    if (conflicts.length) {
+      try {
+        await reassignSingletonRoles({ roles, exceptUserId: target.id, actor: admin });
+      } catch (e) {
+        return Response.json({ error: e.message || "Could not reassign that office." }, { status: e.status || 409 });
+      }
+    }
     data.roles = roles;
     data.role = roles[0]; // primary role
   }

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser, hashPassword } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { USER_ADMIN_ROLES, MANAGER_ASSIGNABLE_ROLES, ALL_ROLES, assignableRoles, rolesOf } from "@/lib/roles";
+import { findSingletonConflicts, reassignSingletonRoles } from "@/lib/singletonRoles";
 import { sendMail, invitationEmail } from "@/lib/email";
 import { ROLE_LABEL } from "@/lib/theme";
 import crypto from "crypto";
@@ -95,6 +96,23 @@ export async function POST(req) {
 
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) return Response.json({ error: "A user with that email already exists." }, { status: 409 });
+
+  // Single-office roles (CFO / Managing Director): only one active holder each.
+  // If the office is taken, ask the admin to confirm reassignment first.
+  const conflicts = await findSingletonConflicts(roles, null);
+  if (conflicts.length && !body.reassignSingleton) {
+    return Response.json(
+      { error: `${conflicts.map((c) => `${c.roleLabel} is held by ${c.holderName}`).join("; ")}. Only one person may hold each — confirm reassignment to continue.`, singletonConflicts: conflicts },
+      { status: 409 }
+    );
+  }
+  if (conflicts.length) {
+    try {
+      await reassignSingletonRoles({ roles, exceptUserId: null, actor: me });
+    } catch (e) {
+      return Response.json({ error: e.message || "Could not reassign that office." }, { status: e.status || 409 });
+    }
+  }
 
   // Home organisation: QSL (internal) or a client (employed by them).
   const orgType = String(body.orgType || "").toUpperCase() === "CLIENT" ? "CLIENT" : "QSL";

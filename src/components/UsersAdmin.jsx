@@ -1,10 +1,41 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { COAL, GOLD, INK, MUTE, PAPER, LINE, PASS, ROLE_LABEL } from "@/lib/theme";
-import { assignableRoles, rolesOf } from "@/lib/roles";
+import { assignableRoles, rolesOf, SINGLETON_ROLES } from "@/lib/roles";
 
 const rolesOfUser = (u) => (u.roles && u.roles.length ? u.roles : u.role ? [u.role] : []);
 const roleNames = (u) => rolesOfUser(u).map((r) => ROLE_LABEL[r] || r).join(", ");
+
+// Single-office confirmation: shown when the admin tries to assign CFO / MD to
+// someone while another active user holds it.
+function SingletonConfirm({ conflicts, onConfirm, onCancel, busy }) {
+  return (
+    <div className="card" style={{ borderColor: GOLD, background: "#fffaf0", padding: 12, marginTop: 10 }}>
+      <div style={{ fontWeight: 800, color: INK, fontSize: 13 }}>Single-office role already assigned</div>
+      <ul style={{ margin: "6px 0 4px", paddingLeft: 18, fontSize: 13, color: INK }}>
+        {conflicts.map((c) => (
+          <li key={c.role}><b>{c.roleLabel}</b> is currently held by <b>{c.holderName}</b>. Only one person may hold it.</li>
+        ))}
+      </ul>
+      <p className="muted" style={{ fontSize: 12 }}>Reassigning moves the office to this user and removes it from the current holder. The change is recorded in the audit log.</p>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button className="btn btn-primary" onClick={onConfirm} disabled={busy}>{busy ? "Reassigning…" : "Reassign to this user"}</button>
+        <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+// A one-line note of which single-office roles exist and who holds each.
+function SingletonHint({ holders }) {
+  return (
+    <p className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>
+      Single office (one person each): {SINGLETON_ROLES.map((r, i) => (
+        <span key={r}>{i ? " · " : ""}<b>{ROLE_LABEL[r] || r}</b> — {holders[r] ? holders[r].name : "vacant"}</span>
+      ))}. Assigning it to someone new reassigns it.
+    </p>
+  );
+}
 
 // Home-organisation chip: gold for QSL, coal for an external client's staff.
 function OrgBadge({ orgType, orgName }) {
@@ -129,6 +160,16 @@ export default function UsersAdmin({ profile }) {
     return [u.name, u.email, roleNames(u), u.client, u.orgName, u.servingClient, u.site].some((v) => String(v || "").toLowerCase().includes(s));
   });
 
+  // Who currently holds each single-office role (active holders only).
+  const singletonHolders = useMemo(() => {
+    const m = {};
+    for (const u of users || []) {
+      if (!u.active) continue;
+      for (const r of rolesOfUser(u)) if (SINGLETON_ROLES.includes(r) && !m[r]) m[r] = u;
+    }
+    return m;
+  }, [users]);
+
   return (
     <div>
       <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 12 }}>
@@ -145,7 +186,7 @@ export default function UsersAdmin({ profile }) {
       </div>
 
       {err && <div className="err" style={{ margin: "10px 0" }}>{err}</div>}
-      {showAdd && <AddUser roleOptions={roleOptions} clients={clients} onCreated={() => { setShowAdd(false); load(); }} />}
+      {showAdd && <AddUser roleOptions={roleOptions} clients={clients} isAdmin={isAdmin} singletonHolders={singletonHolders} onCreated={() => { setShowAdd(false); load(); }} />}
 
       <input className="input" placeholder="Search name, email, role, client…" value={q} onChange={(e) => setQ(e.target.value)} style={{ margin: "10px 0 12px" }} />
 
@@ -173,7 +214,7 @@ export default function UsersAdmin({ profile }) {
                 {editing === u.id ? "Cancel" : "Manage"}
               </button>
             </div>
-            {editing === u.id && <EditUser user={u} roleOptions={roleOptions} allWbs={allWbs} clients={clients} isSelf={u.id === profile.id} onSaved={() => { setEditing(null); load(); }} />}
+            {editing === u.id && <EditUser user={u} roleOptions={roleOptions} allWbs={allWbs} clients={clients} isAdmin={isAdmin} singletonHolders={singletonHolders} isSelf={u.id === profile.id} onSaved={() => { setEditing(null); load(); }} />}
           </div>
         ))}
         {users && shown.length === 0 && <div className="muted">No users match.</div>}
@@ -182,14 +223,15 @@ export default function UsersAdmin({ profile }) {
   );
 }
 
-function AddUser({ roleOptions, clients = [], onCreated }) {
+function AddUser({ roleOptions, clients = [], isAdmin, singletonHolders = {}, onCreated }) {
   const [f, setF] = useState({ name: "", email: "", password: "", roles: [roleOptions[0] || "TECHNICIAN"], orgType: "QSL", clientName: "", servingClientId: "", site: "", phone: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [conflict, setConflict] = useState(null); // singleton-office conflict to confirm
   const [result, setResult] = useState(null); // { email, tempPassword, emailed }
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
 
-  const submit = async () => {
+  const submit = async (reassignSingleton = false) => {
     setErr("");
     if (!f.name.trim() || !f.email.trim()) return setErr("Name and email are required.");
     if (f.password && f.password.length < 8) return setErr("If you set a password it must be at least 8 characters.");
@@ -198,11 +240,15 @@ function AddUser({ roleOptions, clients = [], onCreated }) {
     const res = await fetch("/api/users", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(f),
+      body: JSON.stringify({ ...f, reassignSingleton }),
     });
     setBusy(false);
     const d = await res.json().catch(() => ({}));
-    if (!res.ok) return setErr(d.error || "Could not create user.");
+    if (!res.ok) {
+      if (res.status === 409 && d.singletonConflicts) { setConflict(d.singletonConflicts); return; }
+      return setErr(d.error || "Could not create user.");
+    }
+    setConflict(null);
     setResult({ email: f.email.trim(), tempPassword: d.tempPassword, emailed: d.emailed });
   };
 
@@ -238,6 +284,7 @@ function AddUser({ roleOptions, clients = [], onCreated }) {
         <L label="Temporary password (optional)"><input className="input" type="text" value={f.password} onChange={(e) => set("password", e.target.value)} placeholder="leave blank to auto-generate" /></L>
         <L label="Roles (choose one or more)">
           <RolePicker options={roleOptions} value={f.roles} onChange={(v) => set("roles", v)} />
+          {isAdmin && <SingletonHint holders={singletonHolders} />}
         </L>
         <OrgServingFields
           orgType={f.orgType}
@@ -253,15 +300,17 @@ function AddUser({ roleOptions, clients = [], onCreated }) {
       </div>
       <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>An invitation email is sent with a temporary password. The user must set their own password on first sign-in.</p>
       {err && <div className="err" style={{ margin: "6px 0" }}>{err}</div>}
-      <button className="btn btn-primary" onClick={submit} disabled={busy} style={{ marginTop: 6 }}>
+      {conflict && <SingletonConfirm conflicts={conflict} busy={busy} onConfirm={() => submit(true)} onCancel={() => setConflict(null)} />}
+      <button className="btn btn-primary" onClick={() => submit(false)} disabled={busy} style={{ marginTop: 6 }}>
         {busy ? "Inviting…" : "Send invitation"}
       </button>
     </div>
   );
 }
 
-function EditUser({ user, roleOptions, allWbs = [], clients = [], isSelf, onSaved }) {
+function EditUser({ user, roleOptions, allWbs = [], clients = [], isAdmin, singletonHolders = {}, isSelf, onSaved }) {
   const [roles, setRoles] = useState(rolesOfUser(user));
+  const [conflict, setConflict] = useState(null); // singleton-office conflict to confirm
   const [site, setSite] = useState(user.site || "");
   const [orgType, setOrgType] = useState(user.orgType || "QSL");
   const [clientName, setClientName] = useState(user.client || "");
@@ -283,23 +332,30 @@ function EditUser({ user, roleOptions, allWbs = [], clients = [], isSelf, onSave
       body: JSON.stringify(partial),
     });
     setBusy(false);
-    if (!res.ok) { setErr((await res.json()).error || "Could not save."); return false; }
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { return { ok: false, status: res.status, data: d }; }
     if (okMsg) setMsg(okMsg);
-    return true;
+    return { ok: true, data: d };
   };
 
-  const saveDetails = async () => {
+  const saveDetails = async (reassignSingleton = false) => {
     if (!roles.length) { setErr("A user must have at least one role."); return; }
     const payload = { roles, site, orgType, clientName, servingClientId, assignedClientIds: [...assigned] };
+    if (reassignSingleton) payload.reassignSingleton = true;
     if (allWbs.length > 0) payload.weighbridgeIds = [...wbs];
-    if (await patch(payload, "Saved.")) onSaved();
+    const r = await patch(payload, "Saved.");
+    if (r.ok) { setConflict(null); onSaved(); return; }
+    if (r.status === 409 && r.data.singletonConflicts) { setConflict(r.data.singletonConflicts); return; }
+    setErr(r.data.error || "Could not save.");
   };
   const resetPw = async () => {
     if (pw.length < 8) return setErr("New password must be at least 8 characters.");
-    if (await patch({ newPassword: pw }, "Password reset.")) setPw("");
+    const r = await patch({ newPassword: pw }, "Password reset.");
+    if (r.ok) setPw(""); else setErr(r.data.error || "Could not reset password.");
   };
   const toggleActive = async () => {
-    if (await patch({ active: !user.active })) onSaved();
+    const r = await patch({ active: !user.active });
+    if (r.ok) onSaved(); else setErr(r.data.error || "Could not update.");
   };
 
   return (
@@ -309,7 +365,10 @@ function EditUser({ user, roleOptions, allWbs = [], clients = [], isSelf, onSave
           {isSelf ? (
             <div className="muted" style={{ fontSize: 13 }}>{roles.map((r) => ROLE_LABEL[r] || r).join(", ")} <span style={{ color: MUTE }}>· you can&apos;t change your own role</span></div>
           ) : (
-            <RolePicker options={[...new Set([...roleOptions, ...roles])]} value={roles} onChange={setRoles} />
+            <>
+              <RolePicker options={[...new Set([...roleOptions, ...roles])]} value={roles} onChange={setRoles} />
+              {isAdmin && <SingletonHint holders={singletonHolders} />}
+            </>
           )}
         </L>
         <OrgServingFields
@@ -359,8 +418,9 @@ function EditUser({ user, roleOptions, allWbs = [], clients = [], isSelf, onSave
       </div>
       {err && <div className="err" style={{ margin: "8px 0 0" }}>{err}</div>}
       {msg && <div style={{ color: "#2E7D46", fontWeight: 700, fontSize: 13, margin: "8px 0 0" }}>{msg}</div>}
+      {conflict && <SingletonConfirm conflicts={conflict} busy={busy} onConfirm={() => saveDetails(true)} onCancel={() => setConflict(null)} />}
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <button className="btn btn-primary" style={{ fontSize: 13 }} disabled={busy} onClick={saveDetails}>Save changes</button>
+        <button className="btn btn-primary" style={{ fontSize: 13 }} disabled={busy} onClick={() => saveDetails(false)}>Save changes</button>
         {!isSelf && (
           <button className="btn" style={{ fontSize: 13, color: user.active ? "#B03A2E" : "#2E7D46" }} disabled={busy} onClick={toggleActive}>
             {user.active ? "Deactivate" : "Reactivate"}

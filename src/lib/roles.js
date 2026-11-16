@@ -124,6 +124,12 @@ export const canApproveQuotes = (input) => intersects(input, QUOTE_APPROVER_ROLE
 export const ATTENDANCE_MANAGER_ROLES = ["ADMIN", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
 export const canManageAttendance = (input) => intersects(input, ATTENDANCE_MANAGER_ROLES);
 
+// Single-office executive roles: exactly one active person may hold each at a
+// time. Assigning one to a new user reassigns it away from the current holder.
+// Only an admin may assign these (they are outside the manager-assignable set).
+export const SINGLETON_ROLES = ["CFO", "MANAGING_DIRECTOR"];
+export const isSingletonRole = (r) => SINGLETON_ROLES.includes(r);
+
 // Invoicing is run by managers / admins (raise, issue, mark paid).
 export const INVOICE_ROLES = ["ADMIN", "MANAGER", "PROJECT_MANAGER", "TECHNICAL_MANAGER"];
 export const canSeeInvoices = (input) => intersects(input, INVOICE_ROLES);
