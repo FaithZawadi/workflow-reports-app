@@ -47,23 +47,24 @@ export function accentOf(kind) {
 const s = StyleSheet.create({
   topBar: { position: "absolute", top: 0, left: 0, right: 0, height: 13 },
 
-  // ---- header -------------------------------------------------------------
+  // ---- header (letterhead: logo · company + address · divider · meta) ------
   header: {},
   hRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  hLeft: { flexDirection: "row", alignItems: "flex-start", flex: 1, paddingRight: 14 },
-  logoBox: { width: 62, height: 62, borderWidth: 0.8, borderColor: R.HAIR, borderRadius: 4, padding: 4, marginRight: 11, alignItems: "center", justifyContent: "center" },
-  logo: { width: 52, height: 52, objectFit: "contain" },
-  brand: { fontSize: 14, fontFamily: "Helvetica-Bold", color: R.COAL, letterSpacing: 0.3 },
+  hLeft: { flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 16 },
+  logo: { width: 86, height: 70, objectFit: "contain", marginRight: 14 },
+  brand: { fontSize: 12.5, fontFamily: "Helvetica-Bold", color: R.COAL, letterSpacing: 0.2, marginBottom: 2.5 },
   brandGold: { color: R.GOLD_DK },
-  hText: { flex: 1, paddingTop: 3 },
-  contact: { fontSize: 7.3, color: R.INK, marginTop: 1.5, lineHeight: 1.35 },
-  contactGold: { fontSize: 7.3, color: R.GOLD_DK, marginTop: 1.5, fontFamily: "Helvetica-Bold" },
-  hRight: { minWidth: 210 },
-  metaRow: { flexDirection: "row", alignItems: "baseline", marginBottom: 3.5, justifyContent: "flex-end" },
-  metaK: { fontSize: 6.8, fontFamily: "Helvetica-Bold", color: R.FAINT, letterSpacing: 0.6, textTransform: "uppercase", width: 52, textAlign: "right", marginRight: 10 },
-  metaV: { fontSize: 8.6, fontFamily: "Helvetica-Bold", color: R.COAL, width: 148, textAlign: "left" },
-  metaVMono: { fontSize: 8.4, fontFamily: "Courier-Bold", color: R.COAL, width: 148, textAlign: "left" },
-  headRule: { borderBottomWidth: 1.4, borderBottomColor: R.GOLD_DK, marginTop: 8 },
+  hText: { flex: 1, paddingTop: 1 },
+  contact: { fontSize: 8, color: R.INK, marginTop: 1.5, lineHeight: 1.3 },
+  contactGold: { fontSize: 8, color: R.GOLD_DK, marginTop: 1.5, fontFamily: "Helvetica-Bold" },
+  // Thin vertical divider between the address block and the meta block.
+  hDivider: { width: 0.8, alignSelf: "stretch", backgroundColor: R.HAIR, marginRight: 14 },
+  hRight: { width: 176 },
+  metaRow: { flexDirection: "row", alignItems: "baseline", marginBottom: 4 },
+  metaK: { fontSize: 7.4, fontFamily: "Helvetica-Bold", color: R.FAINT, letterSpacing: 0.3, width: 56 },
+  metaV: { fontSize: 9, fontFamily: "Helvetica-Bold", color: R.COAL, flex: 1 },
+  metaVMono: { fontSize: 8.6, fontFamily: "Courier-Bold", color: R.COAL, flex: 1 },
+  headRule: { borderBottomWidth: 1.2, borderBottomColor: R.COAL, marginTop: 9 },
 
   // ---- title pill ---------------------------------------------------------
   titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 12, marginBottom: 10 },
@@ -143,28 +144,34 @@ export function TopBar({ kind = "default", color }) {
 // Standard letterhead: boxed logo + contact lines on the left, right-aligned
 // LABEL / value meta rows, closed by a gold rule. meta: [{ k, v, mono? }].
 export function RefinedHeader({ logoSrc, meta = [], contactLines }) {
+  // Address block exactly as it reads on the letterhead: the physical address
+  // lines, then both phones, then email | website.
+  const phones = [COMPANY.phone, COMPANY.phone2].filter(Boolean).join("  |  ");
   const lines = contactLines || [
-    COMPANY.postal || COMPANY.address,
-    `${COMPANY.phone}`,
+    ...(Array.isArray(COMPANY.addressLines) && COMPANY.addressLines.length
+      ? COMPANY.addressLines
+      : [COMPANY.postal || COMPANY.address]),
+    ...(phones ? [phones] : []),
   ];
   return (
     <View style={s.header}>
       <View style={s.hRow}>
+        {/* Logo + company name & address */}
         <View style={s.hLeft}>
           {logoSrc ? (
-            <View style={s.logoBox}>
-              {/* eslint-disable-next-line jsx-a11y/alt-text */}
-              <Image src={logoSrc} style={s.logo} />
-            </View>
+            /* eslint-disable-next-line jsx-a11y/alt-text */
+            <Image src={logoSrc} style={s.logo} />
           ) : null}
           <View style={s.hText}>
-            {!logoSrc && <Text style={s.brand}>QALIBRATED <Text style={s.brandGold}>SYSTEMS</Text></Text>}
+            <Text style={s.brand}>{COMPANY.name}</Text>
             {lines.map((ln, i) => (
               <Text key={i} style={s.contact}>{ln}</Text>
             ))}
-            <Text style={s.contactGold}>{COMPANY.email} · {COMPANY.website}</Text>
+            <Text style={s.contactGold}>{COMPANY.email}  |  {COMPANY.website}</Text>
           </View>
         </View>
+        {/* Divider + right-hand meta block */}
+        {meta.length ? <View style={s.hDivider} /> : null}
         <View style={s.hRight}>
           {meta.map((m, i) => (
             <View key={i} style={s.metaRow}>

@@ -5,12 +5,18 @@
 export const COMPANY = {
   name: process.env.NEXT_PUBLIC_COMPANY_NAME || "Qalibrated Systems Limited",
   address: process.env.NEXT_PUBLIC_COMPANY_ADDRESS || "Nairobi, Kenya",
-  website: process.env.NEXT_PUBLIC_COMPANY_WEBSITE || "www.qalibrated.co.ke",
-  email: process.env.NEXT_PUBLIC_COMPANY_EMAIL || "info@qalibrated.co.ke",
+  website: process.env.NEXT_PUBLIC_COMPANY_WEBSITE || "www.qalibrated.com",
+  email: process.env.NEXT_PUBLIC_COMPANY_EMAIL || "info@qalibrated.com",
   phone: process.env.NEXT_PUBLIC_COMPANY_PHONE || "+254 714 999 996",
+  // Second contact number shown on the letterhead (phones print "p1 | p2").
+  phone2: process.env.NEXT_PUBLIC_COMPANY_PHONE2 || "+254 756 999 996",
   accreditation: "KENAS · ISO/IEC 17025:2017 · ISO 9001:2015 · ILAC-MRA",
   // Registration / tax identifier shown on quotations & invoices.
   pin: process.env.NEXT_PUBLIC_COMPANY_PIN || "P051889248C",
+  // The physical / postal address block, one entry per printed line. Override
+  // NEXT_PUBLIC_COMPANY_ADDRESS_LINES with a |-separated list to change it.
+  addressLines: (process.env.NEXT_PUBLIC_COMPANY_ADDRESS_LINES ||
+    "QSL Centre, Birdi Singh Complex,|1st Floor, off Mombasa Road|P.O. Box 34463-00100 GPO, Nairobi, Kenya").split("|").map((x) => x.trim()).filter(Boolean),
   // Postal / physical address block for the quotation footer.
   postal: process.env.NEXT_PUBLIC_COMPANY_POSTAL || "Birdi Singh Complex, P.O Box 34463 - 00100, Nairobi",
   tagline: process.env.NEXT_PUBLIC_COMPANY_TAGLINE || "…Inventing and Making it Happen…",

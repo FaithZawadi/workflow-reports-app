@@ -225,15 +225,12 @@ export function QuotationDocument({ quotation, logoSrc, qrSrc, internal = false 
             quotation's date / number / validity in the standard meta rows. */}
         <PdfHeader
           logoSrc={logoSrc}
-          contactLines={[
-            `${COMPANY.postal || COMPANY.address} · ${COMPANY.website}`,
-            `${COMPANY.email} · ${COMPANY.phone}${COMPANY.pin ? ` · PIN ${COMPANY.pin}` : ""}`,
-          ]}
           meta={[
-            { k: "DATE", v: fmt(q.quotedAt || q.createdAt) },
-            { k: "NO.", v: q.number, mono: true },
-            { k: "FILE NO.", v: q.fileNo || "-" },
-            { k: "VALID TO", v: q.validUntil ? fmt(q.validUntil) : "-" },
+            { k: "Date", v: fmt(q.quotedAt || q.createdAt) },
+            { k: "Quote no.", v: q.number, mono: true },
+            { k: "File no.", v: q.fileNo || "-" },
+            { k: "Valid to", v: q.validUntil ? fmt(q.validUntil) : "-" },
+            ...(COMPANY.pin ? [{ k: "PIN", v: COMPANY.pin, mono: true }] : []),
           ]}
         />
 
