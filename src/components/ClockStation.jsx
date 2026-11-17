@@ -190,26 +190,25 @@ export default function ClockStation({ manager }) {
 
   const filtered = workers.filter((w) => !q.trim() || w.name.toLowerCase().includes(q.trim().toLowerCase()));
 
+  const inCount = workers.filter((w) => w.lastType === "IN").length;
+
   return (
-    <div style={{ minHeight: "100vh", background: COAL, color: "#fff", fontFamily: "system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", borderBottom: "1px solid #2c2720" }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 15 }}>Clocking station</div>
-          <div style={{ fontSize: 11.5, color: "#c9c1b0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "60vw" }}>Operated by {manager?.name}</div>
+    <div style={{ minHeight: "100dvh", background: COAL, color: "#fff", fontFamily: "system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
+      {/* Top bar: title · site · reports */}
+      <div style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #2c2720" }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontWeight: 800, fontSize: 16 }}>Clocking</div>
+          <div style={{ fontSize: 11, color: "#9a9284", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{manager?.name} · {inCount} in now</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {pending > 0 && (
-            <span onClick={doFlush} title="Tap to sync now" style={{ fontSize: 11, fontWeight: 800, color: "#ffb37a", background: "#000a", border: "1px solid #5a4a2a", borderRadius: 999, padding: "3px 9px", cursor: "pointer" }}>
-              ⧖ {pending} to sync
-            </span>
-          )}
-          <a href="/attendance" style={{ color: GOLD, fontWeight: 700, fontSize: 12.5, textDecoration: "none" }}>Reports →</a>
-        </div>
+        {pending > 0 && (
+          <span onClick={doFlush} title="Tap to sync now" style={{ fontSize: 11, fontWeight: 800, color: "#ffb37a", background: "#000a", border: "1px solid #5a4a2a", borderRadius: 999, padding: "4px 9px", cursor: "pointer", whiteSpace: "nowrap" }}>⧖ {pending}</span>
+        )}
+        <a href="/attendance" style={{ color: GOLD, fontWeight: 700, fontSize: 12.5, textDecoration: "none", whiteSpace: "nowrap" }}>Reports →</a>
       </div>
 
       {/* Site this device is clocking for */}
-      <div style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: 8, background: "#1b1813", borderBottom: "1px solid #2c2720" }}>
-        <span style={{ fontSize: 12, color: GOLD, fontWeight: 800, whiteSpace: "nowrap" }}>📍 Site</span>
+      <div style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 8, background: "#1b1813", borderBottom: "1px solid #2c2720" }}>
+        <span style={{ fontSize: 13, whiteSpace: "nowrap" }}>📍</span>
         <input
           list="qsl-site-list"
           value={site}
@@ -222,56 +221,57 @@ export default function ClockStation({ manager }) {
         </datalist>
       </div>
 
-      {/* Live camera */}
-      <div style={{ position: "relative", background: "#000", aspectRatio: "4 / 3", maxHeight: "38vh", overflow: "hidden" }}>
+      {/* Compact live camera (face is checked automatically on each tap) */}
+      <div style={{ position: "relative", background: "#000", height: "22vh", minHeight: 120, maxHeight: 190, overflow: "hidden", flexShrink: 0 }}>
         <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
-        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "6px 12px", background: "linear-gradient(transparent,#000a)", fontSize: 12, color: "#eee", textAlign: "center" }}>
-          {camErr ? camErr : "Look at the camera, then tap your name to clock in or out"}
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "5px 12px", background: "linear-gradient(transparent,#000c)", fontSize: 12, color: "#eee", textAlign: "center" }}>
+          {camErr ? camErr : "Face the camera, then tap a name below"}
         </div>
-        <div style={{ position: "absolute", top: 8, right: 8, fontSize: 10.5, fontWeight: 700, padding: "3px 8px", borderRadius: 999, background: "#000a", color: faceState === "ready" ? "#8fe3a6" : faceState === "off" ? "#ffb37a" : "#c9c1b0" }}>
-          {faceState === "ready" ? "● Face check on" : faceState === "off" ? "Face check off" : "Loading face check…"}
+        <div style={{ position: "absolute", top: 6, right: 6, fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "#000a", color: faceState === "ready" ? "#8fe3a6" : faceState === "off" ? "#ffb37a" : "#c9c1b0" }}>
+          {faceState === "ready" ? "Face ✓" : faceState === "off" ? "No face check" : "…"}
         </div>
       </div>
 
       {/* Search + register */}
-      <div style={{ padding: "10px 12px", display: "flex", gap: 8 }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name…" style={{ flex: 1, minWidth: 0, padding: "10px 12px", borderRadius: 10, border: "1px solid #3a342c", background: "#211d18", color: "#fff", fontSize: 15 }} />
-        <button onClick={() => setShowReg(true)} style={{ padding: "10px 14px", borderRadius: 10, border: 0, background: GOLD, color: COAL, fontWeight: 800, fontSize: 14 }}>+ Worker</button>
+      <div style={{ padding: "10px 14px", display: "flex", gap: 8 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name…" style={{ flex: 1, minWidth: 0, padding: "11px 12px", borderRadius: 10, border: "1px solid #3a342c", background: "#211d18", color: "#fff", fontSize: 15 }} />
+        <button onClick={() => setShowReg(true)} style={{ padding: "11px 14px", borderRadius: 10, border: 0, background: GOLD, color: COAL, fontWeight: 800, fontSize: 14, whiteSpace: "nowrap" }}>+ Worker</button>
       </div>
 
-      {/* Worker grid */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "4px 12px 90px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10, alignContent: "start" }}>
+      {/* Worker list — one big, direct row each */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "2px 14px calc(24px + env(safe-area-inset-bottom,0px))", display: "flex", flexDirection: "column", gap: 8 }}>
         {filtered.length === 0 && (
-          <div style={{ gridColumn: "1 / -1", textAlign: "center", color: "#9a9284", padding: 30, fontSize: 14 }}>
+          <div style={{ textAlign: "center", color: "#9a9284", padding: 30, fontSize: 14 }}>
             {workers.length === 0 ? "No workers yet. Tap “+ Worker” to register the first one." : "No match."}
           </div>
         )}
         {filtered.map((w) => {
           const inNow = w.lastType === "IN";
+          const busyThis = busyId === w.id;
           return (
             <button key={w.id} onClick={() => punch(w)} disabled={!!busyId}
-              style={{ textAlign: "left", border: inNow ? `2px solid ${PASS}` : "2px solid #3a342c", background: "#211d18", borderRadius: 14, padding: 10, color: "#fff", opacity: busyId && busyId !== w.id ? 0.5 : 1 }}>
-              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <div style={{ width: 46, height: 46, borderRadius: "50%", overflow: "hidden", background: "#000", flexShrink: 0, border: "1px solid #3a342c" }}>
-                  {w.photo ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={w.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : (
-                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6355", fontWeight: 800 }}>{w.name[0]?.toUpperCase()}</div>
-                  )}
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{w.name}</div>
-                  {w.jobTitle ? <div style={{ fontSize: 11, color: "#9a9284" }}>{w.jobTitle}</div> : null}
+              style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", border: inNow ? `1.5px solid ${PASS}` : "1.5px solid #3a342c", background: "#211d18", borderRadius: 14, padding: "10px 12px", color: "#fff", opacity: busyId && !busyThis ? 0.5 : 1 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", overflow: "hidden", background: "#000", flexShrink: 0, border: "1px solid #3a342c" }}>
+                {w.photo ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={w.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : (
+                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6355", fontWeight: 800, fontSize: 18 }}>{w.name[0]?.toUpperCase()}</div>
+                )}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{w.name}</div>
+                <div style={{ fontSize: 12, color: inNow ? "#8fe3a6" : "#9a9284" }}>
+                  {inNow ? `● In${w.lastAt ? " · since " + new Date(w.lastAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}` : (w.jobTitle || "Not clocked in")}
                 </div>
               </div>
-              <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.4, color: inNow ? "#8fe3a6" : "#c9c1b0" }}>
-                {busyId === w.id ? "Saving…" : inNow ? `● In · tap to clock OUT` : `Tap to clock IN`}
-              </div>
+              <span style={{ flexShrink: 0, fontSize: 12.5, fontWeight: 900, textTransform: "uppercase", letterSpacing: 0.3, padding: "10px 14px", borderRadius: 10, background: busyThis ? "#3a342c" : inNow ? "rgba(176,58,46,.18)" : GOLD, color: busyThis ? "#c9c1b0" : inNow ? "#ff9b8e" : COAL }}>
+                {busyThis ? "…" : inNow ? "Clock out" : "Clock in"}
+              </span>
             </button>
           );
         })}
       </div>
 
       {toast && (
-        <div style={{ position: "fixed", left: 16, right: 16, bottom: 16, padding: "14px 16px", borderRadius: 12, background: toast.ok ? PASS : FAIL, color: "#fff", fontWeight: 700, fontSize: 15, textAlign: "center", boxShadow: "0 8px 24px #0008" }}>
+        <div className="app-toast" style={{ position: "fixed", left: 14, right: 14, bottom: 14, padding: "14px 16px", borderRadius: 12, background: toast.ok ? PASS : FAIL, color: "#fff", fontWeight: 700, fontSize: 15, textAlign: "center", boxShadow: "0 8px 24px #0008" }}>
           {toast.text}
         </div>
       )}
