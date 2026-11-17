@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { qrDataUrl, verifyUrl } from "@/lib/qr";
+import InstallClockButton from "@/components/InstallClockButton";
 
 export const metadata = { title: "Get the Clocking app — Qalibrated", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -25,6 +26,15 @@ export default async function GetClockPage() {
       <div style={{ background: COAL, color: "#fff", padding: "16px 18px" }}>
         <div style={{ fontWeight: 800, fontSize: 17 }}>QSL Clocking app</div>
         <div style={{ fontSize: 12.5, color: "#c9c1b0" }}>Staff attendance — clock in/out &amp; register workers</div>
+      </div>
+
+      <div style={{ maxWidth: 820, margin: "0 auto", padding: "16px 16px 0" }}>
+        <div style={{ ...card, display: "grid", gap: 12 }}>
+          <div style={{ fontWeight: 800, fontSize: 16 }}>Install in one tap</div>
+          <InstallClockButton />
+          <a href="/clock" style={{ display: "block", textAlign: "center", padding: 12, borderRadius: 10, background: COAL, color: "#fff", fontWeight: 800, textDecoration: "none" }}>Open the clocking app now</a>
+          <p style={{ fontSize: 12, color: MUTE, margin: 0 }}>If the install button doesn’t appear, use the steps below. A manager signs in once per device; allow <b>camera</b> (and location) the first time.</p>
+        </div>
       </div>
 
       <div style={{ maxWidth: 820, margin: "0 auto", padding: 16, display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))" }}>

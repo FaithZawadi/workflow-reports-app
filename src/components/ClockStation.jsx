@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { ensureFace, descriptorFromDataUrl, faceDistance, MATCH_THRESHOLD } from "@/lib/faceClient";
+import { ensureFace, descriptorFromDataUrl, assessFace, faceDistance, MATCH_THRESHOLD } from "@/lib/faceClient";
 import { queuePunch, flushQueue, queuedCount } from "@/lib/clockQueue";
 
 const GOLD = "#F5A800";
@@ -297,31 +297,72 @@ async function fileToDataUrl(file, max = 1280, quality = 0.72) {
   } finally { URL.revokeObjectURL(url); }
 }
 
+const DRAFT_KEY = "qsl:workerDraft";
+const loadDraft = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "{}") || {}; } catch { return {}; } };
+
 function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
-  const [name, setName] = useState("");
-  const [idNumber, setIdNumber] = useState("");
-  const [idPhoto, setIdPhoto] = useState("");
-  const [phone, setPhone] = useState("");
-  const [jobTitle, setJobTitle] = useState("");
-  const [dailyWage, setDailyWage] = useState("");
-  const [gender, setGender] = useState("");
-  const [address, setAddress] = useState("");
-  const [nextOfKin, setNextOfKin] = useState("");
-  const [nextOfKinPhone, setNextOfKinPhone] = useState("");
-  const [photo, setPhoto] = useState("");
-  const [siteId, setSiteId] = useState("");
+  const [draft0] = useState(loadDraft); // restored once when the sheet opens
+  const [name, setName] = useState(draft0.name || "");
+  const [idNumber, setIdNumber] = useState(draft0.idNumber || "");
+  const [idPhoto, setIdPhoto] = useState(draft0.idPhoto || "");
+  const [phone, setPhone] = useState(draft0.phone || "");
+  const [jobTitle, setJobTitle] = useState(draft0.jobTitle || "");
+  const [dailyWage, setDailyWage] = useState(draft0.dailyWage || "");
+  const [gender, setGender] = useState(draft0.gender || "");
+  const [address, setAddress] = useState(draft0.address || "");
+  const [nextOfKin, setNextOfKin] = useState(draft0.nextOfKin || "");
+  const [nextOfKinPhone, setNextOfKinPhone] = useState(draft0.nextOfKinPhone || "");
+  const [photo, setPhoto] = useState(draft0.photo || "");
+  const [siteId, setSiteId] = useState(draft0.siteId || "");
   const [sites, setSites] = useState([]);
   const [newSite, setNewSite] = useState(false);
   const [newSiteName, setNewSiteName] = useState("");
   const [newSiteCity, setNewSiteCity] = useState("");
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [capturedDesc, setCapturedDesc] = useState(null);
+  const [savedDraft, setSavedDraft] = useState(!!draft0.name || !!draft0.idNumber);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     fetch("/api/attendance/sites").then((r) => (r.ok ? r.json() : { sites: [] })).then((d) => setSites(d.sites || [])).catch(() => {});
   }, []);
 
-  const capture = () => { const d = grabFrame(videoRef.current); if (d) { setPhoto(d); setErr(""); } else setErr("Camera not ready — allow camera access."); };
+  // Auto-save a draft so a half-filled registration survives closing the sheet
+  // or a reload. Images are large, so fall back to a text-only draft on quota.
+  useEffect(() => {
+    const d = { name, idNumber, idPhoto, phone, jobTitle, dailyWage, gender, address, nextOfKin, nextOfKinPhone, photo, siteId };
+    const hasAny = Object.values(d).some((v) => v);
+    try {
+      if (!hasAny) { localStorage.removeItem(DRAFT_KEY); setSavedDraft(false); return; }
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+    } catch {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...d, idPhoto: "", photo: "" })); } catch {}
+    }
+    setSavedDraft(hasAny);
+  }, [name, idNumber, idPhoto, phone, jobTitle, dailyWage, gender, address, nextOfKin, nextOfKinPhone, photo, siteId]);
+
+  const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch {} };
+  const discardDraft = () => {
+    clearDraft();
+    setName(""); setIdNumber(""); setIdPhoto(""); setPhone(""); setJobTitle(""); setDailyWage("");
+    setGender(""); setAddress(""); setNextOfKin(""); setNextOfKinPhone(""); setPhoto(""); setSiteId("");
+    setCapturedDesc(null); setErr(""); setSavedDraft(false);
+  };
+
+  // Govern the capture: require one clear, upright, centred face before keeping
+  // the photo. If the face models aren't available, accept the photo as before.
+  const capture = async () => {
+    const d = grabFrame(videoRef.current);
+    if (!d) return setErr("Camera not ready — allow camera access.");
+    setChecking(true); setErr("");
+    const a = await assessFace(d).catch(() => ({ ok: null }));
+    setChecking(false);
+    if (a.ok === false) { setCapturedDesc(null); return setErr(a.message || "Face not clear — hold the phone upright and retake."); }
+    setPhoto(d);
+    setCapturedDesc(a.ok && Array.isArray(a.descriptor) ? a.descriptor : null);
+    setErr("");
+  };
 
   const pickId = async (e) => {
     const f = e.target.files && e.target.files[0];
@@ -353,9 +394,13 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
     if (!idPhoto) return setErr("Attach a photo of the worker's ID.");
     setBusy(true); setErr("");
     // A face descriptor is required so the worker can be verified at clock-in AND
-    // so the server can reject registering the same person twice.
-    const d = await descriptorFromDataUrl(photo).catch(() => null);
-    const faceDescriptor = Array.isArray(d) ? d : [];
+    // so the server can reject registering the same person twice. Reuse the one
+    // computed when the photo passed the capture check, else derive it now.
+    let faceDescriptor = Array.isArray(capturedDesc) ? capturedDesc : [];
+    if (faceDescriptor.length === 0) {
+      const d = await descriptorFromDataUrl(photo).catch(() => null);
+      faceDescriptor = Array.isArray(d) ? d : [];
+    }
     if (faceDescriptor.length === 0) {
       setBusy(false);
       return setErr("No face detected in the photo — face the camera in good light and retake. A clear face is required so the same person isn't registered twice.");
@@ -367,6 +412,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
       });
       const d2 = await r.json();
       if (!r.ok) { setErr(d2.error || "Could not save."); setBusy(false); return; }
+      clearDraft();
       onSaved("");
     } catch { setErr("Network problem — try again."); setBusy(false); }
   };
@@ -374,19 +420,26 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000b", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 50 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: "min(480px, 100%)", background: "#1b1813", borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 16, color: "#fff", maxHeight: "92vh", overflowY: "auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
           <b style={{ fontSize: 16 }}>Register worker</b>
           <button onClick={onClose} style={{ background: "none", border: 0, color: "#c9c1b0", fontSize: 20 }}>×</button>
         </div>
+        {savedDraft && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, fontSize: 11.5 }}>
+            <span style={{ color: "#8fe3a6" }}>● Draft saved — you can close and finish later.</span>
+            <button onClick={discardDraft} style={{ background: "none", border: 0, color: "#ffb37a", fontWeight: 700, fontSize: 11.5, cursor: "pointer" }}>Discard draft</button>
+          </div>
+        )}
 
-        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
-          <div style={{ width: 72, height: 72, borderRadius: "50%", overflow: "hidden", background: "#000", border: "1px solid #3a342c", flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }}>
+          <div style={{ width: 72, height: 72, borderRadius: "50%", overflow: "hidden", background: "#000", border: `1px solid ${photo ? PASS : "#3a342c"}`, flexShrink: 0 }}>
             {photo ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6355", fontSize: 11 }}>No photo</div>}
           </div>
-          <button onClick={capture} style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${GOLD}`, background: "transparent", color: GOLD, fontWeight: 800 }}>
-            {photo ? "Retake face" : "📷 Capture face"}
+          <button onClick={capture} disabled={checking} style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${GOLD}`, background: "transparent", color: GOLD, fontWeight: 800, opacity: checking ? 0.6 : 1 }}>
+            {checking ? "Checking face…" : photo ? "Retake face" : "📷 Capture face"}
           </button>
         </div>
+        <p style={{ fontSize: 11, color: "#9a9284", margin: "0 0 12px" }}>Hold the phone upright with the face centred, level and in good light. The photo is only kept when a clear face is detected.</p>
 
         <Field label="Full name" value={name} onChange={setName} placeholder="e.g. John Mwangi" />
         <Field label="ID number" value={idNumber} onChange={setIdNumber} placeholder="National ID / passport no." />

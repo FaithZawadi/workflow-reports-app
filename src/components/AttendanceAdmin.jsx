@@ -16,7 +16,10 @@ export default function AttendanceAdmin() {
         <p className="eyebrow">Attendance</p>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <h1 className="h1" style={{ margin: 0 }}>Clocking &amp; attendance</h1>
-          <Link href="/clock" className="btn btn-primary" style={{ textDecoration: "none", fontSize: 13, padding: "9px 16px" }}>▶ Open clocking station</Link>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link href="/get-clock" className="btn" style={{ textDecoration: "none", fontSize: 13, padding: "9px 14px" }}>📲 Install app</Link>
+            <Link href="/clock" className="btn btn-primary" style={{ textDecoration: "none", fontSize: 13, padding: "9px 16px" }}>▶ Open clocking station</Link>
+          </div>
         </div>
         <p className="muted" style={{ fontSize: 13 }}>
           Workers clock in/out on the manager’s phone at the clocking station. They are registered once (name + photo) and are not system users.
