@@ -289,7 +289,7 @@ function Workers() {
 
             {editing === w.id && (
               <div style={{ display: "flex", gap: 8, padding: "0 10px 10px", alignItems: "center" }}>
-                <select value={pickSite} onChange={(e) => setPickSite(e.target.value)} className="input" style={{ flex: 1, fontSize: 13 }}>
+                <select value={pickSite} onChange={(e) => setPickSite(e.target.value)} className="input" style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
                   <option value="">— No site —</option>
                   {sites.map((s) => <option key={s.id} value={s.id}>{s.name}{s.city ? ` · ${s.city}` : ""}</option>)}
                 </select>

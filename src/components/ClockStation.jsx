@@ -192,10 +192,10 @@ export default function ClockStation({ manager }) {
 
   return (
     <div style={{ minHeight: "100vh", background: COAL, color: "#fff", fontFamily: "system-ui, sans-serif", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, borderBottom: "1px solid #2c2720" }}>
-        <div>
+      <div style={{ padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", borderBottom: "1px solid #2c2720" }}>
+        <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 800, fontSize: 15 }}>Clocking station</div>
-          <div style={{ fontSize: 11.5, color: "#c9c1b0" }}>Operated by {manager?.name}</div>
+          <div style={{ fontSize: 11.5, color: "#c9c1b0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "60vw" }}>Operated by {manager?.name}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {pending > 0 && (
@@ -215,7 +215,7 @@ export default function ClockStation({ manager }) {
           value={site}
           onChange={(e) => saveSite(e.target.value)}
           placeholder="Set the site for this device…"
-          style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: `1px solid ${site ? "#3a342c" : "#8a5a00"}`, background: "#211d18", color: "#fff", fontSize: 14 }}
+          style={{ flex: 1, minWidth: 0, padding: "8px 10px", borderRadius: 8, border: `1px solid ${site ? "#3a342c" : "#8a5a00"}`, background: "#211d18", color: "#fff", fontSize: 14 }}
         />
         <datalist id="qsl-site-list">
           {siteList.map((s) => <option key={s} value={s} />)}
@@ -235,7 +235,7 @@ export default function ClockStation({ manager }) {
 
       {/* Search + register */}
       <div style={{ padding: "10px 12px", display: "flex", gap: 8 }}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name…" style={{ flex: 1, padding: "10px 12px", borderRadius: 10, border: "1px solid #3a342c", background: "#211d18", color: "#fff", fontSize: 15 }} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name…" style={{ flex: 1, minWidth: 0, padding: "10px 12px", borderRadius: 10, border: "1px solid #3a342c", background: "#211d18", color: "#fff", fontSize: 15 }} />
         <button onClick={() => setShowReg(true)} style={{ padding: "10px 14px", borderRadius: 10, border: 0, background: GOLD, color: COAL, fontWeight: 800, fontSize: 14 }}>+ Worker</button>
       </div>
 
@@ -379,7 +379,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
           <button onClick={onClose} style={{ background: "none", border: 0, color: "#c9c1b0", fontSize: 20 }}>×</button>
         </div>
 
-        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
           <div style={{ width: 72, height: 72, borderRadius: "50%", overflow: "hidden", background: "#000", border: "1px solid #3a342c", flexShrink: 0 }}>
             {photo ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6355", fontSize: 11 }}>No photo</div>}
           </div>
@@ -394,7 +394,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
         {/* ID document attachment */}
         <label style={{ display: "block", marginBottom: 8 }}>
           <span style={{ fontSize: 11.5, color: "#c9c1b0", fontWeight: 700 }}>ID document photo</span>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 4 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
             <div style={{ width: 86, height: 56, borderRadius: 8, overflow: "hidden", background: "#000", border: "1px solid #3a342c", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
               {idPhoto ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={idPhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: "#6b6355", fontSize: 10 }}>No ID</span>}
             </div>
@@ -410,7 +410,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
           <span style={{ fontSize: 11.5, color: "#c9c1b0", fontWeight: 700 }}>Assigned site</span>
           {!newSite ? (
             <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-              <select value={siteId} onChange={(e) => setSiteId(e.target.value)} style={{ flex: 1, padding: "11px 12px", borderRadius: 10, border: "1px solid #3a342c", background: "#211d18", color: "#fff", fontSize: 15 }}>
+              <select value={siteId} onChange={(e) => setSiteId(e.target.value)} style={{ flex: 1, minWidth: 0, padding: "11px 12px", borderRadius: 10, border: "1px solid #3a342c", background: "#211d18", color: "#fff", fontSize: 15 }}>
                 <option value="">— No site —</option>
                 {sites.map((s) => <option key={s.id} value={s.id}>{s.name}{s.city ? ` · ${s.city}` : ""}</option>)}
               </select>

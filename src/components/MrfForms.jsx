@@ -147,7 +147,7 @@ function FormHeaderEditor({ pr, onClose, onSaved }) {
   };
 
   return (
-    <div style={{ padding: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+    <div className="form-2col" style={{ padding: 14 }}>
       <div><label style={lab}>Project name</label><input className="input" value={projectName} onChange={(e) => setProjectName(e.target.value)} /></div>
       <div><label style={lab}>Project number</label><input className="input" value={projectNumber} onChange={(e) => setProjectNumber(e.target.value)} /></div>
       <div><label style={lab}>Store name</label><input className="input" value={storeName} onChange={(e) => setStoreName(e.target.value)} /></div>
@@ -202,23 +202,23 @@ function MrfCreateForm({ preparedBy, onClose, onSaved }) {
         </div>
         <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>Prepared by {preparedBy || "you"} · Approved by the reviewing manager once submitted.</div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="form-2col">
           <div><label style={lab}>Project name</label><input className="input" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. N8 NTSA Nakuru & Kisumu" /></div>
           <div><label style={lab}>Project number</label><input className="input" value={projectNumber} onChange={(e) => setProjectNumber(e.target.value)} placeholder="If any" /></div>
           <div><label style={lab}>Store name</label><input className="input" value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="Store / stationed from" /></div>
           <div><label style={lab}>Checked by (optional)</label><input className="input" value={checkedByName} onChange={(e) => setCheckedByName(e.target.value)} placeholder="Name" /></div>
-          <div style={{ gridColumn: "1 / -1" }}><label style={lab}>Summary (optional)</label><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short summary of what is needed" /></div>
+          <div className="col-full"><label style={lab}>Summary (optional)</label><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short summary of what is needed" /></div>
           <div><label style={lab}>Needed by</label><input className="input" type="date" value={requiredBy} onChange={(e) => setRequiredBy(e.target.value)} /></div>
         </div>
 
         <label style={{ ...lab, marginTop: 14 }}>Items requisitioned</label>
-        <div style={{ display: "grid", gap: 6 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 54px 54px 100px 24px", gap: 6, fontSize: 10.5, color: MUTE, fontWeight: 700, textTransform: "uppercase" }}>
+        <div className="req-items">
+          <div className="req-head" style={{ fontSize: 10.5, color: MUTE, fontWeight: 700, textTransform: "uppercase" }}>
             <span>Description</span><span>Qty</span><span>Unit</span><span>Est. each</span><span />
           </div>
           {items.map((it, i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 54px 54px 100px 24px", gap: 6, alignItems: "center" }}>
-              <input className="input" placeholder="Description" value={it.description} onChange={(e) => setItem(i, "description", e.target.value)} />
+            <div key={i} className="req-item">
+              <input className="input desc" placeholder="Description" value={it.description} onChange={(e) => setItem(i, "description", e.target.value)} />
               <input className="input" placeholder="Qty" value={it.qty} onChange={(e) => setItem(i, "qty", e.target.value)} />
               <input className="input" placeholder="Unit" value={it.unit} onChange={(e) => setItem(i, "unit", e.target.value)} />
               <input className="input" placeholder="Est. each" value={it.estUnitPrice} onChange={(e) => setItem(i, "estUnitPrice", e.target.value)} />

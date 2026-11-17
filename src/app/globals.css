@@ -50,6 +50,23 @@ input, textarea, select { font-family: inherit; }
 .grid { display: grid; gap: 12px; }
 @media (min-width: 780px) { .md-2 { grid-template-columns: 1fr 1fr; } .md-3 { grid-template-columns: 1fr 1fr 1fr; } }
 
+/* Responsive form grid: one column on phones, two on wider screens. A child
+   marked .col-full always spans the full width. */
+.form-2col { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.form-2col > .col-full { grid-column: 1 / -1; }
+@media (min-width: 560px) { .form-2col { grid-template-columns: 1fr 1fr; } }
+
+/* Requisition / purchase item rows. Aligned columns on wider screens; on a
+   phone the description takes its own full-width row and qty / unit / price /
+   remove wrap beneath it, so a line item never overflows the screen. */
+.req-items { display: grid; gap: 6px; }
+.req-head, .req-item { display: grid; gap: 6px; align-items: center; grid-template-columns: 1fr 56px 56px 104px 24px; }
+@media (max-width: 520px) {
+  .req-head { display: none; }
+  .req-item { grid-template-columns: 1fr 1fr 1.4fr 28px; }
+  .req-item > .desc { grid-column: 1 / -1; }
+}
+
 /* Responsive dashboard/report card grid. One column on phones (so a spanning
    card never overflows a single track), two then three columns as space allows.
    minmax(0,1fr) lets wide chart children shrink instead of pushing the page

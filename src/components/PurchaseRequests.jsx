@@ -184,21 +184,21 @@ function RequestForm({ onClose, onSaved }) {
           <button onClick={onClose} style={{ background: "none", border: 0, fontSize: 22, color: MUTE, cursor: "pointer" }}>×</button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div className="form-2col">
           <div><label style={lab}>Project name</label><input className="input" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="e.g. N8 NTSA Nakuru & Kisumu" /></div>
           <div><label style={lab}>Project number</label><input className="input" value={projectNumber} onChange={(e) => setProjectNumber(e.target.value)} placeholder="If any" /></div>
-          <div style={{ gridColumn: "1 / -1" }}><label style={lab}>Store name (optional)</label><input className="input" value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="Store / stationed from" /></div>
-          <div style={{ gridColumn: "1 / -1" }}><label style={lab}>What do you need?</label><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short summary, e.g. Replacement load cells for Katani" /></div>
+          <div className="col-full"><label style={lab}>Store name (optional)</label><input className="input" value={storeName} onChange={(e) => setStoreName(e.target.value)} placeholder="Store / stationed from" /></div>
+          <div className="col-full"><label style={lab}>What do you need?</label><input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short summary, e.g. Replacement load cells for Katani" /></div>
           <div><label style={lab}>Suggested supplier (optional)</label><input className="input" value={suggestedSupplier} onChange={(e) => setSuggestedSupplier(e.target.value)} placeholder="If you know one" /></div>
           <div><label style={lab}>Needed by</label><input className="input" type="date" value={requiredBy} onChange={(e) => setRequiredBy(e.target.value)} /></div>
-          <div style={{ gridColumn: "1 / -1" }}><label style={lab}>Why is it needed? (optional)</label><input className="input" value={justification} onChange={(e) => setJustification(e.target.value)} placeholder="Justification" /></div>
+          <div className="col-full"><label style={lab}>Why is it needed? (optional)</label><input className="input" value={justification} onChange={(e) => setJustification(e.target.value)} placeholder="Justification" /></div>
         </div>
 
         <label style={{ ...lab, marginTop: 14 }}>Items</label>
-        <div style={{ display: "grid", gap: 6 }}>
+        <div className="req-items">
           {items.map((it, i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 54px 54px 100px 24px", gap: 6, alignItems: "center" }}>
-              <input className="input" placeholder="Description" value={it.description} onChange={(e) => setItem(i, "description", e.target.value)} />
+            <div key={i} className="req-item">
+              <input className="input desc" placeholder="Description" value={it.description} onChange={(e) => setItem(i, "description", e.target.value)} />
               <input className="input" placeholder="Qty" value={it.qty} onChange={(e) => setItem(i, "qty", e.target.value)} />
               <input className="input" placeholder="Unit" value={it.unit} onChange={(e) => setItem(i, "unit", e.target.value)} />
               <input className="input" placeholder="Est. price" value={it.estUnitPrice} onChange={(e) => setItem(i, "estUnitPrice", e.target.value)} />
