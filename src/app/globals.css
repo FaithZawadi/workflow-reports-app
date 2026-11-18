@@ -232,6 +232,10 @@ img { max-width: 100%; }
 .app-content { flex: 1; min-width: 0; width: 100%; max-width: 1120px; margin: 0 auto; padding: 12px 16px 40px; overflow-x: clip; }
 /* Long unbroken strings (emails, tokens, URLs) wrap instead of widening the page. */
 .app-content .card, .app-content .muted, .app-content h1, .app-content .h1 { overflow-wrap: anywhere; }
+/* Form fields must be allowed to shrink inside grid/flex tracks — otherwise an
+   input's intrinsic width forces a column wider than the phone and the whole
+   card gets clipped by overflow-x: clip above. */
+.app-content input, .app-content select, .app-content textarea, .app-content .input { min-width: 0; max-width: 100%; }
 
 @media (min-width: 768px) {
   .app-body { display: flex; align-items: stretch; }

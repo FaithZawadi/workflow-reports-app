@@ -546,7 +546,7 @@ export default function ReportForm({ profile, prefill = {}, edit = null }) {
           ← Choose a different sheet
         </button>
       )}
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "1fr", marginTop: 8 }} className="report-grid">
+      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "minmax(0, 1fr)", marginTop: 8 }} className="report-grid">
         <PaperCard>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
             <h1 className="h1">{tpl.name}</h1>
