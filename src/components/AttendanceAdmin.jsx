@@ -303,7 +303,24 @@ function Workers() {
 
             {expanded === w.id && (
               <div style={{ padding: "0 10px 10px", display: "grid", gap: 6, fontSize: 12.5, color: INK }}>
-                {w.idPhoto ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={w.idPhoto} alt="ID document" onClick={() => setLightbox(w.idPhoto)} style={{ maxWidth: 240, borderRadius: 8, border: "1px solid #e6e0d2", cursor: "zoom-in" }} />) : <span style={{ color: MUTE }}>No ID document on file.</span>}
+                {w.idPhoto || w.idPhotoBack ? (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {w.idPhoto && (
+                      <div>
+                        <div style={{ fontSize: 10.5, color: MUTE, fontWeight: 700, marginBottom: 2 }}>ID front</div>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={w.idPhoto} alt="ID front" onClick={() => setLightbox(w.idPhoto)} style={{ width: 150, borderRadius: 8, border: "1px solid #e6e0d2", cursor: "zoom-in" }} />
+                      </div>
+                    )}
+                    {w.idPhotoBack && (
+                      <div>
+                        <div style={{ fontSize: 10.5, color: MUTE, fontWeight: 700, marginBottom: 2 }}>ID back</div>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={w.idPhotoBack} alt="ID back" onClick={() => setLightbox(w.idPhotoBack)} style={{ width: 150, borderRadius: 8, border: "1px solid #e6e0d2", cursor: "zoom-in" }} />
+                      </div>
+                    )}
+                  </div>
+                ) : <span style={{ color: MUTE }}>No ID document on file.</span>}
                 <div><b>Gender:</b> {w.gender || "—"} · <b>Address:</b> {w.address || "—"}</div>
                 <div><b>Next of kin:</b> {w.nextOfKin || "—"}{w.nextOfKinPhone ? ` (${w.nextOfKinPhone})` : ""}</div>
                 <div><b>Daily wage:</b> {w.dailyWage != null ? `${money(w.dailyWage)} / day` : "—"}</div>

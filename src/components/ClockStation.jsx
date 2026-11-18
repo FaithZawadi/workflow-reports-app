@@ -68,8 +68,11 @@ export default function ClockStation({ manager }) {
     return () => { cancel = true; };
   }, []);
 
-  // Start the front camera once; keep it live so a punch is instant.
+  // Start the front camera and keep it live so a punch is instant. While the
+  // register sheet is open it runs its own camera (front + rear for the ID), so
+  // this one is released to avoid two streams fighting over the same camera.
   useEffect(() => {
+    if (showReg) return undefined;
     let stream;
     (async () => {
       try {
@@ -80,7 +83,7 @@ export default function ClockStation({ manager }) {
       }
     })();
     return () => { try { stream && stream.getTracks().forEach((t) => t.stop()); } catch {} };
-  }, []);
+  }, [showReg]);
 
   const loadWorkers = useCallback(async () => {
     try {
@@ -283,18 +286,95 @@ export default function ClockStation({ manager }) {
   );
 }
 
-// Read an image file and downscale it to a JPEG data URL (ID documents can be
-// large straight off a phone camera).
-async function fileToDataUrl(file, max = 1280, quality = 0.72) {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
-    let { width, height } = img;
-    if (Math.max(width, height) > max) { const s = max / Math.max(width, height); width = Math.round(width * s); height = Math.round(height * s); }
-    const c = document.createElement("canvas"); c.width = width; c.height = height;
-    c.getContext("2d").drawImage(img, 0, 0, width, height);
-    return c.toDataURL("image/jpeg", quality);
-  } finally { URL.revokeObjectURL(url); }
+// A self-contained in-app camera used for the face selfie and the ID front/back
+// photos. Shows a live preview from the chosen camera (rear for the ID, front
+// for the face), a big Capture button, then Retake / Use. The face shot is
+// quality-checked before it can be used. Returns a JPEG data URL.
+function CaptureModal({ facing = "environment", title, hint, faceCheck = false, onDone, onClose }) {
+  const vref = useRef(null);
+  const streamRef = useRef(null);
+  const [shot, setShot] = useState("");
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false });
+        if (!active) { st.getTracks().forEach((t) => t.stop()); return; }
+        streamRef.current = st;
+        if (vref.current) { vref.current.srcObject = st; await vref.current.play().catch(() => {}); setReady(true); }
+      } catch { setErr("Camera unavailable — allow camera access in your browser."); }
+    })();
+    return () => { active = false; try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch {} };
+  }, [facing]);
+
+  const grab = () => {
+    const v = vref.current;
+    if (!v || !v.videoWidth) return setErr("Camera not ready yet — hold on a second.");
+    const maxW = faceCheck ? 480 : 1280;
+    const scale = Math.min(1, maxW / v.videoWidth);
+    const w = Math.round(v.videoWidth * scale), h = Math.round(v.videoHeight * scale);
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const ctx = c.getContext("2d");
+    if (facing === "user") { ctx.translate(w, 0); ctx.scale(-1, 1); } // store the face un-mirrored
+    ctx.drawImage(v, 0, 0, w, h);
+    setShot(c.toDataURL("image/jpeg", faceCheck ? 0.78 : 0.72));
+    setErr("");
+  };
+
+  const retake = () => { setShot(""); setErr(""); };
+
+  const use = async () => {
+    if (!shot) return;
+    if (faceCheck) {
+      setBusy(true);
+      const a = await assessFace(shot).catch(() => ({ ok: null }));
+      setBusy(false);
+      if (a.ok === false) return setErr(a.message || "Face not clear — tap Retake and try again.");
+      onDone(shot, a.ok && Array.isArray(a.descriptor) ? a.descriptor : null);
+      return;
+    }
+    onDone(shot, null);
+  };
+
+  const btn = (bg, color) => ({ flex: 1, padding: 15, borderRadius: 12, border: 0, background: bg, color, fontWeight: 800, fontSize: 15 });
+
+  return (
+    <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", inset: 0, zIndex: 70, background: "#000", display: "flex", flexDirection: "column" }}>
+      <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#fff" }}>
+        <b style={{ fontSize: 15 }}>{title}</b>
+        <button onClick={onClose} style={{ background: "none", border: 0, color: "#c9c1b0", fontSize: 26, lineHeight: 1 }}>×</button>
+      </div>
+      <div style={{ flex: 1, position: "relative", overflow: "hidden", background: "#000" }}>
+        {!shot ? (
+          <video ref={vref} playsInline muted style={{ width: "100%", height: "100%", objectFit: "contain", transform: facing === "user" ? "scaleX(-1)" : "none" }} />
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={shot} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+        )}
+        {!shot && !faceCheck && (
+          <div style={{ position: "absolute", inset: "14% 6%", border: "2px dashed rgba(255,255,255,.7)", borderRadius: 14, pointerEvents: "none" }} />
+        )}
+        {!shot && hint && (
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "6px 12px 10px", background: "linear-gradient(transparent,#000c)", color: "#fff", fontSize: 12.5, textAlign: "center" }}>{hint}</div>
+        )}
+        {err && <div style={{ position: "absolute", left: 12, right: 12, bottom: 12, background: FAIL, color: "#fff", padding: "10px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700, textAlign: "center" }}>{err}</div>}
+      </div>
+      <div style={{ padding: "12px 14px calc(14px + env(safe-area-inset-bottom,0px))", display: "flex", gap: 10, background: "#111" }}>
+        {!shot ? (
+          <button onClick={grab} disabled={!ready} style={{ ...btn(GOLD, COAL), opacity: ready ? 1 : 0.6 }}>{ready ? "📷 Capture" : "Starting camera…"}</button>
+        ) : (
+          <>
+            <button onClick={retake} style={btn("#2a2621", "#fff")}>↺ Retake</button>
+            <button onClick={use} disabled={busy} style={btn(PASS, "#fff")}>{busy ? "Checking…" : "✓ Use photo"}</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 const DRAFT_KEY = "qsl:workerDraft";
@@ -304,7 +384,9 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
   const [draft0] = useState(loadDraft); // restored once when the sheet opens
   const [name, setName] = useState(draft0.name || "");
   const [idNumber, setIdNumber] = useState(draft0.idNumber || "");
-  const [idPhoto, setIdPhoto] = useState(draft0.idPhoto || "");
+  const [idPhoto, setIdPhoto] = useState(draft0.idPhoto || ""); // ID front
+  const [idPhotoBack, setIdPhotoBack] = useState(draft0.idPhotoBack || "");
+  const [cap, setCap] = useState(null); // active camera: "face" | "idFront" | "idBack"
   const [phone, setPhone] = useState(draft0.phone || "");
   const [jobTitle, setJobTitle] = useState(draft0.jobTitle || "");
   const [dailyWage, setDailyWage] = useState(draft0.dailyWage || "");
@@ -319,7 +401,6 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
   const [newSiteName, setNewSiteName] = useState("");
   const [newSiteCity, setNewSiteCity] = useState("");
   const [busy, setBusy] = useState(false);
-  const [checking, setChecking] = useState(false);
   const [capturedDesc, setCapturedDesc] = useState(null);
   const [savedDraft, setSavedDraft] = useState(!!draft0.name || !!draft0.idNumber);
   const [err, setErr] = useState("");
@@ -331,43 +412,33 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
   // Auto-save a draft so a half-filled registration survives closing the sheet
   // or a reload. Images are large, so fall back to a text-only draft on quota.
   useEffect(() => {
-    const d = { name, idNumber, idPhoto, phone, jobTitle, dailyWage, gender, address, nextOfKin, nextOfKinPhone, photo, siteId };
+    const d = { name, idNumber, idPhoto, idPhotoBack, phone, jobTitle, dailyWage, gender, address, nextOfKin, nextOfKinPhone, photo, siteId };
     const hasAny = Object.values(d).some((v) => v);
     try {
       if (!hasAny) { localStorage.removeItem(DRAFT_KEY); setSavedDraft(false); return; }
       localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
     } catch {
-      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...d, idPhoto: "", photo: "" })); } catch {}
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...d, idPhoto: "", idPhotoBack: "", photo: "" })); } catch {}
     }
     setSavedDraft(hasAny);
-  }, [name, idNumber, idPhoto, phone, jobTitle, dailyWage, gender, address, nextOfKin, nextOfKinPhone, photo, siteId]);
+  }, [name, idNumber, idPhoto, idPhotoBack, phone, jobTitle, dailyWage, gender, address, nextOfKin, nextOfKinPhone, photo, siteId]);
 
   const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY); } catch {} };
   const discardDraft = () => {
     clearDraft();
-    setName(""); setIdNumber(""); setIdPhoto(""); setPhone(""); setJobTitle(""); setDailyWage("");
+    setName(""); setIdNumber(""); setIdPhoto(""); setIdPhotoBack(""); setPhone(""); setJobTitle(""); setDailyWage("");
     setGender(""); setAddress(""); setNextOfKin(""); setNextOfKinPhone(""); setPhoto(""); setSiteId("");
     setCapturedDesc(null); setErr(""); setSavedDraft(false);
   };
 
-  // Govern the capture: require one clear, upright, centred face before keeping
-  // the photo. If the face models aren't available, accept the photo as before.
-  const capture = async () => {
-    const d = grabFrame(videoRef.current);
-    if (!d) return setErr("Camera not ready — allow camera access.");
-    setChecking(true); setErr("");
-    const a = await assessFace(d).catch(() => ({ ok: null }));
-    setChecking(false);
-    if (a.ok === false) { setCapturedDesc(null); return setErr(a.message || "Face not clear — hold the phone upright and retake."); }
-    setPhoto(d);
-    setCapturedDesc(a.ok && Array.isArray(a.descriptor) ? a.descriptor : null);
-    setErr("");
-  };
-
-  const pickId = async (e) => {
-    const f = e.target.files && e.target.files[0];
-    if (!f) return;
-    try { setIdPhoto(await fileToDataUrl(f)); setErr(""); } catch { setErr("Couldn't read that image — try another."); }
+  // A photo came back from the in-app camera. The face shot arrives already
+  // quality-checked (upright, clear) with its descriptor; store it in the right
+  // slot and close the camera.
+  const onCaptured = (dataUrl, desc) => {
+    if (cap === "face") { setPhoto(dataUrl); setCapturedDesc(Array.isArray(desc) ? desc : null); }
+    else if (cap === "idFront") setIdPhoto(dataUrl);
+    else if (cap === "idBack") setIdPhotoBack(dataUrl);
+    setCap(null); setErr("");
   };
 
   const addSite = async () => {
@@ -391,7 +462,8 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
     if (!name.trim()) return setErr("Enter the worker's name.");
     if (!idNumber.trim()) return setErr("Enter the worker's ID number.");
     if (!photo) return setErr("Take the worker's face photo — a face is required to register.");
-    if (!idPhoto) return setErr("Attach a photo of the worker's ID.");
+    if (!idPhoto) return setErr("Take a photo of the FRONT of the worker's ID.");
+    if (!idPhotoBack) return setErr("Take a photo of the BACK of the worker's ID.");
     setBusy(true); setErr("");
     // A face descriptor is required so the worker can be verified at clock-in AND
     // so the server can reject registering the same person twice. Reuse the one
@@ -408,7 +480,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
     try {
       const r = await fetch("/api/attendance/workers", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, idNumber, idPhoto, phone, jobTitle, dailyWage, gender, address, nextOfKin, nextOfKinPhone, photo, faceDescriptor, siteId: siteId || undefined }),
+        body: JSON.stringify({ name, idNumber, idPhoto, idPhotoBack, phone, jobTitle, dailyWage, gender, address, nextOfKin, nextOfKinPhone, photo, faceDescriptor, siteId: siteId || undefined }),
       });
       const d2 = await r.json();
       if (!r.ok) { setErr(d2.error || "Could not save."); setBusy(false); return; }
@@ -431,32 +503,17 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 4 }}>
-          <div style={{ width: 72, height: 72, borderRadius: "50%", overflow: "hidden", background: "#000", border: `1px solid ${photo ? PASS : "#3a342c"}`, flexShrink: 0 }}>
-            {photo ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#6b6355", fontSize: 11 }}>No photo</div>}
-          </div>
-          <button onClick={capture} disabled={checking} style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${GOLD}`, background: "transparent", color: GOLD, fontWeight: 800, opacity: checking ? 0.6 : 1 }}>
-            {checking ? "Checking face…" : photo ? "Retake face" : "📷 Capture face"}
-          </button>
+        {/* Photos — all taken here with the camera (no uploads) */}
+        <div style={{ fontSize: 11.5, color: "#c9c1b0", fontWeight: 700, marginBottom: 6 }}>Photos — take all three here</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 6 }}>
+          <PhotoTile label="Face" img={photo} onTap={() => setCap("face")} />
+          <PhotoTile label="ID front" img={idPhoto} onTap={() => setCap("idFront")} />
+          <PhotoTile label="ID back" img={idPhotoBack} onTap={() => setCap("idBack")} />
         </div>
-        <p style={{ fontSize: 11, color: "#9a9284", margin: "0 0 12px" }}>Hold the phone upright with the face centred, level and in good light. The photo is only kept when a clear face is detected.</p>
+        <p style={{ fontSize: 11, color: "#9a9284", margin: "0 0 12px" }}>Tap each tile to take the photo. The face must be upright, centred and clear; hold the physical ID flat inside the frame — front and back.</p>
 
         <Field label="Full name" value={name} onChange={setName} placeholder="e.g. John Mwangi" />
         <Field label="ID number" value={idNumber} onChange={setIdNumber} placeholder="National ID / passport no." />
-
-        {/* ID document attachment */}
-        <label style={{ display: "block", marginBottom: 8 }}>
-          <span style={{ fontSize: 11.5, color: "#c9c1b0", fontWeight: 700 }}>ID document photo</span>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
-            <div style={{ width: 86, height: 56, borderRadius: 8, overflow: "hidden", background: "#000", border: "1px solid #3a342c", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {idPhoto ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={idPhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <span style={{ color: "#6b6355", fontSize: 10 }}>No ID</span>}
-            </div>
-            <label style={{ padding: "9px 12px", borderRadius: 10, border: `1px solid ${GOLD}`, background: "transparent", color: GOLD, fontWeight: 800, cursor: "pointer", fontSize: 13 }}>
-              {idPhoto ? "Replace ID photo" : "📎 Attach ID photo"}
-              <input type="file" accept="image/*" capture="environment" onChange={pickId} style={{ display: "none" }} />
-            </label>
-          </div>
-        </label>
 
         {/* Site assignment */}
         <label style={{ display: "block", marginBottom: 8 }}>
@@ -495,7 +552,39 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
         </button>
         <p style={{ fontSize: 11.5, color: "#9a9284", marginTop: 8 }}>One-time registration — a worker can’t be registered twice. Only their site can be changed later, and every change is recorded in the audit log. Workers are not given a login.</p>
       </div>
+
+      {cap && (
+        <CaptureModal
+          facing={cap === "face" ? "user" : "environment"}
+          faceCheck={cap === "face"}
+          title={cap === "face" ? "Face photo" : cap === "idFront" ? "ID — front" : "ID — back"}
+          hint={cap === "face" ? "Centre the face, hold the phone level and still." : "Fit the whole ID inside the frame — flat and in focus."}
+          onDone={onCaptured}
+          onClose={() => setCap(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// A square-ish capture tile: tap to open the camera; shows the photo + a ✓ once
+// taken, and tapping again retakes it.
+function PhotoTile({ label, img, onTap }) {
+  return (
+    <button type="button" onClick={onTap} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, background: "transparent", border: 0, padding: 0, cursor: "pointer", minWidth: 0 }}>
+      <div style={{ width: "100%", aspectRatio: "4 / 3", borderRadius: 10, overflow: "hidden", background: "#000", border: `1.5px solid ${img ? PASS : "#8a5a00"}`, position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {img ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={img} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <span style={{ position: "absolute", top: 3, right: 3, background: PASS, color: "#fff", fontSize: 9, fontWeight: 800, padding: "1px 5px", borderRadius: 999 }}>✓</span>
+          </>
+        ) : (
+          <span style={{ color: "#c79a3d", fontSize: 22, fontWeight: 300 }}>＋</span>
+        )}
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 700, color: img ? "#8fe3a6" : "#c9c1b0" }}>{img ? "Retake" : label}</span>
+    </button>
   );
 }
 

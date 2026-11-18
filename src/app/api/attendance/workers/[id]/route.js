@@ -33,7 +33,7 @@ export async function PATCH(req, { params }) {
   const body = await req.json().catch(() => ({}));
 
   // Identity is locked — refuse attempts to change it rather than silently drop.
-  for (const k of ["name", "idNumber", "idPhoto", "photo", "faceDescriptor"]) {
+  for (const k of ["name", "idNumber", "idPhoto", "idPhotoBack", "photo", "faceDescriptor"]) {
     if (body[k] !== undefined) {
       return Response.json({ error: "A worker's identity can't be changed once registered. You can reassign their site or update contact details." }, { status: 400 });
     }

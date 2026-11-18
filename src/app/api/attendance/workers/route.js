@@ -52,6 +52,7 @@ export async function GET(req) {
     dailyWage: w.dailyWage,
     photo: w.photo,
     idPhoto: w.idPhoto,
+    idPhotoBack: w.idPhotoBack,
     siteId: w.siteId,
     siteName: w.siteName,
     active: w.active,
@@ -86,8 +87,12 @@ export async function POST(req) {
   if (photo && photo.length > MAX_IMG) return Response.json({ error: "The face photo is too large." }, { status: 413 });
 
   const idPhoto = isImg(body.idPhoto) ? body.idPhoto : null;
-  if (!idPhoto) return Response.json({ error: "Attach a photo of the worker's ID document." }, { status: 400 });
-  if (idPhoto.length > MAX_DOC) return Response.json({ error: "The ID photo is too large — retake it a little smaller." }, { status: 413 });
+  if (!idPhoto) return Response.json({ error: "Take a photo of the FRONT of the worker's ID." }, { status: 400 });
+  if (idPhoto.length > MAX_DOC) return Response.json({ error: "The ID front photo is too large — retake it a little smaller." }, { status: 413 });
+
+  const idPhotoBack = isImg(body.idPhotoBack) ? body.idPhotoBack : null;
+  if (!idPhotoBack) return Response.json({ error: "Take a photo of the BACK of the worker's ID." }, { status: 400 });
+  if (idPhotoBack.length > MAX_DOC) return Response.json({ error: "The ID back photo is too large — retake it a little smaller." }, { status: 413 });
 
   const descriptor = Array.isArray(body.faceDescriptor)
     ? body.faceDescriptor.map(Number).filter((n) => Number.isFinite(n)).slice(0, 128)
@@ -150,6 +155,7 @@ export async function POST(req) {
       jobTitle: clean(body.jobTitle, 60),
       idNumber,
       idPhoto,
+      idPhotoBack,
       gender: clean(body.gender, 20),
       address: clean(body.address, 200),
       nextOfKin: clean(body.nextOfKin, 120),

@@ -1053,7 +1053,8 @@ model Worker {
   // registered twice (face + ID number are checked), and these identity fields
   // are not editable afterwards; only the assigned site can be reassigned.
   idNumber         String? // national ID / passport number
-  idPhoto          String? // photo / scan of the ID document (data URL)
+  idPhoto          String? // photo of the FRONT of the ID document (data URL)
+  idPhotoBack      String? // photo of the BACK of the ID document (data URL)
   gender           String?
   address          String?
   nextOfKin        String?
