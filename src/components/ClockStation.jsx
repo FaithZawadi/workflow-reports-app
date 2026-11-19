@@ -402,6 +402,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
   const [newSiteCity, setNewSiteCity] = useState("");
   const [busy, setBusy] = useState(false);
   const [capturedDesc, setCapturedDesc] = useState(null);
+  const [faceDup, setFaceDup] = useState(false); // a close face match the manager can override
   const [savedDraft, setSavedDraft] = useState(!!draft0.name || !!draft0.idNumber);
   const [err, setErr] = useState("");
 
@@ -435,7 +436,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
   // quality-checked (upright, clear) with its descriptor; store it in the right
   // slot and close the camera.
   const onCaptured = (dataUrl, desc) => {
-    if (cap === "face") { setPhoto(dataUrl); setCapturedDesc(Array.isArray(desc) ? desc : null); }
+    if (cap === "face") { setPhoto(dataUrl); setCapturedDesc(Array.isArray(desc) ? desc : null); setFaceDup(false); }
     else if (cap === "idFront") setIdPhoto(dataUrl);
     else if (cap === "idBack") setIdPhotoBack(dataUrl);
     setCap(null); setErr("");
@@ -458,7 +459,7 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
     } catch { setErr("Network problem — try again."); }
   };
 
-  const save = async () => {
+  const save = async (allowFaceDuplicate = false) => {
     if (!name.trim()) return setErr("Enter the worker's name.");
     if (!idNumber.trim()) return setErr("Enter the worker's ID number.");
     if (!photo) return setErr("Take the worker's face photo — a face is required to register.");
@@ -480,10 +481,17 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
     try {
       const r = await fetch("/api/attendance/workers", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name, idNumber, idPhoto, idPhotoBack, phone, jobTitle, dailyWage, gender, address, nextOfKin, nextOfKinPhone, photo, faceDescriptor, siteId: siteId || undefined }),
+        body: JSON.stringify({ name, idNumber, idPhoto, idPhotoBack, phone, jobTitle, dailyWage, gender, address, nextOfKin, nextOfKinPhone, photo, faceDescriptor, siteId: siteId || undefined, allowFaceDuplicate }),
       });
       const d2 = await r.json();
-      if (!r.ok) { setErr(d2.error || "Could not save."); setBusy(false); return; }
+      if (!r.ok) {
+        setErr(d2.error || "Could not save.");
+        // A close face match is a soft warning the manager can override; an ID
+        // clash (or anything else) is not.
+        setFaceDup(!!d2.faceDuplicate);
+        setBusy(false);
+        return;
+      }
       clearDraft();
       onSaved("");
     } catch { setErr("Network problem — try again."); setBusy(false); }
@@ -546,10 +554,16 @@ function RegisterWorker({ videoRef, onClose, onSaved, grabFrame }) {
         <Field label="Next of kin (optional)" value={nextOfKin} onChange={setNextOfKin} placeholder="Name" />
         <Field label="Next of kin phone (optional)" value={nextOfKinPhone} onChange={setNextOfKinPhone} placeholder="+254…" />
 
-        {err && <div style={{ color: "#ff9b8e", fontSize: 13, fontWeight: 700, margin: "6px 0" }}>{err}</div>}
-        <button onClick={save} disabled={busy} style={{ width: "100%", marginTop: 10, padding: 14, borderRadius: 12, border: 0, background: GOLD, color: COAL, fontWeight: 800, fontSize: 15 }}>
-          {busy ? "Saving…" : "Save worker"}
-        </button>
+        {err && <div style={{ color: faceDup ? "#ffcf8a" : "#ff9b8e", fontSize: 13, fontWeight: 700, margin: "6px 0" }}>{err}</div>}
+        {faceDup ? (
+          <button onClick={() => save(true)} disabled={busy} style={{ width: "100%", marginTop: 10, padding: 14, borderRadius: 12, border: `1px solid ${GOLD}`, background: "transparent", color: GOLD, fontWeight: 800, fontSize: 15 }}>
+            {busy ? "Saving…" : "Register anyway — this is a different person"}
+          </button>
+        ) : (
+          <button onClick={() => save(false)} disabled={busy} style={{ width: "100%", marginTop: 10, padding: 14, borderRadius: 12, border: 0, background: GOLD, color: COAL, fontWeight: 800, fontSize: 15 }}>
+            {busy ? "Saving…" : "Save worker"}
+          </button>
+        )}
         <p style={{ fontSize: 11.5, color: "#9a9284", marginTop: 8 }}>One-time registration — a worker can’t be registered twice. Only their site can be changed later, and every change is recorded in the audit log. Workers are not given a login.</p>
       </div>
 

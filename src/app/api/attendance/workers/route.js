@@ -104,16 +104,20 @@ export async function POST(req) {
     select: { id: true, name: true, active: true },
   });
   if (dupId) {
+    // The ID number is the reliable unique key — this block is never overridable.
     return Response.json(
-      { error: `ID number ${idNumber} is already registered as “${dupId.name}”${dupId.active ? "" : " (inactive)"}. Each person can only be registered once — change that worker's site instead.`, duplicate: { id: dupId.id, name: dupId.name } },
+      { error: `ID number ${idNumber} is already registered as “${dupId.name}”${dupId.active ? "" : " (inactive)"}. Each person can only be registered once — change that worker's site instead.`, idDuplicate: true, duplicate: { id: dupId.id, name: dupId.name } },
       { status: 409 }
     );
   }
 
-  // No re-registration (2): the same face can't be registered twice. Compare the
-  // new descriptor to every active worker's registered face (distance < 0.5).
-  if (descriptor.length === 128) {
-    const DUP_THRESHOLD = 0.5;
+  // No re-registration (2): flag a very close face match as a possible duplicate.
+  // Phone selfies don't separate perfectly, so this is a tight threshold and an
+  // OVERRIDABLE warning — if the manager confirms it's a different person
+  // (allowFaceDuplicate), registration proceeds. The ID number above remains the
+  // hard unique key.
+  if (descriptor.length === 128 && !body.allowFaceDuplicate) {
+    const DUP_THRESHOLD = 0.42; // stricter than the 0.6 "same person" default to avoid false blocks
     const existing = await prisma.worker.findMany({
       where: { active: true },
       select: { id: true, name: true, jobTitle: true, faceDescriptor: true },
@@ -130,7 +134,8 @@ export async function POST(req) {
     if (best && best.dist < DUP_THRESHOLD) {
       return Response.json(
         {
-          error: `This face is already registered as “${best.name}”${best.jobTitle ? ` (${best.jobTitle})` : ""}. Each person can only be registered once — change that worker's site instead of adding a new one.`,
+          error: `This face looks like “${best.name}”${best.jobTitle ? ` (${best.jobTitle})` : ""} who is already registered. If this is the SAME person, change that worker's site instead. If it's a DIFFERENT person, tap “Register anyway”.`,
+          faceDuplicate: true,
           duplicate: { id: best.id, name: best.name, jobTitle: best.jobTitle, distance: Math.round(best.dist * 1000) / 1000 },
         },
         { status: 409 }
