@@ -16,6 +16,23 @@ async function requireManager() {
   return user;
 }
 
+// GET /api/attendance/workers/[id] — a single worker's full details, including
+// the heavy ID-document photos. These are loaded on demand (the list endpoint
+// omits them) so a manager only downloads them when opening one worker.
+export async function GET(_req, { params }) {
+  try {
+    await requireManager();
+  } catch (res) {
+    return res;
+  }
+  const w = await prisma.worker.findUnique({
+    where: { id: params.id },
+    select: { id: true, name: true, idPhoto: true, idPhotoBack: true, gender: true, address: true, nextOfKin: true, nextOfKinPhone: true, registeredByName: true, createdAt: true },
+  });
+  if (!w) return Response.json({ error: "Worker not found." }, { status: 404 });
+  return Response.json({ worker: w });
+}
+
 // PATCH /api/attendance/workers/[id] — reassign the worker's site, update contact
 // details, or activate / deactivate them. Identity (name, ID number, ID document
 // and face) is fixed at registration and cannot be changed here. Every change is

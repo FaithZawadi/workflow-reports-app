@@ -34,10 +34,20 @@ export async function GET(req) {
     return res;
   }
   const all = new URL(req.url).searchParams.get("all") === "1";
+  // The big ID-document images (idPhoto / idPhotoBack) are deliberately NOT
+  // fetched here — they can be ~2 MB per worker and would make this list (which
+  // the kiosk reloads often) crawl. They are loaded on demand from
+  // GET /api/attendance/workers/[id] when a manager opens a worker's details.
   const workers = await prisma.worker.findMany({
     where: all ? {} : { active: true },
     orderBy: { name: "asc" },
-    include: { clockEvents: { orderBy: { at: "desc" }, take: 1, select: { type: true, at: true } } },
+    select: {
+      id: true, name: true, phone: true, jobTitle: true, idNumber: true,
+      gender: true, address: true, nextOfKin: true, nextOfKinPhone: true,
+      dailyWage: true, photo: true, faceDescriptor: true,
+      siteId: true, siteName: true, active: true, registeredByName: true, createdAt: true,
+      clockEvents: { orderBy: { at: "desc" }, take: 1, select: { type: true, at: true } },
+    },
   });
   const out = workers.map((w) => ({
     id: w.id,
@@ -51,8 +61,6 @@ export async function GET(req) {
     nextOfKinPhone: w.nextOfKinPhone,
     dailyWage: w.dailyWage,
     photo: w.photo,
-    idPhoto: w.idPhoto,
-    idPhotoBack: w.idPhotoBack,
     siteId: w.siteId,
     siteName: w.siteName,
     active: w.active,

@@ -321,6 +321,7 @@ function Workers() {
   const [editing, setEditing] = useState(null); // worker id being site-changed
   const [pickSite, setPickSite] = useState("");
   const [expanded, setExpanded] = useState(null); // worker id showing details
+  const [details, setDetails] = useState({}); // id -> { idPhoto, idPhotoBack, ... } loaded on demand
   const [lightbox, setLightbox] = useState(null);
   const [editDetail, setEditDetail] = useState(null); // worker id being detail-edited
   const [form, setForm] = useState({ nextOfKin: "", nextOfKinPhone: "", dailyWage: "" });
@@ -337,6 +338,14 @@ function Workers() {
   const toggle = async (w) => {
     await fetch(`/api/attendance/workers/${w.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ active: !w.active }) });
     load();
+  };
+  // Open/close a worker's detail panel, loading the heavy ID photos on demand.
+  const openManage = async (w) => {
+    if (expanded === w.id) { setExpanded(null); return; }
+    setExpanded(w.id);
+    if (!details[w.id]) {
+      try { const r = await fetch(`/api/attendance/workers/${w.id}`); const d = await r.json(); if (r.ok) setDetails((m) => ({ ...m, [w.id]: d.worker || {} })); } catch {}
+    }
   };
   const startEdit = (w) => { setEditing(w.id); setPickSite(w.siteId || ""); };
   const saveSite = async (w) => {
@@ -398,7 +407,7 @@ function Workers() {
                 <div style={{ fontSize: 11.5, color: MUTE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[w.jobTitle, w.idNumber ? `ID ${w.idNumber}` : null, w.phone, w.dailyWage != null ? `${money(w.dailyWage)}/day` : null].filter(Boolean).join(" · ") || "—"}</div>
               </div>
               <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: w.siteName ? "#eef3ee" : "#f3efe6", color: w.siteName ? "#2d6a40" : MUTE, whiteSpace: "nowrap", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis" }}>📍 {w.siteName || "No site"}</span>
-              <button className="btn" onClick={() => setExpanded(expanded === w.id ? null : w.id)} style={{ fontSize: 12, flexShrink: 0 }}>{expanded === w.id ? "Close" : "Manage"}</button>
+              <button className="btn" onClick={() => openManage(w)} style={{ fontSize: 12, flexShrink: 0 }}>{expanded === w.id ? "Close" : "Manage"}</button>
             </div>
 
             {expanded === w.id && editDetail !== w.id && editing !== w.id && (
@@ -437,20 +446,22 @@ function Workers() {
 
             {expanded === w.id && (
               <div style={{ padding: "0 10px 10px", display: "grid", gap: 6, fontSize: 12.5, color: INK }}>
-                {w.idPhoto || w.idPhotoBack ? (
+                {!details[w.id] ? (
+                  <span style={{ color: MUTE }}>Loading ID document…</span>
+                ) : details[w.id].idPhoto || details[w.id].idPhotoBack ? (
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {w.idPhoto && (
+                    {details[w.id].idPhoto && (
                       <div>
                         <div style={{ fontSize: 10.5, color: MUTE, fontWeight: 700, marginBottom: 2 }}>ID front</div>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={w.idPhoto} alt="ID front" onClick={() => setLightbox(w.idPhoto)} style={{ width: 150, borderRadius: 8, border: "1px solid #e6e0d2", cursor: "zoom-in" }} />
+                        <img src={details[w.id].idPhoto} alt="ID front" onClick={() => setLightbox(details[w.id].idPhoto)} style={{ width: 150, borderRadius: 8, border: "1px solid #e6e0d2", cursor: "zoom-in" }} />
                       </div>
                     )}
-                    {w.idPhotoBack && (
+                    {details[w.id].idPhotoBack && (
                       <div>
                         <div style={{ fontSize: 10.5, color: MUTE, fontWeight: 700, marginBottom: 2 }}>ID back</div>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={w.idPhotoBack} alt="ID back" onClick={() => setLightbox(w.idPhotoBack)} style={{ width: 150, borderRadius: 8, border: "1px solid #e6e0d2", cursor: "zoom-in" }} />
+                        <img src={details[w.id].idPhotoBack} alt="ID back" onClick={() => setLightbox(details[w.id].idPhotoBack)} style={{ width: 150, borderRadius: 8, border: "1px solid #e6e0d2", cursor: "zoom-in" }} />
                       </div>
                     )}
                   </div>

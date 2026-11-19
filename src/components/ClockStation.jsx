@@ -171,9 +171,10 @@ export default function ClockStation({ manager }) {
         bumpLocal(w.id, w.lastType || null, w.lastAt || null);
         flash(d.error || "Could not record — try again.", false);
       } else {
+        // The optimistic toggle already reflects the new state; don't reload the
+        // whole worker list on every punch (that's the slow part on a big roster).
         bumpLocal(w.id, d.type || type, at);
         flash(`${w.name} clocked ${d.type || type} · ${hhmm}${tag}`, true);
-        await loadWorkers();
       }
     } catch {
       // Network dropped mid-punch → queue and sync later.
