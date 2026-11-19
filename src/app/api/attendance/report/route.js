@@ -37,14 +37,25 @@ function listDays(from, to) {
 }
 
 // Pair IN→OUT events within a worker's day and total the minutes worked.
-function sessionsFor(events, isToday) {
+function sessionsFor(events) {
   const sorted = [...events].sort((a, b) => new Date(a.at) - new Date(b.at));
   let openIn = null, minutes = 0, sessions = 0, firstIn = null, lastOut = null, open = false;
   for (const e of sorted) {
     if (e.type === "IN") { if (!firstIn) firstIn = e.at; openIn = e.at; }
-    else if (e.type === "OUT") { lastOut = e.at; if (openIn) { minutes += (new Date(e.at) - new Date(openIn)) / 60000; sessions += 1; openIn = null; } }
+    else if (e.type === "OUT") {
+      lastOut = e.at;
+      if (openIn) {
+        // Count only a completed IN→OUT pair, clamped to a sane 0–24h so a
+        // forgotten clock-out never produces impossible hours.
+        const m = (new Date(e.at) - new Date(openIn)) / 60000;
+        if (m > 0) { minutes += Math.min(m, 1440); sessions += 1; }
+        openIn = null;
+      }
+    }
   }
-  if (openIn) { open = true; if (isToday) minutes += (Date.now() - new Date(openIn)) / 60000; }
+  // An open clock-in (no matching clock-out) is flagged but NEVER extrapolated
+  // to "now" — hours come only from completed pairs.
+  if (openIn) open = true;
   return { minutes: Math.max(0, Math.round(minutes)), sessions, firstIn, lastOut, open };
 }
 
@@ -66,24 +77,24 @@ export async function GET(req) {
   const csv = sp.get("format") === "csv";
   const { from, to } = rangeFor(period, date);
   const days = listDays(from, to);
-  const today = dayOf(new Date());
 
+  // Attendance is attributed to the worker's REGISTERED site (not the device /
+  // GPS), so the site filter matches worker.siteName.
   const where = { at: { gte: new Date(from + "T00:00:00" + EAT), lte: new Date(to + "T23:59:59.999" + EAT) } };
-  if (site) where.site = site;
+  if (site) where.worker = { siteName: site };
 
   const events = await prisma.clockEvent.findMany({
     where,
     orderBy: { at: "asc" },
     take: 50000,
-    select: { workerId: true, type: true, at: true, site: true, worker: { select: { name: true, jobTitle: true, dailyWage: true } } },
+    select: { workerId: true, type: true, at: true, worker: { select: { name: true, jobTitle: true, dailyWage: true, siteName: true } } },
   });
 
   // Group events by worker then day.
   const byWorker = new Map();
   for (const e of events) {
-    if (!byWorker.has(e.workerId)) byWorker.set(e.workerId, { name: e.worker?.name || "—", jobTitle: e.worker?.jobTitle || null, dailyWage: e.worker?.dailyWage ?? null, site: e.site || null, days: new Map() });
+    if (!byWorker.has(e.workerId)) byWorker.set(e.workerId, { name: e.worker?.name || "—", jobTitle: e.worker?.jobTitle || null, dailyWage: e.worker?.dailyWage ?? null, site: e.worker?.siteName || null, days: new Map() });
     const w = byWorker.get(e.workerId);
-    if (e.site) w.site = e.site;
     const d = dayOf(e.at);
     if (!w.days.has(d)) w.days.set(d, []);
     w.days.get(d).push(e);
@@ -97,7 +108,7 @@ export async function GET(req) {
     for (const d of days) {
       const evs = w.days.get(d);
       if (!evs || !evs.length) continue;
-      const s = sessionsFor(evs, d === today);
+      const s = sessionsFor(evs);
       perDay[d] = { minutes: s.minutes, firstIn: s.firstIn ? hhmm(s.firstIn) : null, lastOut: s.lastOut ? hhmm(s.lastOut) : null, sessions: s.sessions, open: s.open };
       totalMinutes += s.minutes;
       daysPresent += 1;

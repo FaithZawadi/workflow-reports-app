@@ -47,6 +47,7 @@ export default function ClockStation({ manager }) {
   const [toast, setToast] = useState(null); // { text, ok }
   const [showReg, setShowReg] = useState(false);
   const [faceState, setFaceState] = useState("loading"); // loading | ready | off
+  const [camFacing, setCamFacing] = useState("user"); // "user" (front) | "environment" (back)
   const [pending, setPending] = useState(0); // punches queued offline
   const [site, setSite] = useState(""); // the site this device is clocking for
   const [siteList, setSiteList] = useState([]); // best-effort datalist of sites
@@ -77,15 +78,16 @@ export default function ClockStation({ manager }) {
     let stream;
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: camFacing }, audio: false });
         streamRef.current = stream;
         if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => {}); }
+        setCamErr("");
       } catch {
         setCamErr("Camera unavailable — allow camera access, or clocking will record without a photo.");
       }
     })();
     return () => { try { stream && stream.getTracks().forEach((t) => t.stop()); } catch {} streamRef.current = null; };
-  }, [showReg]);
+  }, [showReg, camFacing]);
 
   const loadWorkers = useCallback(async () => {
     try {
@@ -215,10 +217,11 @@ export default function ClockStation({ manager }) {
 
       {/* Compact live camera (face is checked automatically on each tap) */}
       <div style={{ position: "relative", background: "#000", height: "22vh", minHeight: 120, maxHeight: 190, overflow: "hidden", flexShrink: 0 }}>
-        <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
+        <video ref={videoRef} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: camFacing === "user" ? "scaleX(-1)" : "none" }} />
         <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "5px 12px", background: "linear-gradient(transparent,#000c)", fontSize: 12, color: "#eee", textAlign: "center" }}>
           {camErr ? camErr : "Face the camera, then tap a name below"}
         </div>
+        <button onClick={() => setCamFacing((f) => (f === "user" ? "environment" : "user"))} style={{ position: "absolute", top: 6, left: 6, fontSize: 11, fontWeight: 700, padding: "4px 9px", borderRadius: 999, background: "#000a", border: "1px solid #ffffff22", color: "#fff" }}>🔄 {camFacing === "user" ? "Front" : "Back"}</button>
         <div style={{ position: "absolute", top: 6, right: 6, fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "#000a", color: faceState === "ready" ? "#8fe3a6" : faceState === "off" ? "#ffb37a" : "#c9c1b0" }}>
           {faceState === "ready" ? "Face ✓" : faceState === "off" ? "No face check" : "…"}
         </div>
@@ -272,6 +275,7 @@ export default function ClockStation({ manager }) {
         <ClockConfirm
           worker={selected}
           streamRef={streamRef}
+          facing={camFacing}
           camErr={camErr}
           busy={busyId === selected.id}
           onApprove={async () => { const w = selected; await punch(w); setSelected(null); }}
@@ -289,7 +293,7 @@ export default function ClockStation({ manager }) {
 // Access-control style confirm: once a worker is chosen, their registered face
 // fills the screen next to the live camera, with one big Clock IN / Clock OUT
 // button to approve. No long list, no fuss.
-function ClockConfirm({ worker, streamRef, camErr, busy, onApprove, onCancel }) {
+function ClockConfirm({ worker, streamRef, facing = "user", camErr, busy, onApprove, onCancel }) {
   const vref = useRef(null);
   useEffect(() => {
     const s = streamRef && streamRef.current;
@@ -313,7 +317,7 @@ function ClockConfirm({ worker, streamRef, camErr, busy, onApprove, onCancel }) 
         <div style={{ position: "absolute", top: 12, left: 12, fontSize: 10.5, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9c1b0", background: "#000a", padding: "3px 8px", borderRadius: 999 }}>Registered worker</div>
         {/* live camera inset for a quick visual match */}
         <div style={{ position: "absolute", bottom: 12, right: 12, width: 108, height: 144, borderRadius: 12, overflow: "hidden", border: "2px solid #F5A800", background: "#000" }}>
-          <video ref={vref} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
+          <video ref={vref} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: facing === "user" ? "scaleX(-1)" : "none" }} />
           <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, fontSize: 9, fontWeight: 700, textAlign: "center", color: "#fff", background: "#000a", padding: "1px 0" }}>{camErr ? "no camera" : "live"}</div>
         </div>
       </div>
@@ -337,9 +341,10 @@ function ClockConfirm({ worker, streamRef, camErr, busy, onApprove, onCancel }) 
 // photos. Shows a live preview from the chosen camera (rear for the ID, front
 // for the face), a big Capture button, then Retake / Use. The face shot is
 // quality-checked before it can be used. Returns a JPEG data URL.
-function CaptureModal({ facing = "environment", title, hint, faceCheck = false, onDone, onClose }) {
+function CaptureModal({ facing: initialFacing = "environment", title, hint, faceCheck = false, onDone, onClose }) {
   const vref = useRef(null);
   const streamRef = useRef(null);
+  const [facing, setFacing] = useState(initialFacing);
   const [shot, setShot] = useState("");
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -347,6 +352,7 @@ function CaptureModal({ facing = "environment", title, hint, faceCheck = false, 
 
   useEffect(() => {
     let active = true;
+    setReady(false);
     (async () => {
       try {
         const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: facing }, audio: false });
@@ -357,6 +363,8 @@ function CaptureModal({ facing = "environment", title, hint, faceCheck = false, 
     })();
     return () => { active = false; try { streamRef.current?.getTracks().forEach((t) => t.stop()); } catch {} };
   }, [facing]);
+
+  const flip = () => setFacing((f) => (f === "user" ? "environment" : "user"));
 
   const grab = () => {
     const v = vref.current;
@@ -391,9 +399,12 @@ function CaptureModal({ facing = "environment", title, hint, faceCheck = false, 
 
   return (
     <div onClick={(e) => e.stopPropagation()} style={{ position: "fixed", inset: 0, zIndex: 70, background: "#000", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#fff" }}>
+      <div style={{ padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", color: "#fff", gap: 10 }}>
         <b style={{ fontSize: 15 }}>{title}</b>
-        <button onClick={onClose} style={{ background: "none", border: 0, color: "#c9c1b0", fontSize: 26, lineHeight: 1 }}>×</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {!shot && <button onClick={flip} style={{ background: "#2a2621", border: "1px solid #4a443a", color: "#fff", fontWeight: 700, fontSize: 12.5, padding: "6px 10px", borderRadius: 999 }}>🔄 {facing === "user" ? "Front" : "Back"}</button>}
+          <button onClick={onClose} style={{ background: "none", border: 0, color: "#c9c1b0", fontSize: 26, lineHeight: 1 }}>×</button>
+        </div>
       </div>
       <div style={{ flex: 1, position: "relative", overflow: "hidden", background: "#000" }}>
         {!shot ? (

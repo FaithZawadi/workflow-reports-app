@@ -211,8 +211,11 @@ function ClockingReport() {
   const [period, setPeriod] = useState("day");
   const [date, setDate] = useState(todayStr());
   const [site, setSite] = useState("");
+  const [sites, setSites] = useState([]);
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => { fetch("/api/attendance/sites").then((r) => (r.ok ? r.json() : { sites: [] })).then((d) => setSites(d.sites || [])).catch(() => {}); }, []);
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -260,7 +263,10 @@ function ClockingReport() {
         <div style={{ fontWeight: 800, color: INK, fontSize: 14, minWidth: 150, textAlign: "center" }}>{rangeLabel || "…"}</div>
         <button className="btn" onClick={() => shift(1)} disabled={data && data.to >= todayStr()} style={{ fontSize: 13, padding: "6px 10px" }}>→</button>
         <input type="date" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)} className="input" style={{ padding: 7, width: "auto" }} />
-        <input value={site} onChange={(e) => setSite(e.target.value)} placeholder="Filter by site…" className="input" style={{ padding: 7, fontSize: 12, maxWidth: 150 }} />
+        <select value={site} onChange={(e) => setSite(e.target.value)} className="input" style={{ padding: 7, fontSize: 12.5, width: "auto", maxWidth: 180 }}>
+          <option value="">All sites</option>
+          {sites.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+        </select>
         <a className="btn btn-dark" href={csvHref} style={{ fontSize: 12, textDecoration: "none", marginLeft: "auto" }}>⬇ Export CSV</a>
       </div>
 
@@ -310,6 +316,8 @@ function Workers() {
   const [workers, setWorkers] = useState([]);
   const [sites, setSites] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState("");
+  const [siteFilter, setSiteFilter] = useState("all"); // "all" | "none" | <site name>
   const [editing, setEditing] = useState(null); // worker id being site-changed
   const [pickSite, setPickSite] = useState("");
   const [expanded, setExpanded] = useState(null); // worker id showing details
@@ -351,30 +359,55 @@ function Workers() {
     setSaving(false);
   };
 
+  // Distinct registered site names present on workers, for the filter dropdown.
+  const siteNames = Array.from(new Set(workers.map((w) => w.siteName).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const shown = workers.filter((w) => {
+    if (siteFilter === "none" && w.siteName) return false;
+    if (siteFilter !== "all" && siteFilter !== "none" && w.siteName !== siteFilter) return false;
+    const s = q.trim().toLowerCase();
+    if (!s) return true;
+    return [w.name, w.idNumber, w.phone, w.jobTitle, w.siteName].some((v) => String(v || "").toLowerCase().includes(s));
+  });
+  const byFilterCount = siteFilter === "all" ? workers.length : shown.length;
+
   return (
     <div style={{ marginTop: 12 }}>
-      <SectionBar>Registered workers <span style={{ fontWeight: 400, textTransform: "none", fontSize: 11, color: MUTE }}>· register new ones at the clocking station</span></SectionBar>
+      <SectionBar>Registered workers <span style={{ fontWeight: 400, textTransform: "none", fontSize: 11, color: MUTE }}>· {byFilterCount} shown · register new ones at the clocking station</span></SectionBar>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", margin: "10px 0" }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, ID, phone…" className="input" style={{ flex: "1 1 200px", padding: 8, fontSize: 13 }} />
+        <select value={siteFilter} onChange={(e) => setSiteFilter(e.target.value)} className="input" style={{ padding: 8, fontSize: 13, width: "auto", maxWidth: 220 }}>
+          <option value="all">All sites ({workers.length})</option>
+          {siteNames.map((s) => <option key={s} value={s}>{s} ({workers.filter((w) => w.siteName === s).length})</option>)}
+          <option value="none">No site ({workers.filter((w) => !w.siteName).length})</option>
+        </select>
+      </div>
+
       {workers.length === 0 && !busy && <div className="muted" style={{ fontSize: 13, padding: 12 }}>No workers registered yet. Open the clocking station to add them.</div>}
-      <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-        {workers.map((w) => (
-          <div key={w.id} style={{ border: "1px solid #e6e0d2", borderRadius: 10, opacity: w.active ? 1 : 0.6 }}>
+      {workers.length > 0 && shown.length === 0 && <div className="muted" style={{ fontSize: 13, padding: 12 }}>No workers match this filter.</div>}
+
+      <div style={{ display: "grid", gap: 6 }}>
+        {shown.map((w) => (
+          <div key={w.id} style={{ border: "1px solid #e6e0d2", borderRadius: 10, opacity: w.active ? 1 : 0.6, background: "#fff" }}>
             <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "8px 10px" }}>
-              <div style={{ width: 42, height: 42, borderRadius: "50%", overflow: "hidden", background: "#f0ebe0", flexShrink: 0 }}>
+              <div style={{ width: 38, height: 38, borderRadius: "50%", overflow: "hidden", background: "#f0ebe0", flexShrink: 0 }}>
                 {w.photo ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={w.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: MUTE, fontWeight: 800 }}>{w.name[0]?.toUpperCase()}</div>}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, color: INK }}>{w.name}{!w.active && <span style={{ color: FAIL, fontSize: 11, fontWeight: 800 }}> · inactive</span>}</div>
-                <div style={{ fontSize: 12, color: MUTE }}>{[w.jobTitle, w.idNumber ? `ID ${w.idNumber}` : null, w.phone].filter(Boolean).join(" · ") || "—"}</div>
-                <div style={{ fontSize: 12, color: w.siteName ? INK : MUTE, fontWeight: w.siteName ? 600 : 400 }}>📍 {w.siteName || "No site assigned"}</div>
-                <div style={{ fontSize: 12, color: w.dailyWage != null ? INK : MUTE, fontWeight: w.dailyWage != null ? 600 : 400 }}>💵 {w.dailyWage != null ? `${money(w.dailyWage)} / day` : "No daily wage set"}</div>
+                <div style={{ fontWeight: 700, color: INK, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{w.name}{!w.active && <span style={{ color: FAIL, fontSize: 11, fontWeight: 800 }}> · inactive</span>}</div>
+                <div style={{ fontSize: 11.5, color: MUTE, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{[w.jobTitle, w.idNumber ? `ID ${w.idNumber}` : null, w.phone, w.dailyWage != null ? `${money(w.dailyWage)}/day` : null].filter(Boolean).join(" · ") || "—"}</div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+              <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: w.siteName ? "#eef3ee" : "#f3efe6", color: w.siteName ? "#2d6a40" : MUTE, whiteSpace: "nowrap", maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis" }}>📍 {w.siteName || "No site"}</span>
+              <button className="btn" onClick={() => setExpanded(expanded === w.id ? null : w.id)} style={{ fontSize: 12, flexShrink: 0 }}>{expanded === w.id ? "Close" : "Manage"}</button>
+            </div>
+
+            {expanded === w.id && editDetail !== w.id && editing !== w.id && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "0 10px 10px" }}>
                 <button className="btn" onClick={() => startEdit(w)} style={{ fontSize: 12 }}>Change site</button>
-                <button className="btn" onClick={() => startDetail(w)} style={{ fontSize: 12 }}>Edit</button>
-                <button className="btn" onClick={() => setExpanded(expanded === w.id ? null : w.id)} style={{ fontSize: 12 }}>{expanded === w.id ? "Hide" : "Details"}</button>
+                <button className="btn" onClick={() => startDetail(w)} style={{ fontSize: 12 }}>Edit wage / kin</button>
                 <button className="btn" onClick={() => toggle(w)} style={{ fontSize: 12, color: w.active ? FAIL : PASS }}>{w.active ? "Deactivate" : "Reactivate"}</button>
               </div>
-            </div>
+            )}
 
             {editDetail === w.id && (
               <div style={{ padding: "0 10px 10px", display: "grid", gap: 8 }}>
