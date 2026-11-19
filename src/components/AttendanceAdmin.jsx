@@ -25,13 +25,13 @@ export default function AttendanceAdmin() {
           Workers clock in/out on the manager’s phone at the clocking station. They are registered once (name + photo) and are not system users.
         </p>
         <div style={{ display: "flex", gap: 6, marginTop: 10, borderBottom: "1px solid #e6e0d2" }}>
-          {[["log", "Clock log"], ["workers", "Workers"], ["wages", "Daily wages"]].map(([k, label]) => (
+          {[["log", "Clock log"], ["report", "Clocking report"], ["workers", "Workers"], ["wages", "Daily wages"]].map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)} style={{ background: "none", border: 0, borderBottom: tab === k ? `2px solid ${GOLD}` : "2px solid transparent", color: tab === k ? INK : MUTE, fontWeight: 800, fontSize: 13, padding: "8px 10px", cursor: "pointer" }}>
               {label}
             </button>
           ))}
         </div>
-        {tab === "log" ? <ClockLog /> : tab === "workers" ? <Workers /> : <WagesReport />}
+        {tab === "log" ? <ClockLog /> : tab === "report" ? <ClockingReport /> : tab === "workers" ? <Workers /> : <WagesReport />}
       </PaperCard>
     </div>
   );
@@ -201,6 +201,107 @@ function Stat({ label, value, warn }) {
     <div style={{ border: `1px solid ${warn ? "#e8c9a0" : "#e6e0d2"}`, background: warn ? "#fdf3e6" : "#fff", borderRadius: 10, padding: "8px 14px", minWidth: 110 }}>
       <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3, color: MUTE, fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 800, color: warn ? "#a86a1a" : INK }}>{value}</div>
+    </div>
+  );
+}
+
+// Daily / weekly / monthly clocking timesheet — hours worked per worker from
+// paired IN→OUT events, with period totals and CSV export.
+function ClockingReport() {
+  const [period, setPeriod] = useState("day");
+  const [date, setDate] = useState(todayStr());
+  const [site, setSite] = useState("");
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    setBusy(true);
+    try {
+      const qs = new URLSearchParams({ period, date, ...(site.trim() ? { site: site.trim() } : {}) });
+      const r = await fetch(`/api/attendance/report?${qs}`);
+      const d = await r.json();
+      if (r.ok) setData(d);
+    } catch {}
+    setBusy(false);
+  }, [period, date, site]);
+  useEffect(() => { load(); }, [load]);
+
+  const csvHref = `/api/attendance/report?${new URLSearchParams({ period, date, ...(site.trim() ? { site: site.trim() } : {}), format: "csv" })}`;
+
+  const shift = (dir) => {
+    const d = new Date(date + "T12:00:00");
+    if (period === "week") d.setDate(d.getDate() + dir * 7);
+    else if (period === "month") d.setMonth(d.getMonth() + dir);
+    else d.setDate(d.getDate() + dir);
+    const next = d.toISOString().slice(0, 10);
+    if (next <= todayStr() || dir < 0) setDate(next);
+  };
+
+  const hm = (m) => { if (!m) return "—"; const h = Math.floor(m / 60), mm = Math.round(m % 60); return `${h}h${mm ? ` ${mm}m` : ""}`; };
+  const fmtDay = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short" });
+  const rangeLabel = data ? (period === "day" ? fmtDay(data.from) : `${fmtDay(data.from)} – ${fmtDay(data.to)}`) : "";
+  const totalMin = data?.totals?.minutes || 0;
+
+  const th = { textAlign: "left", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3, color: MUTE, padding: "6px 8px", borderBottom: "1px solid #e6e0d2", whiteSpace: "nowrap" };
+  const td = { fontSize: 13, padding: "7px 8px", borderBottom: "1px solid #f0ebe0", verticalAlign: "middle", whiteSpace: "nowrap" };
+  const seg = (on) => ({ fontSize: 12.5, fontWeight: 800, padding: "7px 14px", borderRadius: 8, border: "1px solid #e6e0d2", background: on ? COAL : "#fff", color: on ? GOLD : MUTE, cursor: "pointer" });
+
+  const rows = data?.workers || [];
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+        {[["day", "Daily"], ["week", "Weekly"], ["month", "Monthly"]].map(([k, l]) => (
+          <button key={k} onClick={() => setPeriod(k)} style={seg(period === k)}>{l}</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
+        <button className="btn" onClick={() => shift(-1)} style={{ fontSize: 13, padding: "6px 10px" }}>←</button>
+        <div style={{ fontWeight: 800, color: INK, fontSize: 14, minWidth: 150, textAlign: "center" }}>{rangeLabel || "…"}</div>
+        <button className="btn" onClick={() => shift(1)} disabled={data && data.to >= todayStr()} style={{ fontSize: 13, padding: "6px 10px" }}>→</button>
+        <input type="date" value={date} max={todayStr()} onChange={(e) => setDate(e.target.value)} className="input" style={{ padding: 7, width: "auto" }} />
+        <input value={site} onChange={(e) => setSite(e.target.value)} placeholder="Filter by site…" className="input" style={{ padding: 7, fontSize: 12, maxWidth: 150 }} />
+        <a className="btn btn-dark" href={csvHref} style={{ fontSize: 12, textDecoration: "none", marginLeft: "auto" }}>⬇ Export CSV</a>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
+        <Stat label="Workers" value={rows.length} />
+        <Stat label="Worker-days" value={data?.totals?.workerDays || 0} />
+        <Stat label="Total hours" value={hm(totalMin)} />
+      </div>
+
+      {rows.length === 0 && !busy && <div className="muted" style={{ fontSize: 13, padding: 12 }}>No clock-ins in this period.</div>}
+
+      {rows.length > 0 && (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: period === "day" ? 520 : 560 }}>
+            <thead>
+              {period === "day" ? (
+                <tr><th style={th}>Worker</th><th style={th}>Site</th><th style={th}>First in</th><th style={th}>Last out</th><th style={{ ...th, textAlign: "center" }}>Sessions</th><th style={{ ...th, textAlign: "right" }}>Hours</th></tr>
+              ) : period === "week" ? (
+                <tr><th style={th}>Worker</th>{(data?.days || []).map((d) => <th key={d} style={{ ...th, textAlign: "center" }}>{new Date(d + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short" })}<br /><span style={{ color: "#b6ab93" }}>{d.slice(8)}</span></th>)}<th style={{ ...th, textAlign: "center" }}>Days</th><th style={{ ...th, textAlign: "right" }}>Total</th></tr>
+              ) : (
+                <tr><th style={th}>Worker</th><th style={th}>Site</th><th style={{ ...th, textAlign: "center" }}>Days</th><th style={{ ...th, textAlign: "right" }}>Total hours</th><th style={{ ...th, textAlign: "right" }}>Daily wage</th><th style={{ ...th, textAlign: "right" }}>Est. pay</th></tr>
+              )}
+            </thead>
+            <tbody>
+              {rows.map((w) => {
+                const first = period === "day" ? w.perDay[data.from] : null;
+                return (
+                  <tr key={w.id}>
+                    <td style={td}><b>{w.name}</b>{w.jobTitle ? <span style={{ color: MUTE }}> · {w.jobTitle}</span> : ""}</td>
+                    {period === "day" && <><td style={{ ...td, color: w.site ? INK : MUTE }}>{w.site || "—"}</td><td style={td}>{first?.firstIn || "—"}</td><td style={td}>{first?.lastOut || (first?.open ? "— (in)" : "—")}</td><td style={{ ...td, textAlign: "center" }}>{first?.sessions || 0}</td><td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{hm(w.totalMinutes)}</td></>}
+                    {period === "week" && <>{data.days.map((d) => <td key={d} style={{ ...td, textAlign: "center", color: w.perDay[d] ? INK : "#cfc8ba", fontVariantNumeric: "tabular-nums" }}>{w.perDay[d] ? hm(w.perDay[d].minutes) : "·"}</td>)}<td style={{ ...td, textAlign: "center" }}>{w.daysPresent}</td><td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{hm(w.totalMinutes)}</td></>}
+                    {period === "month" && <><td style={{ ...td, color: w.site ? INK : MUTE }}>{w.site || "—"}</td><td style={{ ...td, textAlign: "center" }}>{w.daysPresent}</td><td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{hm(w.totalMinutes)}</td><td style={{ ...td, textAlign: "right", color: w.dailyWage != null ? INK : MUTE }}>{w.dailyWage != null ? money(w.dailyWage) : "—"}</td><td style={{ ...td, textAlign: "right", fontWeight: 700, color: w.dailyWage != null ? INK : MUTE }}>{w.dailyWage != null ? money(w.daysPresent * w.dailyWage) : "—"}</td></>}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {busy && <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>Loading…</div>}
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>Hours are from paired clock-in → clock-out times (Africa/Nairobi). A day still open shows the clock-in with no clock-out. Monthly “Est. pay” is days present × the worker’s daily wage.</p>
     </div>
   );
 }
