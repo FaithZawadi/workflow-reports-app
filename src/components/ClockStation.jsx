@@ -50,7 +50,8 @@ export default function ClockStation({ manager }) {
   const [pending, setPending] = useState(0); // punches queued offline
   const [site, setSite] = useState(""); // the site this device is clocking for
   const [siteList, setSiteList] = useState([]); // best-effort datalist of sites
-  const pendingRef = useRef(null); // { id, ts } — mismatch override within a short window
+  const streamRef = useRef(null); // the live camera stream, shared with the confirm view
+  const [selected, setSelected] = useState(null); // worker chosen for the access-control confirm
 
   // Remember the site per device, and offer registered sites as suggestions.
   useEffect(() => {
@@ -77,12 +78,13 @@ export default function ClockStation({ manager }) {
     (async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+        streamRef.current = stream;
         if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => {}); }
       } catch {
         setCamErr("Camera unavailable — allow camera access, or clocking will record without a photo.");
       }
     })();
-    return () => { try { stream && stream.getTracks().forEach((t) => t.stop()); } catch {} };
+    return () => { try { stream && stream.getTracks().forEach((t) => t.stop()); } catch {} streamRef.current = null; };
   }, [showReg]);
 
   const loadWorkers = useCallback(async () => {
@@ -117,48 +119,32 @@ export default function ClockStation({ manager }) {
   // correctly even before the server confirms (and while offline).
   const bumpLocal = (id, type, at) => setWorkers((ws) => ws.map((x) => (x.id === id ? { ...x, lastType: type, lastAt: at } : x)));
 
+  // One tap = clocked. The face check runs in the background purely as evidence
+  // for the log (matched ✓ / ✗ is recorded), and NEVER refuses the punch or asks
+  // for a second tap — the manager is operating the device and taps the right
+  // person. Clocking also works with no camera / no face models at all.
   const punch = async (w) => {
     if (busyId) return;
+    setBusyId(w.id);
+
+    // Decide IN/OUT and show it immediately, so the tap feels instant.
+    const type = w.lastType === "IN" ? "OUT" : "IN";
+    const at = new Date().toISOString();
+    bumpLocal(w.id, type, at);
+
     const selfie = grabFrame(videoRef.current);
     let matched = null;
     let matchScore = null;
-
-    // Automatic face verification (1:1) when the worker has a registered face and
-    // the models are loaded. A mismatch asks the manager to tap again to override.
-    const canCheck = faceState === "ready" && Array.isArray(w.faceDescriptor) && w.faceDescriptor.length > 0 && !!selfie;
-    if (canCheck) {
-      setBusyId(w.id);
-      const desc = await descriptorFromDataUrl(selfie);
-      if (!desc) {
-        setBusyId(null);
-        flash(`No face detected — look at the camera and tap ${w.name.split(" ")[0]} again.`, false);
-        return;
-      }
-      const dist = faceDistance(desc, w.faceDescriptor);
-      matchScore = Math.round(dist * 1000) / 1000;
-      matched = dist <= MATCH_THRESHOLD;
-      if (!matched) {
-        const p = pendingRef.current;
-        const recent = p && p.id === w.id && Date.now() - p.ts < 8000;
-        if (!recent) {
-          pendingRef.current = { id: w.id, ts: Date.now() };
-          setBusyId(null);
-          flash(`Face didn't match ${w.name.split(" ")[0]}. Tap again within 8s to clock anyway.`, false);
-          return;
-        }
-        // second tap within the window → manager override, record as not matched
-      }
-      pendingRef.current = null;
-    } else {
-      setBusyId(w.id);
+    if (faceState === "ready" && Array.isArray(w.faceDescriptor) && w.faceDescriptor.length > 0 && selfie) {
+      try {
+        const desc = await descriptorFromDataUrl(selfie);
+        if (desc) { const dist = faceDistance(desc, w.faceDescriptor); matchScore = Math.round(dist * 1000) / 1000; matched = dist <= MATCH_THRESHOLD; }
+      } catch {}
     }
 
     const loc = await getLocation();
-    // Decide IN/OUT on the device so offline punches keep the right direction.
-    const type = w.lastType === "IN" ? "OUT" : "IN";
-    const at = new Date().toISOString();
     const payload = { workerId: w.id, type, at, selfie: selfie || undefined, matched, matchScore, site: site || undefined, ...loc };
-    const tag = matched === true ? " · face ✓" : matched === false ? " · face ✗ (override)" : "";
+    const tag = matched === false ? " · face unverified" : "";
     const hhmm = new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
     const queueIt = async () => {
@@ -178,10 +164,13 @@ export default function ClockStation({ manager }) {
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload),
       });
       const d = await r.json();
-      if (!r.ok) { flash(d.error || "Could not record.", false); }
-      else {
+      if (!r.ok) {
+        // Roll the optimistic toggle back only if the server genuinely rejected it.
+        bumpLocal(w.id, w.lastType || null, w.lastAt || null);
+        flash(d.error || "Could not record — try again.", false);
+      } else {
         bumpLocal(w.id, d.type || type, at);
-        flash(`${w.name} clocked ${d.type || type} · ${hhmm}${tag}`, matched !== false);
+        flash(`${w.name} clocked ${d.type || type} · ${hhmm}${tag}`, true);
         await loadWorkers();
       }
     } catch {
@@ -252,7 +241,7 @@ export default function ClockStation({ manager }) {
           const inNow = w.lastType === "IN";
           const busyThis = busyId === w.id;
           return (
-            <button key={w.id} onClick={() => punch(w)} disabled={!!busyId}
+            <button key={w.id} onClick={() => setSelected(w)} disabled={!!busyId}
               style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", textAlign: "left", border: inNow ? `1.5px solid ${PASS}` : "1.5px solid #3a342c", background: "#211d18", borderRadius: 14, padding: "10px 12px", color: "#fff", opacity: busyId && !busyThis ? 0.5 : 1 }}>
               <div style={{ width: 48, height: 48, borderRadius: "50%", overflow: "hidden", background: "#000", flexShrink: 0, border: "1px solid #3a342c" }}>
                 {w.photo ? (/* eslint-disable-next-line @next/next/no-img-element */ <img src={w.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : (
@@ -279,9 +268,67 @@ export default function ClockStation({ manager }) {
         </div>
       )}
 
+      {selected && (
+        <ClockConfirm
+          worker={selected}
+          streamRef={streamRef}
+          camErr={camErr}
+          busy={busyId === selected.id}
+          onApprove={async () => { const w = selected; await punch(w); setSelected(null); }}
+          onCancel={() => setSelected(null)}
+        />
+      )}
+
       {showReg && (
         <RegisterWorker videoRef={videoRef} onClose={() => setShowReg(false)} onSaved={(msg) => { setShowReg(false); loadWorkers(); flash(msg || "Worker registered.", true); }} grabFrame={grabFrame} />
       )}
+    </div>
+  );
+}
+
+// Access-control style confirm: once a worker is chosen, their registered face
+// fills the screen next to the live camera, with one big Clock IN / Clock OUT
+// button to approve. No long list, no fuss.
+function ClockConfirm({ worker, streamRef, camErr, busy, onApprove, onCancel }) {
+  const vref = useRef(null);
+  useEffect(() => {
+    const s = streamRef && streamRef.current;
+    if (s && vref.current) { vref.current.srcObject = s; vref.current.play().catch(() => {}); }
+  }, [streamRef]);
+
+  const inNow = worker.lastType === "IN";
+  const since = worker.lastAt ? new Date(worker.lastAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  const actionBg = inNow ? "#B03A2E" : "#2E7D46";
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 65, background: "#0e0c0a", display: "flex", flexDirection: "column", color: "#fff" }}>
+      {/* Registered face — big, like an access-control badge */}
+      <div style={{ flex: 1, position: "relative", background: "#000", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {worker.photo ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={worker.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <div style={{ fontSize: 96, fontWeight: 800, color: "#3a342c" }}>{worker.name[0]?.toUpperCase()}</div>
+        )}
+        <div style={{ position: "absolute", top: 12, left: 12, fontSize: 10.5, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", color: "#c9c1b0", background: "#000a", padding: "3px 8px", borderRadius: 999 }}>Registered worker</div>
+        {/* live camera inset for a quick visual match */}
+        <div style={{ position: "absolute", bottom: 12, right: 12, width: 108, height: 144, borderRadius: 12, overflow: "hidden", border: "2px solid #F5A800", background: "#000" }}>
+          <video ref={vref} playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
+          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, fontSize: 9, fontWeight: 700, textAlign: "center", color: "#fff", background: "#000a", padding: "1px 0" }}>{camErr ? "no camera" : "live"}</div>
+        </div>
+      </div>
+
+      {/* Identity + approve */}
+      <div style={{ padding: "16px 16px calc(16px + env(safe-area-inset-bottom,0px))", background: "#161310" }}>
+        <div style={{ fontWeight: 800, fontSize: 22, lineHeight: 1.1 }}>{worker.name}</div>
+        <div style={{ fontSize: 13.5, color: inNow ? "#8fe3a6" : "#9a9284", marginTop: 3, marginBottom: 14 }}>
+          {worker.jobTitle ? worker.jobTitle + " · " : ""}{inNow ? `● Currently IN${since ? " since " + since : ""}` : "Not clocked in"}
+        </div>
+        <button onClick={onApprove} disabled={busy} style={{ width: "100%", padding: 18, borderRadius: 14, border: 0, background: actionBg, color: "#fff", fontWeight: 900, fontSize: 19, letterSpacing: 0.3 }}>
+          {busy ? "Saving…" : inNow ? "✓ Clock OUT" : "✓ Clock IN"}
+        </button>
+        <button onClick={onCancel} disabled={busy} style={{ width: "100%", padding: 13, marginTop: 8, background: "transparent", border: "1px solid #3a342c", color: "#c9c1b0", borderRadius: 12, fontWeight: 700, fontSize: 14 }}>Cancel</button>
+      </div>
     </div>
   );
 }
