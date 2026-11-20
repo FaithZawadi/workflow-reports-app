@@ -309,7 +309,7 @@ function ClockingReport() {
                 return (
                   <tr key={w.id}>
                     <td style={td}><b>{w.name}</b>{w.jobTitle ? <span style={{ color: MUTE }}> · {w.jobTitle}</span> : ""}</td>
-                    {period === "day" && <><td style={{ ...td, color: w.site ? INK : MUTE }}>{w.site || "—"}</td><td style={td}>{first?.firstIn || "—"}</td><td style={td}>{first?.lastOut || (first?.open ? "— (in)" : "—")}</td><td style={{ ...td, textAlign: "center" }}>{first?.sessions || 0}</td><td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{hm(w.totalMinutes)}</td></>}
+                    {period === "day" && <><td style={{ ...td, color: w.site ? INK : MUTE }}>{w.site || "—"}</td><td style={td}>{first?.firstIn || "—"}</td><td style={td}>{first?.lastOut || (first?.open ? (first.autoOut ? <span style={{ color: WAIT }}>{first.autoOut} · auto</span> : "— (in)") : "—")}</td><td style={{ ...td, textAlign: "center" }}>{first?.sessions || 0}</td><td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{hm(w.totalMinutes)}</td></>}
                     {period === "week" && <>{data.days.map((d) => <td key={d} style={{ ...td, textAlign: "center", color: w.perDay[d] ? INK : "#cfc8ba", fontVariantNumeric: "tabular-nums" }}>{w.perDay[d] ? hm(w.perDay[d].minutes) : "·"}</td>)}<td style={{ ...td, textAlign: "center" }}>{w.daysPresent}</td><td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{hm(w.totalMinutes)}</td></>}
                     {period === "month" && <><td style={{ ...td, color: w.site ? INK : MUTE }}>{w.site || "—"}</td><td style={{ ...td, textAlign: "center" }}>{w.daysPresent}</td><td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{hm(w.totalMinutes)}</td><td style={{ ...td, textAlign: "right", color: w.dailyWage != null ? INK : MUTE }}>{w.dailyWage != null ? money(w.dailyWage) : "—"}</td><td style={{ ...td, textAlign: "right", fontWeight: 700, color: w.dailyWage != null ? INK : MUTE }}>{w.dailyWage != null ? money(w.daysPresent * w.dailyWage) : "—"}</td></>}
                   </tr>
@@ -320,7 +320,7 @@ function ClockingReport() {
         </div>
       )}
       {busy && <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>Loading…</div>}
-      <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>Hours are from paired clock-in → clock-out times (Africa/Nairobi). A day still open shows the clock-in with no clock-out. Monthly “Est. pay” is days present × the worker’s daily wage.</p>
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>Hours are from paired clock-in → clock-out times (Africa/Nairobi). A worker who doesn’t clock out is auto-clocked-out 8 hours after their clock-in (shown as “· auto”), capped at 8h. Monthly “Est. pay” is days present × the worker’s daily wage.</p>
     </div>
   );
 }

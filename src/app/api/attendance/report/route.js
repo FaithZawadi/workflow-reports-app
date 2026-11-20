@@ -37,27 +37,36 @@ function listDays(from, to) {
   return out;
 }
 
+// Auto clock-out this many minutes after an unclosed clock-in.
+const AUTO_OUT_MIN = 8 * 60;
+
 // Pair IN→OUT events within a worker's day and total the minutes worked.
 function sessionsFor(events) {
   const sorted = [...events].sort((a, b) => new Date(a.at) - new Date(b.at));
-  let openIn = null, minutes = 0, sessions = 0, firstIn = null, lastOut = null, open = false;
+  let openIn = null, minutes = 0, sessions = 0, firstIn = null, lastOut = null, open = false, autoOut = null;
   for (const e of sorted) {
     if (e.type === "IN") { if (!firstIn) firstIn = e.at; openIn = e.at; }
     else if (e.type === "OUT") {
       lastOut = e.at;
       if (openIn) {
-        // Count only a completed IN→OUT pair, clamped to a sane 0–24h so a
-        // forgotten clock-out never produces impossible hours.
         const m = (new Date(e.at) - new Date(openIn)) / 60000;
         if (m > 0) { minutes += Math.min(m, 1440); sessions += 1; }
         openIn = null;
       }
     }
   }
-  // An open clock-in (no matching clock-out) is flagged but NEVER extrapolated
-  // to "now" — hours come only from completed pairs.
-  if (openIn) open = true;
-  return { minutes: Math.max(0, Math.round(minutes)), sessions, firstIn, lastOut, open };
+  // A clock-in with no clock-out is auto-closed 8h after the clock-in (for people
+  // who don't clock out themselves). We count up to the auto clock-out but never
+  // past now, so it maxes out at 8h and never runs away even on an old punch.
+  if (openIn) {
+    open = true;
+    const inMs = new Date(openIn).getTime();
+    const endMs = Math.min(inMs + AUTO_OUT_MIN * 60000, Date.now());
+    const m = (endMs - inMs) / 60000;
+    if (m > 0) { minutes += Math.min(m, AUTO_OUT_MIN); sessions += 1; }
+    autoOut = new Date(inMs + AUTO_OUT_MIN * 60000).toISOString();
+  }
+  return { minutes: Math.max(0, Math.round(minutes)), sessions, firstIn, lastOut, open, autoOut };
 }
 
 // GET /api/attendance/report?period=day|week|month&date=YYYY-MM-DD&site=&format=csv
@@ -114,7 +123,7 @@ export async function GET(req) {
       const evs = w.days.get(d);
       if (!evs || !evs.length) continue;
       const s = sessionsFor(evs);
-      perDay[d] = { minutes: s.minutes, firstIn: s.firstIn ? hhmm(s.firstIn) : null, lastOut: s.lastOut ? hhmm(s.lastOut) : null, sessions: s.sessions, open: s.open };
+      perDay[d] = { minutes: s.minutes, firstIn: s.firstIn ? hhmm(s.firstIn) : null, lastOut: s.lastOut ? hhmm(s.lastOut) : null, sessions: s.sessions, open: s.open, autoOut: s.autoOut ? hhmm(s.autoOut) : null };
       totalMinutes += s.minutes;
       daysPresent += 1;
     }
