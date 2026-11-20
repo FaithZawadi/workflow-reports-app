@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canManageAttendance } from "@/lib/roles";
+import { eventWorkerFilter } from "@/lib/attendanceScope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,8 +14,9 @@ const dayOf = (at) => new Date(at).toLocaleDateString("en-CA", { timeZone: "Afri
 // clock event that day), earning that worker's current daily wage. Lets a
 // manager see what each worker is owed for each day worked.
 export async function GET(req) {
+  let user;
   try {
-    const user = await requireUser();
+    user = await requireUser();
     if (!canManageAttendance(user)) return Response.json({ error: "Only a manager can view wages." }, { status: 403 });
   } catch (res) {
     return res;
@@ -25,6 +27,10 @@ export async function GET(req) {
   const where = {};
   const site = sp.get("site");
   if (site) where.site = site;
+  // Each manager sees only the workers they registered; admins see all and may
+  // narrow to one registrar via ?registeredBy=<userId>.
+  const wf = eventWorkerFilter(user, sp.get("registeredBy") || undefined);
+  if (wf) where.worker = wf;
   const from = sp.get("from");
   const to = sp.get("to");
   if (from || to) {

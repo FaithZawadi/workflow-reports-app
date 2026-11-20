@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canManageAttendance } from "@/lib/roles";
+import { attendanceVisibility } from "@/lib/attendanceScope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,6 +29,9 @@ export async function POST(req) {
     include: { clockEvents: { orderBy: { at: "desc" }, take: 1, select: { type: true } } },
   });
   if (!worker || !worker.active) return Response.json({ error: "Worker not found." }, { status: 404 });
+  // A non-admin manager may only clock the workers they registered.
+  const { admin, myId } = attendanceVisibility(user);
+  if (!admin && worker.registeredById !== myId) return Response.json({ error: "You can only clock workers you registered." }, { status: 403 });
 
   // Auto-toggle unless an explicit type is given.
   const last = worker.clockEvents[0]?.type || null;

@@ -2,6 +2,13 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { canManageAttendance } from "@/lib/roles";
+import { attendanceVisibility } from "@/lib/attendanceScope";
+
+// A non-admin manager may only act on the workers they registered.
+const mayActOn = (user, worker) => {
+  const { admin, myId } = attendanceVisibility(user);
+  return admin || (worker && worker.registeredById === myId);
+};
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,16 +27,18 @@ async function requireManager() {
 // the heavy ID-document photos. These are loaded on demand (the list endpoint
 // omits them) so a manager only downloads them when opening one worker.
 export async function GET(_req, { params }) {
+  let user;
   try {
-    await requireManager();
+    user = await requireManager();
   } catch (res) {
     return res;
   }
   const w = await prisma.worker.findUnique({
     where: { id: params.id },
-    select: { id: true, name: true, idPhoto: true, idPhotoBack: true, gender: true, address: true, nextOfKin: true, nextOfKinPhone: true, registeredByName: true, createdAt: true },
+    select: { id: true, name: true, registeredById: true, idPhoto: true, idPhotoBack: true, gender: true, address: true, nextOfKin: true, nextOfKinPhone: true, registeredByName: true, createdAt: true },
   });
   if (!w) return Response.json({ error: "Worker not found." }, { status: 404 });
+  if (!mayActOn(user, w)) return Response.json({ error: "You can only view workers you registered." }, { status: 403 });
   return Response.json({ worker: w });
 }
 
@@ -46,6 +55,7 @@ export async function PATCH(req, { params }) {
   }
   const worker = await prisma.worker.findUnique({ where: { id: params.id } });
   if (!worker) return Response.json({ error: "Worker not found." }, { status: 404 });
+  if (!mayActOn(user, worker)) return Response.json({ error: "You can only manage workers you registered." }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
 

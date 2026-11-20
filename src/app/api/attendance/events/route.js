@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canManageAttendance } from "@/lib/roles";
+import { eventWorkerFilter } from "@/lib/attendanceScope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,8 +10,9 @@ export const dynamic = "force-dynamic";
 // Filters: ?from=YYYY-MM-DD&to=YYYY-MM-DD&workerId=...  ?photos=1 includes the
 // selfie data URLs (heavier). ?format=csv downloads a spreadsheet.
 export async function GET(req) {
+  let user;
   try {
-    const user = await requireUser();
+    user = await requireUser();
     if (!canManageAttendance(user)) return Response.json({ error: "Only a manager can view attendance." }, { status: 403 });
   } catch (res) {
     return res;
@@ -24,6 +26,9 @@ export async function GET(req) {
   if (workerId) where.workerId = workerId;
   const site = sp.get("site");
   if (site) where.site = site;
+  // Managers see only the workers they registered; admins see all.
+  const wf = eventWorkerFilter(user, sp.get("registeredBy") || undefined);
+  if (wf) where.worker = wf;
   const from = sp.get("from");
   const to = sp.get("to");
   if (from || to) {

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { recordAudit } from "@/lib/audit";
 import { canManageAttendance } from "@/lib/roles";
+import { workerWhere } from "@/lib/attendanceScope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,18 +29,23 @@ async function requireManager() {
 // GET /api/attendance/workers — the registered workers (active by default), each
 // with their current clocked state so the kiosk can show IN / OUT.
 export async function GET(req) {
+  let user;
   try {
-    await requireManager();
+    user = await requireManager();
   } catch (res) {
     return res;
   }
-  const all = new URL(req.url).searchParams.get("all") === "1";
+  const sp = new URL(req.url).searchParams;
+  const all = sp.get("all") === "1";
+  // Each manager sees only the workers they registered; admins see all (and may
+  // narrow to one registrar with ?registeredBy=).
+  const scope = workerWhere(user, sp.get("registeredBy") || undefined);
   // The big ID-document images (idPhoto / idPhotoBack) are deliberately NOT
   // fetched here — they can be ~2 MB per worker and would make this list (which
   // the kiosk reloads often) crawl. They are loaded on demand from
   // GET /api/attendance/workers/[id] when a manager opens a worker's details.
   const workers = await prisma.worker.findMany({
-    where: all ? {} : { active: true },
+    where: { ...(all ? {} : { active: true }), ...scope },
     orderBy: { name: "asc" },
     select: {
       id: true, name: true, phone: true, jobTitle: true, idNumber: true,

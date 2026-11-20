@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { canManageAttendance } from "@/lib/roles";
+import { eventWorkerFilter } from "@/lib/attendanceScope";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -63,8 +64,9 @@ function sessionsFor(events) {
 // Clocking timesheet: hours worked per worker per day over the chosen period,
 // with day/week/month totals. Hours come from paired IN→OUT clock events.
 export async function GET(req) {
+  let user;
   try {
-    const user = await requireUser();
+    user = await requireUser();
     if (!canManageAttendance(user)) return Response.json({ error: "Only a manager can view clocking reports." }, { status: 403 });
   } catch (res) {
     return res;
@@ -79,9 +81,12 @@ export async function GET(req) {
   const days = listDays(from, to);
 
   // Attendance is attributed to the worker's REGISTERED site (not the device /
-  // GPS), so the site filter matches worker.siteName.
+  // GPS). A manager also only sees the workers they registered (admins see all,
+  // and may narrow to one registrar via ?registeredBy=).
   const where = { at: { gte: new Date(from + "T00:00:00" + EAT), lte: new Date(to + "T23:59:59.999" + EAT) } };
-  if (site) where.worker = { siteName: site };
+  const scope = eventWorkerFilter(user, sp.get("registeredBy") || undefined) || {};
+  const workerFilter = { ...(site ? { siteName: site } : {}), ...scope };
+  if (Object.keys(workerFilter).length) where.worker = workerFilter;
 
   const events = await prisma.clockEvent.findMany({
     where,

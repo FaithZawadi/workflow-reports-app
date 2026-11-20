@@ -114,22 +114,27 @@ function WagesReport() {
   const [from, setFrom] = useState(todayStr());
   const [to, setTo] = useState(todayStr());
   const [site, setSite] = useState("");
+  const [registeredBy, setRegisteredBy] = useState("");
+  const [registrars, setRegistrars] = useState([]);
   const [data, setData] = useState({ rows: [], total: 0, workerDays: 0, unset: 0 });
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => { fetch("/api/attendance/registrars").then((r) => (r.ok ? r.json() : { registrars: [] })).then((d) => setRegistrars(d.registrars || [])).catch(() => {}); }, []);
+
+  const params = () => ({ from, to, ...(site.trim() ? { site: site.trim() } : {}), ...(registeredBy ? { registeredBy } : {}) });
   const load = useCallback(async () => {
     setBusy(true);
     try {
-      const qs = new URLSearchParams({ from, to, ...(site.trim() ? { site: site.trim() } : {}) });
+      const qs = new URLSearchParams({ from, to, ...(site.trim() ? { site: site.trim() } : {}), ...(registeredBy ? { registeredBy } : {}) });
       const r = await fetch(`/api/attendance/wages?${qs}`);
       const d = await r.json();
       if (r.ok) setData({ rows: d.rows || [], total: d.total || 0, workerDays: d.workerDays || 0, unset: d.unset || 0 });
     } catch {}
     setBusy(false);
-  }, [from, to, site]);
+  }, [from, to, site, registeredBy]);
   useEffect(() => { load(); }, [load]);
 
-  const csvHref = `/api/attendance/wages?${new URLSearchParams({ from, to, ...(site.trim() ? { site: site.trim() } : {}), format: "csv" })}`;
+  const csvHref = `/api/attendance/wages?${new URLSearchParams({ ...params(), format: "csv" })}`;
 
   // Group rows by day so each day's wages read together, with a daily subtotal.
   const byDay = useMemo(() => {
@@ -151,6 +156,14 @@ function WagesReport() {
         <button className="btn" onClick={() => { setFrom(daysAgoStr(6)); setTo(todayStr()); }} style={{ fontSize: 12 }}>7 days</button>
         <button className="btn" onClick={() => { setFrom(daysAgoStr(29)); setTo(todayStr()); }} style={{ fontSize: 12 }}>30 days</button>
         <input value={site} onChange={(e) => setSite(e.target.value)} placeholder="Filter by site…" className="input" style={{ padding: 7, fontSize: 12, maxWidth: 160 }} />
+        {registrars.length > 1 && (
+          <label style={{ fontSize: 12, color: MUTE }}>Registered by<br />
+            <select value={registeredBy} onChange={(e) => setRegisteredBy(e.target.value)} className="input" style={{ padding: 7, fontSize: 12.5, width: "auto", maxWidth: 180 }}>
+              <option value="">All personnel</option>
+              {registrars.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </label>
+        )}
         <a className="btn btn-dark" href={csvHref} style={{ fontSize: 12, textDecoration: "none", marginLeft: "auto" }}>⬇ Export CSV</a>
       </div>
 
