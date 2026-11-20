@@ -324,7 +324,7 @@ function Workers() {
   const [details, setDetails] = useState({}); // id -> { idPhoto, idPhotoBack, ... } loaded on demand
   const [lightbox, setLightbox] = useState(null);
   const [editDetail, setEditDetail] = useState(null); // worker id being detail-edited
-  const [form, setForm] = useState({ nextOfKin: "", nextOfKinPhone: "", dailyWage: "" });
+  const [form, setForm] = useState({ phone: "", jobTitle: "", gender: "", address: "", nextOfKin: "", nextOfKinPhone: "", dailyWage: "" });
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -354,14 +354,16 @@ function Workers() {
   };
   const startDetail = (w) => {
     setEditDetail(w.id);
-    setForm({ nextOfKin: w.nextOfKin || "", nextOfKinPhone: w.nextOfKinPhone || "", dailyWage: w.dailyWage == null ? "" : String(w.dailyWage) });
+    setForm({ phone: w.phone || "", jobTitle: w.jobTitle || "", gender: w.gender || "", address: w.address || "", nextOfKin: w.nextOfKin || "", nextOfKinPhone: w.nextOfKinPhone || "", dailyWage: w.dailyWage == null ? "" : String(w.dailyWage) });
   };
   const saveDetail = async (w) => {
     setSaving(true);
     try {
+      // Contact details are editable; the ID number and ID photos stay locked
+      // (the server rejects any attempt to change identity).
       await fetch(`/api/attendance/workers/${w.id}`, {
         method: "PATCH", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ nextOfKin: form.nextOfKin, nextOfKinPhone: form.nextOfKinPhone, dailyWage: form.dailyWage === "" ? null : form.dailyWage }),
+        body: JSON.stringify({ phone: form.phone, jobTitle: form.jobTitle, gender: form.gender, address: form.address, nextOfKin: form.nextOfKin, nextOfKinPhone: form.nextOfKinPhone, dailyWage: form.dailyWage === "" ? null : form.dailyWage }),
       });
       setEditDetail(null); await load();
     } catch {}
@@ -413,7 +415,7 @@ function Workers() {
             {expanded === w.id && editDetail !== w.id && editing !== w.id && (
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "0 10px 10px" }}>
                 <button className="btn" onClick={() => startEdit(w)} style={{ fontSize: 12 }}>Change site</button>
-                <button className="btn" onClick={() => startDetail(w)} style={{ fontSize: 12 }}>Edit wage / kin</button>
+                <button className="btn" onClick={() => startDetail(w)} style={{ fontSize: 12 }}>Edit contact / wage</button>
                 <button className="btn" onClick={() => toggle(w)} style={{ fontSize: 12, color: w.active ? FAIL : PASS }}>{w.active ? "Deactivate" : "Reactivate"}</button>
               </div>
             )}
@@ -421,10 +423,17 @@ function Workers() {
             {editDetail === w.id && (
               <div style={{ padding: "0 10px 10px", display: "grid", gap: 8 }}>
                 <div style={{ background: "#faf7ef", border: "1px solid #e6e0d2", borderRadius: 10, padding: 10, display: "grid", gap: 8 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.3, color: MUTE }}>Edit next of kin &amp; daily wage</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.3, color: MUTE }}>Edit contact details &amp; wage</div>
+                  <div style={{ fontSize: 11, color: MUTE }}>Name, ID number and ID photos can’t be changed. Contacts below can.</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <label style={{ fontSize: 12, color: MUTE }}>Phone<input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className="input" style={{ width: "100%", padding: 8, marginTop: 2 }} placeholder="+254…" /></label>
+                    <label style={{ fontSize: 12, color: MUTE }}>Job title<input value={form.jobTitle} onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))} className="input" style={{ width: "100%", padding: 8, marginTop: 2 }} placeholder="e.g. Casual" /></label>
+                    <label style={{ fontSize: 12, color: MUTE }}>Gender<input value={form.gender} onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))} className="input" style={{ width: "100%", padding: 8, marginTop: 2 }} placeholder="Male / Female" /></label>
+                    <label style={{ fontSize: 12, color: MUTE }}>Daily wage<input type="number" min={0} inputMode="decimal" value={form.dailyWage} onChange={(e) => setForm((f) => ({ ...f, dailyWage: e.target.value }))} className="input" style={{ width: "100%", padding: 8, marginTop: 2 }} placeholder="e.g. 800" /></label>
+                  </div>
+                  <label style={{ fontSize: 12, color: MUTE }}>Home address<input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} className="input" style={{ width: "100%", padding: 8, marginTop: 2 }} placeholder="Estate / town" /></label>
                   <label style={{ fontSize: 12, color: MUTE }}>Next of kin<input value={form.nextOfKin} onChange={(e) => setForm((f) => ({ ...f, nextOfKin: e.target.value }))} className="input" style={{ width: "100%", padding: 8, marginTop: 2 }} placeholder="Name" /></label>
                   <label style={{ fontSize: 12, color: MUTE }}>Next of kin phone<input value={form.nextOfKinPhone} onChange={(e) => setForm((f) => ({ ...f, nextOfKinPhone: e.target.value }))} className="input" style={{ width: "100%", padding: 8, marginTop: 2 }} placeholder="+254…" /></label>
-                  <label style={{ fontSize: 12, color: MUTE }}>Daily wage<input type="number" min={0} inputMode="decimal" value={form.dailyWage} onChange={(e) => setForm((f) => ({ ...f, dailyWage: e.target.value }))} className="input" style={{ width: "100%", padding: 8, marginTop: 2 }} placeholder="e.g. 800" /></label>
                   <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                     <button className="btn" onClick={() => setEditDetail(null)} style={{ fontSize: 12 }}>Cancel</button>
                     <button className="btn btn-primary" onClick={() => saveDetail(w)} disabled={saving} style={{ fontSize: 12 }}>{saving ? "Saving…" : "Save"}</button>
