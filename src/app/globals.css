@@ -22,6 +22,14 @@ html, body {
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
   text-size-adjust: 100%;
+  /* Universal guard: nothing may ever scroll the page sideways. Even if some
+     element (topbar, a modal, a toast, a wide table that escaped its scroller)
+     exceeds the viewport, it is clipped here instead of shifting the whole page
+     — which is what made the dashboard look uniformly cut off on phones.
+     `clip` (not hidden) adds no scroll container, so sticky/vertical scroll are
+     unaffected. */
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 a { color: inherit; }
