@@ -43,7 +43,7 @@ export async function GET(req) {
     where,
     orderBy: { at: "asc" },
     take: 20000,
-    select: { workerId: true, site: true, at: true, worker: { select: { name: true, jobTitle: true, dailyWage: true } } },
+    select: { workerId: true, site: true, at: true, worker: { select: { name: true, jobTitle: true, phone: true, dailyWage: true } } },
   });
 
   // Collapse to one entry per worker per day (the first site seen that day).
@@ -56,6 +56,7 @@ export async function GET(req) {
       date: day,
       workerName: e.worker?.name || "—",
       jobTitle: e.worker?.jobTitle || null,
+      phone: e.worker?.phone || null,
       site: e.site || null,
       dailyWage: e.worker?.dailyWage ?? null,
     });
@@ -67,11 +68,11 @@ export async function GET(req) {
 
   if (csv) {
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const out = [["Date", "Worker", "Job title", "Site", "Daily wage"]];
-    for (const r of rows) out.push([r.date, r.workerName, r.jobTitle || "", r.site || "", r.dailyWage == null ? "" : r.dailyWage]);
+    const out = [["Date", "Worker", "Phone", "Job title", "Site", "Daily wage"]];
+    for (const r of rows) out.push([r.date, r.workerName, r.phone || "", r.jobTitle || "", r.site || "", r.dailyWage == null ? "" : r.dailyWage]);
     out.push([]);
-    out.push(["", "", "", "Worker-days", workerDays]);
-    out.push(["", "", "", "Total", total]);
+    out.push(["", "", "", "", "Worker-days", workerDays]);
+    out.push(["", "", "", "", "Total", total]);
     const body = out.map((r) => r.map(esc).join(",")).join("\n");
     return new Response(body, {
       status: 200,

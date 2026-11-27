@@ -193,7 +193,10 @@ function WagesReport() {
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={i}>
-                      <td style={td}><b>{r.workerName}</b>{r.jobTitle ? <span style={{ color: MUTE }}> · {r.jobTitle}</span> : ""}</td>
+                      <td style={td}>
+                        <div><b>{r.workerName}</b>{r.jobTitle ? <span style={{ color: MUTE }}> · {r.jobTitle}</span> : ""}</div>
+                        <div style={{ fontSize: 11.5, marginTop: 1 }}>{r.phone ? <a href={`tel:${r.phone}`} style={{ color: "#2d6a40", textDecoration: "none", fontWeight: 700 }}>📱 {r.phone}</a> : <span style={{ color: MUTE }}>📱 no phone</span>}</div>
+                      </td>
                       <td style={{ ...td, color: r.site ? INK : MUTE }}>{r.site || "—"}</td>
                       <td style={{ ...td, textAlign: "right", fontVariantNumeric: "tabular-nums", color: r.dailyWage == null ? FAIL : INK }}>{r.dailyWage == null ? "—" : money(r.dailyWage)}</td>
                     </tr>
@@ -308,7 +311,10 @@ function ClockingReport() {
                 const first = period === "day" ? w.perDay[data.from] : null;
                 return (
                   <tr key={w.id}>
-                    <td style={td}><b>{w.name}</b>{w.jobTitle ? <span style={{ color: MUTE }}> · {w.jobTitle}</span> : ""}</td>
+                    <td style={td}>
+                      <div><b>{w.name}</b>{w.jobTitle ? <span style={{ color: MUTE }}> · {w.jobTitle}</span> : ""}</div>
+                      <div style={{ fontSize: 11.5, marginTop: 1 }}>{w.phone ? <a href={`tel:${w.phone}`} style={{ color: "#2d6a40", textDecoration: "none", fontWeight: 700 }}>📱 {w.phone}</a> : <span style={{ color: MUTE }}>📱 no phone</span>}</div>
+                    </td>
                     {period === "day" && <><td style={{ ...td, color: w.site ? INK : MUTE }}>{w.site || "—"}</td><td style={td}>{first?.firstIn || "—"}</td><td style={td}>{first?.lastOut || (first?.open ? (first.autoOut ? <span style={{ color: WAIT }}>{first.autoOut} · auto</span> : "— (in)") : "—")}</td><td style={{ ...td, textAlign: "center" }}>{first?.sessions || 0}</td><td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{hm(w.totalMinutes)}</td></>}
                     {period === "week" && <>{data.days.map((d) => <td key={d} style={{ ...td, textAlign: "center", color: w.perDay[d] ? INK : "#cfc8ba", fontVariantNumeric: "tabular-nums" }}>{w.perDay[d] ? hm(w.perDay[d].minutes) : "·"}</td>)}<td style={{ ...td, textAlign: "center" }}>{w.daysPresent}</td><td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{hm(w.totalMinutes)}</td></>}
                     {period === "month" && <><td style={{ ...td, color: w.site ? INK : MUTE }}>{w.site || "—"}</td><td style={{ ...td, textAlign: "center" }}>{w.daysPresent}</td><td style={{ ...td, textAlign: "right", fontWeight: 700 }}>{hm(w.totalMinutes)}</td><td style={{ ...td, textAlign: "right", color: w.dailyWage != null ? INK : MUTE }}>{w.dailyWage != null ? money(w.dailyWage) : "—"}</td><td style={{ ...td, textAlign: "right", fontWeight: 700, color: w.dailyWage != null ? INK : MUTE }}>{w.dailyWage != null ? money(w.daysPresent * w.dailyWage) : "—"}</td></>}

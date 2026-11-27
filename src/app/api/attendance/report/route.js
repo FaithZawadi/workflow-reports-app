@@ -101,13 +101,13 @@ export async function GET(req) {
     where,
     orderBy: { at: "asc" },
     take: 50000,
-    select: { workerId: true, type: true, at: true, worker: { select: { name: true, jobTitle: true, dailyWage: true, siteName: true } } },
+    select: { workerId: true, type: true, at: true, worker: { select: { name: true, jobTitle: true, phone: true, dailyWage: true, siteName: true } } },
   });
 
   // Group events by worker then day.
   const byWorker = new Map();
   for (const e of events) {
-    if (!byWorker.has(e.workerId)) byWorker.set(e.workerId, { name: e.worker?.name || "—", jobTitle: e.worker?.jobTitle || null, dailyWage: e.worker?.dailyWage ?? null, site: e.worker?.siteName || null, days: new Map() });
+    if (!byWorker.has(e.workerId)) byWorker.set(e.workerId, { name: e.worker?.name || "—", jobTitle: e.worker?.jobTitle || null, phone: e.worker?.phone || null, dailyWage: e.worker?.dailyWage ?? null, site: e.worker?.siteName || null, days: new Map() });
     const w = byWorker.get(e.workerId);
     const d = dayOf(e.at);
     if (!w.days.has(d)) w.days.set(d, []);
@@ -128,7 +128,7 @@ export async function GET(req) {
       daysPresent += 1;
     }
     if (daysPresent === 0) continue;
-    workers.push({ id, name: w.name, jobTitle: w.jobTitle, site: w.site, dailyWage: w.dailyWage, perDay, totalMinutes, daysPresent });
+    workers.push({ id, name: w.name, jobTitle: w.jobTitle, phone: w.phone, site: w.site, dailyWage: w.dailyWage, perDay, totalMinutes, daysPresent });
     grandMinutes += totalMinutes;
     grandDays += daysPresent;
   }
@@ -141,14 +141,14 @@ export async function GET(req) {
     const hrs = (m) => (m / 60).toFixed(2);
     const rows = [];
     if (period === "day") {
-      rows.push(["Date", "Worker", "Job title", "Site", "First in", "Last out", "Sessions", "Hours"]);
-      for (const w of workers) { const d = w.perDay[from] || {}; rows.push([from, w.name, w.jobTitle || "", w.site || "", d.firstIn || "", d.lastOut || "", d.sessions || 0, hrs(w.totalMinutes)]); }
+      rows.push(["Date", "Worker", "Phone", "Job title", "Site", "First in", "Last out", "Sessions", "Hours"]);
+      for (const w of workers) { const d = w.perDay[from] || {}; rows.push([from, w.name, w.phone || "", w.jobTitle || "", w.site || "", d.firstIn || "", d.lastOut || "", d.sessions || 0, hrs(w.totalMinutes)]); }
     } else {
-      rows.push(["Worker", "Job title", "Site", ...days, "Days", "Total hours"]);
-      for (const w of workers) rows.push([w.name, w.jobTitle || "", w.site || "", ...days.map((d) => (w.perDay[d] ? hrs(w.perDay[d].minutes) : "")), w.daysPresent, hrs(w.totalMinutes)]);
+      rows.push(["Worker", "Phone", "Job title", "Site", ...days, "Days", "Total hours"]);
+      for (const w of workers) rows.push([w.name, w.phone || "", w.jobTitle || "", w.site || "", ...days.map((d) => (w.perDay[d] ? hrs(w.perDay[d].minutes) : "")), w.daysPresent, hrs(w.totalMinutes)]);
     }
     rows.push([]);
-    rows.push(["", "", "Totals", ...(period === "day" ? [] : days.map(() => "")), period === "day" ? "" : grandDays, hrs(grandMinutes)]);
+    rows.push(["", "", "", "Totals", ...(period === "day" ? [] : days.map(() => "")), period === "day" ? "" : grandDays, hrs(grandMinutes)]);
     const body = rows.map((r) => r.map(esc).join(",")).join("\n");
     return new Response(body, {
       status: 200,
